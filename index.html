@@ -4282,12 +4282,19 @@ function openPaymentModalBySubId(subId) {
     const subIdInput = document.getElementById('pay-sub-id');
     const custName = document.getElementById('modal-cust-name');
     const custBalance = document.getElementById('modal-cust-balance');
+    const payDateInput = document.getElementById('pay-date'); // Input para sa Date of Payment
 
     if (subIdInput) subIdInput.value = sub.id;
     if (custName) custName.innerText = `Customer: ${sub.name} (${sub.id})`;
     if (custBalance) custBalance.innerText = `Current Balance: ₱${(sub.balance || 0).toLocaleString()}`;
 
-    // 2. Buksan ang payment modal (Remove hidden, add flex)
+    // 2. Kusa nitong ilalagay ang kasalukuyang petsa ngayon (YYYY-MM-DD)
+    if (payDateInput) {
+        const today = new Date().toISOString().split('T')[0];
+        payDateInput.value = today;
+    }
+
+    // 3. Buksan ang payment modal (Remove hidden, add flex)
     const modal = document.getElementById('payment-modal');
     if (modal) {
         modal.classList.remove('hidden');
