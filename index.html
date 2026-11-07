@@ -4326,7 +4326,10 @@ function renderOutstandingBalanceOverview() {
                     ${isPaid ? '<span class="px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-emerald-100 text-emerald-800">PAID</span>' : `₱${(s.balance || 0).toLocaleString()}`}
                 </td>
                 <td class="py-3 px-3 text-right">
-                    ${isPaid ? `<button onclick="openReceiptModalBySubId('${s.id}')" class="bg-emerald-600 text-white px-3 py-1 rounded text-xs font-bold shadow-sm">Print</button>` : `<button onclick="openPaymentModalBySubId('${s.id}')" class="bg-emerald-600 text-white px-3 py-1 rounded text-xs font-bold shadow-sm">Collect</button>`}
+                    ${isPaid 
+                        ? `<button onclick="openReceiptModalBySubId('${s.id}')" class="bg-emerald-600 text-white px-3 py-1 rounded text-xs font-bold shadow-sm">Print</button>` 
+                        : `<button onclick="openPaymentModalBySubId('${s.id}')" class="bg-emerald-600 text-white px-3 py-1 rounded text-xs font-bold shadow-sm">Collect</button>`
+                    }
                 </td>
             </tr>
         `;
@@ -4351,7 +4354,10 @@ function renderOutstandingBalanceOverview() {
                         <p>📅 <strong>Due Day:</strong> Day ${s.dueDay || 19}</p>
                     </div>
                     <div class="flex gap-2 pt-1">
-                        ${isPaid ? `<button onclick="openReceiptModalBySubId('${s.id}')" class="w-full bg-emerald-600 text-white py-2.5 rounded-lg text-xs font-bold shadow-sm active:scale-95 transition-transform">Print Receipt</button>` : `<button onclick="openPaymentModalBySubId('${s.id}')" class="w-full bg-emerald-600 text-white py-2.5 rounded-lg text-xs font-bold shadow-sm active:scale-95 transition-transform">Collect Payment</button>`}
+                        ${isPaid 
+                            ? `<button onclick="openReceiptModalBySubId('${s.id}')" class="w-full bg-emerald-600 text-white py-2.5 rounded-lg text-xs font-bold shadow-sm active:scale-95 transition-transform">Print Receipt</button>` 
+                            : `<button onclick="openPaymentModalBySubId('${s.id}')" class="w-full bg-emerald-600 text-white py-2.5 rounded-lg text-xs font-bold shadow-sm active:scale-95 transition-transform">Collect Payment</button>`
+                        }
                     </div>
                 </div>
             `;
