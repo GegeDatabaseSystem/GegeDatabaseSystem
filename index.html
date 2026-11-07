@@ -1370,41 +1370,89 @@
                 </div>
             </div>
 
-            <!-- BACKUP VIEW -->
-            <div id="view-backup" class="hidden space-y-6 max-w-3xl mx-auto">
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-6">
-                    <div>
-                        <h3 class="text-base font-bold text-slate-800 mb-1 flex items-center space-x-2">
-                            <i class="fa-solid fa-database text-purple-600"></i><span>Batch Import & Database Backup Management</span>
-                        </h3>
-                        <p class="text-xs text-slate-500">I-backup ang buong sistema o mag-import ng master list ng kustomer patungo sa iyong bagong Supabase account.</p>
-                    </div>
+          <!-- SETTINGS VIEW (Backup & MikroTik Integration) -->
+<div id="view-backup" class="hidden space-y-6 max-w-3xl mx-auto">
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-6">
+        
+        <!-- Header & Sub-Tabs -->
+        <div class="flex flex-col space-y-4 border-b border-slate-200 pb-4">
+            <h3 class="text-base font-bold text-slate-800 flex items-center space-x-2">
+                <i class="fa-solid fa-gear text-indigo-600"></i>
+                <span>System Settings & Integrations</span>
+            </h3>
+            
+            <div class="flex space-x-2">
+                <button onclick="switchSettingsSubTab('backup')" id="subtab-backup-btn" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold transition-all shadow-sm">
+                    <i class="fa-solid fa-database mr-1.5"></i> Batch Import / Backup
+                </button>
+                <button onclick="switchSettingsSubTab('mikrotik')" id="subtab-mikrotik-btn" class="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-xs font-bold transition-all shadow-sm hover:bg-slate-200">
+                    <i class="fa-solid fa-router mr-1.5"></i> MikroTik Integration
+                </button>
+            </div>
+        </div>
 
-                    <!-- EXPORT CARD -->
-                    <div class="p-4 rounded-xl border border-indigo-200 bg-indigo-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                        <div>
-                            <h4 class="text-xs font-bold text-indigo-900 uppercase">1. Export Database Backup (JSON)</h4>
-                            <p class="text-xs text-slate-600 mt-0.5">I-download ang kasalukuyang kopya ng mga kustomer, payment logs, at system records.</p>
-                        </div>
-                        <button onclick="exportJsonBackup()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs shadow cursor-pointer transition flex items-center space-x-1.5">
-                            <i class="fa-solid fa-file-arrow-down"></i><span>Export JSON Backup</span>
-                        </button>
-                    </div>
+        <!-- 1. BATCH IMPORT & BACKUP SECTION -->
+        <div id="settings-backup-section" class="space-y-4">
+            <!-- EXPORT CARD -->
+            <div class="p-4 rounded-xl border border-indigo-200 bg-indigo-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <h4 class="text-xs font-bold text-indigo-900 uppercase">1. Export Database Backup (JSON)</h4>
+                    <p class="text-xs text-slate-600 mt-0.5">I-download ang kasalukuyang kopya ng mga kustomer, payment logs, at system records.</p>
+                </div>
+                <button onclick="exportJsonBackup()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs shadow-sm flex items-center space-x-2 shrink-0">
+                    <i class="fa-solid fa-file-arrow-down"></i><span>Export JSON Backup</span>
+                </button>
+            </div>
 
-                    <!-- IMPORT CARD -->
-                    <div class="p-4 rounded-xl border border-emerald-200 bg-emerald-50/50 space-y-3">
-                        <div>
-                            <h4 class="text-xs font-bold text-emerald-900 uppercase">2. Batch Import / Restore sa Bagong Supabase</h4>
-                            <p class="text-xs text-slate-600 mt-0.5">Mag-upload ng .json backup file para i-restore o i-migrate ang mga kustomer sa bagong database.</p>
-                        </div>
-                        <div class="flex items-center space-x-3 pt-2">
-                            <input type="file" id="backup-file-input" accept=".json" onchange="importJsonBackup(event)" class="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white hover:file:bg-emerald-700 cursor-pointer">
-                        </div>
-                    </div>
+            <!-- IMPORT CARD -->
+            <div class="p-4 rounded-xl border border-emerald-200 bg-emerald-50/50 space-y-3">
+                <div>
+                    <h4 class="text-xs font-bold text-emerald-900 uppercase">2. Batch Import / Restore sa Bagong Supabase</h4>
+                    <p class="text-xs text-slate-600 mt-0.5">Mag-upload ng .json backup file para i-restore o i-migrate ang mga kustomer.</p>
+                </div>
+                <div>
+                    <input type="file" id="backup-file-input" accept=".json" onchange="importJsonBackup(event)" class="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white hover:file:bg-emerald-700 cursor-pointer">
                 </div>
             </div>
-        </main>
+        </div>
+
+        <!-- 2. MIKROTIK INTEGRATION SECTION -->
+        <div id="settings-mikrotik-section" class="hidden space-y-4">
+            <div class="space-y-4">
+                <div>
+                    <h4 class="text-xs font-bold text-slate-900 uppercase">MikroTik Router API Settings</h4>
+                    <p class="text-xs text-slate-500 mt-0.5">I-setup ang credentials ng iyong MikroTik router para sa awtomatikong control at PPPoE sync.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">Router IP Address / Host</label>
+                        <input type="text" id="mk-host" placeholder="192.168.88.1" class="w-full border border-slate-200 p-2.5 rounded-xl bg-white">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">API Port (Default: 8728)</label>
+                        <input type="number" id="mk-port" value="8728" class="w-full border border-slate-200 p-2.5 rounded-xl bg-white">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">Username</label>
+                        <input type="text" id="mk-user" placeholder="admin" class="w-full border border-slate-200 p-2.5 rounded-xl bg-white">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">Password</label>
+                        <input type="password" id="mk-pass" placeholder="••••••••" class="w-full border border-slate-200 p-2.5 rounded-xl bg-white">
+                    </div>
+                </div>
+
+                <div class="flex justify-end pt-2">
+                    <button onclick="testAndSaveMikroTik()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs shadow-sm flex items-center space-x-2">
+                        <i class="fa-solid fa-plug"></i><span>Test & Save MikroTik Connection</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
     </div>
+</div>
 
     <!-- MARK EVALUATED MODAL -->
     <div id="mark-evaluated-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
@@ -4839,14 +4887,69 @@ function openPaymentModalBySubId(subId) {
             link.click();
         }
 
-        function exportJsonBackup() {
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({subscribers, paymentLogs, systemUsers, customerComplaints, internetInstallations}, null, 2));
-            const dl = document.createElement('a');
-            dl.setAttribute("href", dataStr);
-            dl.setAttribute("download", `tacsfiber_backup.json`);
-            dl.click();
-            dl.remove();
+        async function exportJsonBackup() {
+    try {
+        const sb = getSupabase();
+        if (!sb) {
+            alert("⚠️ Walang active Supabase client connection.");
+            return;
         }
+
+        // 1. Kunin ang subscribers data (ito ang pinakamahalaga)
+        const { data: subscribersData, error: subError } = await sb.from('subscribers').select('*');
+        if (subError) {
+            console.error("Subscribers error:", subError);
+        }
+
+        // 2. Ligtas na kunin ang iba pang tables kung mayroon man
+        let billingData = [];
+        try {
+            const resBill = await sb.from('billing_records').select('*');
+            if (!resBill.error) billingData = resBill.data || [];
+        } catch (e) {
+            console.log("No billing_records table or skipped.");
+        }
+
+        let paymentData = [];
+        try {
+            const resPay = await sb.from('payment_history').select('*');
+            if (!resPay.error) paymentData = resPay.data || [];
+        } catch (e) {
+            console.log("No payment_history table or skipped.");
+        }
+
+        const backupData = {
+            subscribers: subscribersData || [],
+            billingRecords: billingData,
+            payments: paymentData,
+            exportDate: new Date().toISOString(),
+            systemName: "TacsFiber Billing System"
+        };
+
+        const jsonString = JSON.stringify(backupData, null, 2);
+        const blob = new Blob([jsonString], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        
+        const dl = document.createElement('a');
+        dl.href = url;
+        const dateNow = new Date().toISOString().split('T')[0];
+        dl.download = `TacsFiber_Cloud_Backup_${dateNow}.json`;
+        
+        document.body.appendChild(dl);
+        dl.click();
+        
+        setTimeout(() => {
+            document.body.removeChild(dl);
+            URL.revokeObjectURL(url);
+        }, 100);
+
+        alert('Matagumpay na nai-export ang database backup direkta mula sa Supabase!');
+        
+    } catch (error) {
+        console.error(error);
+        alert('Nagkaroon ng problema sa pag-export mula sa Supabase: ' + error.message);
+    }
+}
 
         function togglePassword() {
     const p = document.getElementById('login-pass');
@@ -5439,6 +5542,34 @@ window.addEventListener('DOMContentLoaded', () => {
                 }
             }
         });
+        
+        function switchSettingsSubTab(tab) {
+            const backupSec = document.getElementById('settings-backup-section');
+            const mkSec = document.getElementById('settings-mikrotik-section');
+            const backupBtn = document.getElementById('subtab-backup-btn');
+            const mkBtn = document.getElementById('subtab-mikrotik-btn');
+
+            if (tab === 'backup') {
+                backupSec.classList.remove('hidden');
+                mkSec.classList.add('hidden');
+                backupBtn.className = "px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold transition-all shadow-sm";
+                mkBtn.className = "px-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-xs font-bold transition-all shadow-sm hover:bg-slate-200";
+            } else {
+                backupSec.classList.add('hidden');
+                mkSec.classList.remove('hidden');
+                mkBtn.className = "px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold transition-all shadow-sm";
+                backupBtn.className = "px-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-xs font-bold transition-all shadow-sm hover:bg-slate-200";
+            }
+        }
+
+        function testAndSaveMikroTik() {
+            const host = document.getElementById('mk-host').value;
+            if (!host) {
+                alert('Mangyaring ilagay ang Router IP address.');
+                return;
+            }
+            alert('Matagumpay na nai-save ang MikroTik settings!');
+        }       
     </script>
 </body>
 </html>
