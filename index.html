@@ -5286,6 +5286,91 @@ async function loadSalesExpensesHistory() {
 window.addEventListener('DOMContentLoaded', () => {
     loadSalesExpensesHistory();
 });
+
+// ⭐ TACSFIBER COMPLETE KEYBOARD SHORTCUTS MANAGER
+        window.addEventListener('keydown', (e) => {
+            // 1. UNIVERSAL CTRL + F / CMD + F: Focus sa visible search input ng kahit anong active tab
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
+                e.preventDefault();
+                const allInputs = Array.from(document.querySelectorAll('input[type="text"], input[type="search"]'));
+                const visibleSearchInput = allInputs.find(input => {
+                    return input.offsetParent !== null && 
+                           (input.placeholder.toLowerCase().includes('search') || 
+                            input.id.toLowerCase().includes('search') ||
+                            input.placeholder.toLowerCase().includes('name'));
+                }) || allInputs.find(input => input.offsetParent !== null);
+
+                if (visibleSearchInput) {
+                    visibleSearchInput.focus();
+                    visibleSearchInput.select();
+                }
+            }
+
+            // 2. ESCAPE KEY: I-clear ang Search input at tanggalin ang table highlights
+            if (e.key === 'Escape') {
+                const activeSearch = document.activeElement;
+                if (activeSearch && (activeSearch.tagName === 'INPUT' || activeSearch.tagName === 'TEXTAREA')) {
+                    activeSearch.value = '';
+                    activeSearch.blur();
+                }
+                const highlighted = document.querySelectorAll('.bg-indigo-100, .bg-indigo-50, .bg-slate-100');
+                highlighted.forEach(el => {
+                    el.classList.remove('bg-indigo-100', 'bg-indigo-50', 'bg-slate-100');
+                    el.style.backgroundColor = '';
+                });
+            }
+
+            // 3. ARROW KEYS (Up / Down) NAVIGATION & ENTER KEY TO SELECT
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter') {
+                const activeTable = document.querySelector('table:not([style*="display: none"])');
+                
+                if (activeTable) {
+                    const rows = Array.from(activeTable.querySelectorAll('tbody tr')).filter(r => r.style.display !== 'none');
+                    if (rows.length === 0) return;
+
+                    let currentIndex = rows.findIndex(r => r.classList.contains('bg-indigo-100') || r.classList.contains('bg-indigo-50'));
+
+                    // Kapag Enter Key ang pinindot sa naka-highlight na row
+                    if (e.key === 'Enter' && currentIndex !== -1) {
+                        e.preventDefault();
+                        const targetRow = rows[currentIndex];
+                        const actionBtn = targetRow.querySelector('button') || targetRow;
+                        actionBtn.click();
+                        return;
+                    }
+
+                    if (e.key === 'ArrowDown') {
+                        currentIndex = (currentIndex + 1) < rows.length ? currentIndex + 1 : 0;
+                    } else if (e.key === 'ArrowUp') {
+                        currentIndex = (currentIndex - 1) >= 0 ? currentIndex - 1 : rows.length - 1;
+                    }
+
+                    rows.forEach(r => {
+                        r.classList.remove('bg-indigo-100', 'bg-indigo-50');
+                        r.style.backgroundColor = '';
+                    });
+                    
+                    const targetRow = rows[currentIndex];
+                    if (targetRow && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+                        e.preventDefault();
+                        targetRow.classList.add('bg-indigo-100');
+                        targetRow.style.backgroundColor = '#e0e7ff';
+                        targetRow.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                    }
+                }
+            }
+
+            // 4. ALT + 1/2/3/4: Quick Profile Switcher sa Login Screen
+            if (e.altKey && ['1', '2', '3', '4'].includes(e.key)) {
+                e.preventDefault();
+                if (typeof quickFillAccount === 'function') {
+                    if (e.key === '1') quickFillAccount('Ronel Tacocong', 'ADMIN');
+                    if (e.key === '2') quickFillAccount('Asst Admin', 'ASST_ADMIN');
+                    if (e.key === '3') quickFillAccount('Collector', 'COLLECTOR');
+                    if (e.key === '4') quickFillAccount('Technician', 'TECHNICIAN');
+                }
+            }
+        });
     </script>
 </body>
 </html>
