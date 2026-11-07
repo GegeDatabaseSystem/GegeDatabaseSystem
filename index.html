@@ -5771,7 +5771,7 @@ async function fetchMikroTikSecrets() {
                     </span>
                 </td>
                 <td class="p-3 text-right">
-                    <button onclick="alert('Action para kay: ${sec.name}')" class="px-2.5 py-1 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 font-bold transition-all">Disable</button>
+                    <button onclick="disableSecret('${sec.name}')" class="px-2.5 py-1 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 font-bold transition-all">Disable</button>
                 </td>
             </tr>
         `).join('');
@@ -5841,6 +5841,28 @@ async function fetchMikroTikProfiles() {
     } catch (err) {
         console.error(err);
         tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-red-500">Error sa pag-fetch ng profiles.</td></tr>`;
+    }
+}
+
+async function disableSecret(username) {
+    if (!confirm(`Sigurado ka bang nais mong i-disable at putulan ng internet si ${username}?`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`http://localhost:8081/api/secret/disable?username=${encodeURIComponent(username)}`);
+        const result = await response.json();
+
+        if (result.status === 'success') {
+            alert(result.message);
+            // I-refresh agad ang listahan ng secrets para makita ang pagbabago
+            fetchMikroTikSecrets();
+        } else {
+            alert('May error: ' + (result.message || 'Hindi matagumpay.'));
+        }
+    } catch (err) {
+        console.error(err);
+        alert('Nabigong kumonekta sa Python bridge server.');
     }
 }
 
