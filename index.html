@@ -1067,8 +1067,8 @@
                             <input type="text" id="collection-list-search" oninput="renderCollectionListTable()" placeholder="Search name..." class="border border-slate-300 rounded-xl px-3.5 py-2 text-xs w-full sm:w-44 shadow-sm">
                         </div>
                     </div>
-
-                    <div class="overflow-x-auto max-h-[65vh] relative border border-slate-200 rounded-xl">
+                    <div id="collection-list-mobile-container" class="block md:hidden space-y-3 mt-3"></div>
+                    <div class="hidden md:block overflow-x-auto max-h-[65vh] relative border border-slate-200 rounded-xl">
                         <table class="w-full text-left border-collapse table-auto min-w-[1000px]">
                             <thead class="sticky top-0 z-20 bg-amber-50 text-amber-900 text-xs uppercase font-bold">
                                 <tr>
@@ -4275,55 +4275,89 @@ function renderOutstandingBalanceOverview() {
         }
 
         function renderCollectionListTable() {
-            const tbody = document.getElementById('collection-list-table-body');
-            if(!tbody) return;
-            tbody.innerHTML = '';
+    const tbody = document.getElementById('collection-list-table-body');
+    const mobileContainer = document.getElementById('collection-list-mobile-container');
+    
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    if (mobileContainer) mobileContainer.innerHTML = '';
 
-            const currentUser = getActiveUser();
-            const currentRole = getActiveRole();
-            const brgyFilter = document.getElementById('barangayFilter') ? document.getElementById('barangayFilter').value : 'ALL';
-            const search = document.getElementById('collection-list-search') ? document.getElementById('collection-list-search').value.toLowerCase().trim() : '';
+    const currentUser = getActiveUser();
+    const currentRole = getActiveRole();
+    const brgyFilter = document.getElementById('barangayFilter') ? document.getElementById('barangayFilter').value : 'ALL';
+    const search = document.getElementById('collection-list-search') ? document.getElementById('collection-list-search').value.toLowerCase() : '';
 
-            let list = subscribers;
-            if(currentRole === 'COLLECTOR') {
-                list = subscribers.filter(s => (s.assignedCollector || '').toLowerCase() === currentUser.toLowerCase());
-            }
+    let list = subscribers;
+    if (currentRole === 'COLLECTOR') {
+        list = subscribers.filter(s => (s.assignedCollector || '').toLowerCase() === currentUser.toLowerCase());
+    }
 
-            if(currentCollectionStatusTab === 'UNPAID') {
-                list = list.filter(s => (s.balance || 0) > 0);
-            } else {
-                list = list.filter(s => (s.balance || 0) <= 0);
-            }
+    if (currentCollectionStatusTab === 'UNPAID') {
+        list = list.filter(s => (s.balance || 0) > 0);
+    } else {
+        list = list.filter(s => (s.balance || 0) <= 0);
+    }
 
-            if(brgyFilter !== 'ALL') list = list.filter(s => (s.barangay || 'Poblacion') === brgyFilter);
-            if(search) list = list.filter(s => s.name.toLowerCase().includes(search));
+    if (brgyFilter !== 'ALL') list = list.filter(s => (s.barangay || 'Poblacion') === brgyFilter);
+    if (search) list = list.filter(s => s.name.toLowerCase().includes(search));
 
-            if(list.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="9" class="text-center py-6 text-slate-400 font-medium">Walang kustomer sa status na ito.</td></tr>`;
-                return;
-            }
+    if (list.length === 0) {
+        const emptyMsg = `<div class="text-center py-6 text-slate-400 font-medium">Walang kustomer sa status na ito.</div>`;
+        tbody.innerHTML = `<tr><td colspan="9">${emptyMsg}</td></tr>`;
+        if (mobileContainer) mobileContainer.innerHTML = emptyMsg;
+        return;
+    }
 
-            tbody.innerHTML = list.slice(0, 200).map(s => {
-                const isPaid = (s.balance || 0) <= 0;
-                return `
-                    <tr class="hover:bg-amber-50/50 border-b">
-                        <td class="py-3 px-3 font-mono font-bold text-amber-700">${s.id}</td>
-                        <td class="py-3 px-3 font-bold text-slate-800">${s.name}</td>
-                        <td class="py-3 px-3 font-bold text-indigo-700"><span class="bg-indigo-50 px-2 py-0.5 rounded border">${s.barangay || 'Poblacion'}</span></td>
-                        <td class="py-3 px-3">${s.address || 'N/A'}</td>
-                        <td class="py-3 px-3 font-mono">${s.contact}</td>
-                        <td class="py-3 px-3 font-bold">Day ${s.dueDay || 19}</td>
-                        <td class="py-3 px-3 font-bold text-slate-700">${s.assignedCollector || 'Unassigned'}</td>
-                        <td class="py-3 px-3 font-bold ${isPaid ? 'text-emerald-600' : 'text-rose-600'}">
-                            ${isPaid ? '<span class="px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-emerald-100 text-emerald-800">PAID</span>' : '₱' + (s.balance||0).toLocaleString()}
-                        </td>
-                        <td class="py-3 px-3 text-right">
-                            ${isPaid ? `<button onclick="openReceiptModalBySubId('${s.id}')" class="bg-emerald-600 text-white px-3 py-1 rounded text-xs font-bold cursor-pointer">Print</button>` : `<button onclick="openPaymentModal('${s.id}')" class="bg-emerald-600 text-white px-3 py-1 rounded text-xs font-bold cursor-pointer">Collect</button>`}
-                        </td>
-                    </tr>
-                `;
-            }).join('');
-        }
+    const filteredList = list.slice(0, 200);
+
+    // 1. DESKTOP TABLE VIEW (Mananatili para sa Computer/PC)
+    tbody.innerHTML = filteredList.map(s => {
+        const isPaid = (s.balance || 0) <= 0;
+        return `
+            <tr class="hover:bg-amber-50/50 border-b">
+                <td class="py-3 px-3 font-mono font-bold text-amber-700">${s.id}</td>
+                <td class="py-3 px-3 font-bold text-slate-800">${s.name}</td>
+                <td class="py-3 px-3 font-bold text-indigo-700"><span class="bg-indigo-50 px-2 py-0.5 rounded border">${s.barangay || 'Poblacion'}</span></td>
+                <td class="py-3 px-3">${s.address || 'N/A'}</td>
+                <td class="py-3 px-3 font-mono">${s.contact || 'N/A'}</td>
+                <td class="py-3 px-3 font-bold">Day ${s.dueDay || 19}</td>
+                <td class="py-3 px-3 font-bold text-slate-700">${s.assignedCollector || 'Unassigned'}</td>
+                <td class="py-3 px-3 font-bold ${isPaid ? 'text-emerald-600' : 'text-rose-600'}">
+                    ${isPaid ? '<span class="px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-emerald-100 text-emerald-800">PAID</span>' : `₱${(s.balance || 0).toLocaleString()}`}
+                </td>
+                <td class="py-3 px-3 text-right">
+                    ${isPaid ? `<button onclick="openReceiptModalBySubId('${s.id}')" class="bg-emerald-600 text-white px-3 py-1 rounded text-xs font-bold shadow-sm">Print</button>` : `<button onclick="openPaymentModalBySubId('${s.id}')" class="bg-emerald-600 text-white px-3 py-1 rounded text-xs font-bold shadow-sm">Collect</button>`}
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    // 2. MOBILE CARD VIEW (Lilitaw lang sa Android Phones)
+    if (mobileContainer) {
+        mobileContainer.innerHTML = filteredList.map(s => {
+            const isPaid = (s.balance || 0) <= 0;
+            return `
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-3">
+                    <div class="flex justify-between items-start mb-2">
+                        <div>
+                            <span class="text-xs font-mono font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">${s.id}</span>
+                            <h3 class="font-bold text-slate-800 text-base mt-1">${s.name}</h3>
+                        </div>
+                        ${isPaid ? '<span class="px-2 py-0.5 rounded-full text-xs font-extrabold bg-emerald-100 text-emerald-800">PAID</span>' : `<span class="text-base font-extrabold text-rose-600">₱${(s.balance || 0).toLocaleString()}</span>`}
+                    </div>
+                    <div class="text-xs text-slate-600 space-y-1 mb-3 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                        <p>📍 <strong>Barangay:</strong> ${s.barangay || 'Poblacion'} (${s.address || 'N/A'})</p>
+                        <p>📞 <strong>Contact:</strong> ${s.contact || 'N/A'}</p>
+                        <p>📅 <strong>Due Day:</strong> Day ${s.dueDay || 19}</p>
+                    </div>
+                    <div class="flex gap-2 pt-1">
+                        ${isPaid ? `<button onclick="openReceiptModalBySubId('${s.id}')" class="w-full bg-emerald-600 text-white py-2.5 rounded-lg text-xs font-bold shadow-sm active:scale-95 transition-transform">Print Receipt</button>` : `<button onclick="openPaymentModalBySubId('${s.id}')" class="w-full bg-emerald-600 text-white py-2.5 rounded-lg text-xs font-bold shadow-sm active:scale-95 transition-transform">Collect Payment</button>`}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+}
 
         function renderDisconnectedList() {
             const tbody = document.getElementById('disconnected-list-table-body');
