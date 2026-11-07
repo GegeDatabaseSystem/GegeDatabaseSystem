@@ -1784,10 +1784,11 @@
 
         function quickFillAccount(username, role) {
             document.getElementById('login-user').value = username;
-            if(role === 'ADMIN') {
-                document.getElementById('login-pass').value = 'Gege@635185';
-            } else {
-                document.getElementById('login-pass').value = '12345';
+            
+            const passField = document.getElementById('login-pass');
+            if (passField) {
+                passField.value = '';
+                passField.focus();
             }
         }
 
