@@ -5238,13 +5238,14 @@ async function loadSalesExpensesHistory() {
 
     console.log("History reports mula Supabase:", data);
 
-    // Hanapin ang table sa ilalim ng Saved Sales & Expenses History Log
+   // Hanapin ang table sa ilalim ng Saved Sales & Expenses History Log
     const tables = document.querySelectorAll('table');
     let targetTable = null;
 
-    // Hanapin ang table na may ganitong mga header
+    // Hanapin ang table na may ganitong mga header (Ginawa nating .toUpperCase() para siguradong tumugma)
     tables.forEach(tbl => {
-        if (tbl.innerText.includes('TOTAL SALES') && tbl.innerText.includes('ENCODED BY')) {
+        const tblText = tbl.innerText.toUpperCase();
+        if (tblText.includes('TOTAL SALES') && tblText.includes('ENCODED BY')) {
             targetTable = tbl;
         }
     });
