@@ -1463,31 +1463,66 @@
                 </button>
             </div>
 
-            <!-- 1. SECRETS TABLE -->
-            <div id="mk-sec-view" class="space-y-3">
-                <div class="flex justify-between items-center">
-                    <span class="text-xs font-bold text-slate-700 uppercase">Registered PPPoE Secrets</span>
-                    <button onclick="fetchMikroTikSecrets()" class="bg-slate-800 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-slate-900">
-                        <i class="fa-solid fa-rotate mr-1"></i> Refresh Secrets
-                    </button>
-                </div>
-                <div class="border border-slate-200 rounded-xl overflow-hidden bg-white max-h-60 overflow-y-auto">
-                    <table class="w-full text-left text-xs text-slate-600">
-                        <thead class="bg-slate-100 text-slate-700 uppercase text-[10px] sticky top-0">
-                            <tr>
-                                <th class="p-2.5">Username</th>
-                                <th class="p-2.5">Password</th>
-                                <th class="p-2.5">Profile</th>
-                                <th class="p-2.5">Status</th>
-                                <th class="p-2.5 text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="mk-secrets-tbody" class="divide-y divide-slate-100">
-                            <tr><td colspan="5" class="p-4 text-center text-slate-400">Walang naka-load na secrets.</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+            <!-- 1. SECRETS VIEW CONTAINER -->
+<div id="mk-sec-view" class="space-y-3">
+    <div class="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-200">
+        <div class="flex items-center space-x-2">
+            <span class="text-xs font-bold text-slate-700 uppercase tracking-wider">Registered PPPoE Secrets</span>
+            <span id="mk-secrets-count" class="px-2.5 py-0.5 bg-indigo-100 text-indigo-700 rounded-full text-[11px] font-bold">0 Total</span>
+        </div>
+        <button onclick="fetchMikroTikSecrets()" class="bg-slate-800 hover:bg-slate-900 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1">
+            <i class="fa-solid fa-rotate mr-1"></i><span>Refresh Secrets</span>
+        </button>
+    </div>
+    <div class="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
+        <div class="overflow-x-auto max-h-[450px] overflow-y-auto">
+            <table class="w-full text-left text-xs text-slate-600">
+                <thead class="bg-slate-100 text-slate-700 uppercase text-[10px] sticky top-0 z-10 border-b border-slate-200">
+                    <tr>
+                        <th class="p-3">Username</th>
+                        <th class="p-3">Password</th>
+                        <th class="p-3">Profile</th>
+                        <th class="p-3">Status</th>
+                        <th class="p-3 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="mk-secrets-tbody" class="divide-y divide-slate-100">
+                    <tr><td colspan="5" class="p-6 text-center text-slate-400">I-click ang Refresh para sa mga secret.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- 2. ACTIVE VIEW CONTAINER -->
+<div id="mk-active-view" class="hidden space-y-3">
+    <div class="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-200">
+        <div class="flex items-center space-x-2">
+            <span class="text-xs font-bold text-slate-700 uppercase tracking-wider">Currently Online / Active Connections</span>
+            <span id="mk-active-count" class="px-2.5 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-[11px] font-bold">0 Online</span>
+        </div>
+        <button onclick="fetchMikroTikActive()" class="bg-slate-800 hover:bg-slate-900 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1">
+            <i class="fa-solid fa-rotate mr-1"></i><span>Refresh Active</span>
+        </button>
+    </div>
+    <div class="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
+        <div class="overflow-x-auto max-h-[450px] overflow-y-auto">
+            <table class="w-full text-left text-xs text-slate-600">
+                <thead class="bg-slate-100 text-slate-700 uppercase text-[10px] sticky top-0 z-10 border-b border-slate-200">
+                    <tr>
+                        <th class="p-3">Username</th>
+                        <th class="p-3">Address (IP)</th>
+                        <th class="p-3">Uptime</th>
+                        <th class="p-3">Caller ID</th>
+                    </tr>
+                </thead>
+                <tbody id="mk-active-tbody" class="divide-y divide-slate-100">
+                    <tr><td colspan="4" class="p-6 text-center text-slate-400">I-click ang Refresh para sa active users.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 
             <!-- 2. ACTIVE USERS TABLE -->
             <div id="mk-active-view" class="hidden space-y-3">
@@ -5708,55 +5743,76 @@ function testAndSaveMikroTik() {
     fetchMikroTikSecrets();
 }
 
-function fetchMikroTikSecrets() {
+async function fetchMikroTikSecrets() {
     const tbody = document.getElementById('mk-secrets-tbody');
-    tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-slate-500">Kumukuha ng PPPoE Secrets mula sa MikroTik...</td></tr>`;
-    setTimeout(() => {
-        const subs = typeof subscribers !== 'undefined' ? subscribers : [];
-        if (subs.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-slate-400">Walang nakitang kustomer.</td></tr>`;
-            return;
-        }
-        tbody.innerHTML = subs.map(sub => `
-            <tr class="hover:bg-slate-50">
-                <td class="p-2.5 font-bold text-slate-800">${sub.name || 'User'}</td>
-                <td class="p-2.5 text-slate-500">••••••••</td>
-                <td class="p-2.5">${sub.monthly_plan || 'Plan 600'}</td>
-                <td class="p-2.5"><span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full font-bold text-[10px]">ENABLED</span></td>
-                <td class="p-2.5 text-right space-x-1">
-                    <button onclick="alert('I-de-disable ang account na ito sa MikroTik')" class="px-2 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100 font-bold">Disable</button>
-                </td>
-            </tr>
-        `).join('');
-    }, 400);
-}
-
-async function fetchMikroTikActive() {
-    const tbody = document.getElementById('mk-active-tbody');
-    tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-500">Kumukuha ng totoong Active sessions mula sa MikroTik...</td></tr>`;
+    const countBadge = document.getElementById('mk-secrets-count');
+    tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-slate-500">Kumukuha ng PPPoE Secrets mula sa MikroTik Bridge...</td></tr>`;
 
     try {
-        // Tumatawag sa ating local bridge server (Port 8081)
-        const response = await fetch('http://localhost:8081/api/active');
-        const activeUsers = await response.json();
+        const response = await fetch('http://localhost:8081/api/secrets');
+        const secrets = await response.json();
 
-        if (!Array.isArray(activeUsers) || activeUsers.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-400">Walang kasalukuyang active sessions sa router.</td></tr>`;
+        if (!Array.isArray(secrets) || secrets.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-slate-400">Walang nakitang secrets sa router.</td></tr>`;
+            if (countBadge) countBadge.innerText = `0 Total`;
             return;
         }
 
-        tbody.innerHTML = activeUsers.map(user => `
-            <tr class="hover:bg-slate-50">
-                <td class="p-2.5 font-bold text-slate-800">${user.name || user['caller-id'] || 'N/A'}</td>
-                <td class="p-2.5 text-slate-600">${user.address || 'N/A'}</td>
-                <td class="p-2.5 text-slate-500">${user.uptime || 'N/A'}</td>
-                <td class="p-2.5 text-slate-500">${user['caller-id'] || 'N/A'}</td>
+        if (countBadge) countBadge.innerText = `${secrets.length} Total`;
+
+        tbody.innerHTML = secrets.map(sec => `
+            <tr class="hover:bg-slate-50/80 transition-colors">
+                <td class="p-3 font-bold text-slate-800">${sec.name || 'N/A'}</td>
+                <td class="p-3 text-slate-500 font-mono">••••••••</td>
+                <td class="p-3 font-medium text-slate-700">${sec.profile || 'default'}</td>
+                <td class="p-3">
+                    <span class="px-2.5 py-0.5 ${sec.disabled === 'true' ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'} rounded-full font-bold text-[10px]">
+                        ${sec.disabled === 'true' ? 'DISABLED' : 'ENABLED'}
+                    </span>
+                </td>
+                <td class="p-3 text-right">
+                    <button onclick="alert('Action para kay: ${sec.name}')" class="px-2.5 py-1 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 font-bold transition-all">Disable</button>
+                </td>
             </tr>
         `).join('');
 
     } catch (err) {
         console.error(err);
-        tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-red-500">Nabigong kumonekta sa MikroTik Bridge Server. Siguraduhing naka-on ito.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-red-500">Nabigong kumonekta sa Bridge server (Port 8081).</td></tr>`;
+        if (countBadge) countBadge.innerText = `0 Total`;
+    }
+}
+
+async function fetchMikroTikActive() {
+    const tbody = document.getElementById('mk-active-tbody');
+    const countBadge = document.getElementById('mk-active-count');
+    tbody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-slate-500">Sinusuri ang active sessions mula sa MikroTik Bridge...</td></tr>`;
+
+    try {
+        const response = await fetch('http://localhost:8081/api/active');
+        const activeUsers = await response.json();
+
+        if (!Array.isArray(activeUsers) || activeUsers.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-slate-400">Walang kasalukuyang active sessions.</td></tr>`;
+            if (countBadge) countBadge.innerText = `0 Online`;
+            return;
+        }
+
+        if (countBadge) countBadge.innerText = `${activeUsers.length} Online`;
+
+        tbody.innerHTML = activeUsers.map(user => `
+            <tr class="hover:bg-slate-50/80 transition-colors">
+                <td class="p-3 font-bold text-slate-800">${user.name || user['caller-id'] || 'N/A'}</td>
+                <td class="p-3 text-slate-600 font-mono">${user.address || 'N/A'}</td>
+                <td class="p-3 text-slate-500">${user.uptime || 'N/A'}</td>
+                <td class="p-3 text-slate-500 font-mono">${user['caller-id'] || 'N/A'}</td>
+            </tr>
+        `).join('');
+
+    } catch (err) {
+        console.error(err);
+        tbody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-red-500">Nabigong kumonekta sa Bridge server (Port 8081).</td></tr>`;
+        if (countBadge) countBadge.innerText = `0 Online`;
     }
 }
 
