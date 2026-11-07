@@ -4274,6 +4274,27 @@ function renderOutstandingBalanceOverview() {
             renderCollectionListTable();
         }
 
+function openPaymentModalBySubId(subId) {
+    const sub = subscribers.find(s => s.id === subId);
+    if (!sub) return;
+
+    // 1. I-set ang mga values sa Payment Modal inputs
+    const subIdInput = document.getElementById('pay-sub-id');
+    const custName = document.getElementById('modal-cust-name');
+    const custBalance = document.getElementById('modal-cust-balance');
+
+    if (subIdInput) subIdInput.value = sub.id;
+    if (custName) custName.innerText = `Customer: ${sub.name} (${sub.id})`;
+    if (custBalance) custBalance.innerText = `Current Balance: ₱${(sub.balance || 0).toLocaleString()}`;
+
+    // 2. Buksan ang payment modal (Remove hidden, add flex)
+    const modal = document.getElementById('payment-modal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+}
+
         function renderCollectionListTable() {
     const tbody = document.getElementById('collection-list-table-body');
     const mobileContainer = document.getElementById('collection-list-mobile-container');
