@@ -1876,7 +1876,7 @@
             }
         }
 
-        async function fetchSubscribersFromSupabase(isManual = false) {
+       async function fetchSubscribersFromSupabase(isManual = false) {
             const syncIcon = document.getElementById('sync-icon');
             const syncText = document.getElementById('sync-text');
 
@@ -1888,6 +1888,14 @@
             try {
                 const sb = getSupabase();
                 if(!sb) throw new Error("Supabase Client is not initialized.");
+
+                // ⭐ AUTOMATIC BILLING CYCLE TRIGGER: 
+                // Patakbuhin muna ang auto billing procedure sa Supabase para sa mga nag-due ngayong araw
+                try {
+                    await sb.rpc('process_automatic_daily_billing');
+                } catch(e) {
+                    console.warn("Auto billing RPC check failed or already executed:", e);
+                }
 
                 let allData = [];
                 let pageSize = 1000;
@@ -3888,18 +3896,55 @@ TacsFiber Team and Management`;
             const currentDay = getTodayDayOfMonth();
             const brgyFilter = document.getElementById('alertBrgyFilter') ? document.getElementById('alertBrgyFilter').value : 'ALL';
             const dueDayFilter = document.getElementById('alertDueFilter') ? document.getElementById('alertDueFilter').value : 'ALL';
+            
+            // Kunin ang kasalukuyang buwan at taon ngayon (hal. "November 2026") para masuri sa payment logs
+            const currentMonthTag = new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' });
 
-            let list = subscribers.filter(s => (s.balance || 0) > 0);
+            // 1. Salain muna ang mga DISCONNECTED na kustomer (huwag kailanman isama)
+            let list = subscribers.filter(s => (s.status || 'ACTIVE') !== 'DISCONNECTED');
+
             if(brgyFilter !== 'ALL') list = list.filter(s => (s.barangay || 'Poblacion') === brgyFilter);
             if(dueDayFilter !== 'ALL') list = list.filter(s => String(s.dueDay || 19) === String(dueDayFilter));
 
-            // ⭐ Salain muna para tanggalin ang mga DISCONNECTED sa lahat ng alert lists
-            list = list.filter(s => (s.status || 'ACTIVE') !== 'DISCONNECTED');
+            // 2. FILTER NA MAY PAYMENT HISTORY CHECK:
+            // Suriin kung ang kustomer ay nakapagbayad na ba para sa kasalukuyang buwan
+            list = list.filter(s => {
+                if ((s.balance || 0) <= 0) return false;
 
-            const overdueList = list.filter(s => (s.dueDay || 19) < currentDay);
-            const dueTodayList = list.filter(s => (s.dueDay || 19) === currentDay);
+                const hasPaidThisMonth = paymentLogs.some(p => 
+                    p.subscriberId === s.id && 
+                    p.monthsPaid && 
+                    p.monthsPaid.toLowerCase().includes(currentMonthTag.toLowerCase())
+                );
+
+                // Kung nakapagbayad na ngayong buwan, huwag na silang isama sa alert lists
+                if (hasPaidThisMonth) {
+                    return false;
+                }
+
+                return true;
+            });
+
+            // 3. I-filter ang Overdue, Due Today, at Coming Due
+            const overdueList = list.filter(s => {
+                const due = parseInt(s.dueDay || 19, 10);
+                const bal = parseFloat(s.balance) || 0;
+                return due < currentDay && (bal > 0 || (s.monthlyPlan || 600) > 0);
+            });
+
+            const dueTodayList = list.filter(s => {
+                const due = parseInt(s.dueDay || 19, 10);
+                return due === currentDay;
+            }).map(s => {
+                let displayBalance = parseFloat(s.balance) || 0;
+                if (displayBalance <= 0) {
+                    displayBalance = parseFloat(s.monthlyPlan || s.monthly_plan) || 600;
+                }
+                return { ...s, effectiveBalance: displayBalance };
+            });
+
             const comingDueList = list.filter(s => {
-                const due = s.dueDay || 19;
+                const due = parseInt(s.dueDay || 19, 10);
                 return due > currentDay && due <= currentDay + 3;
             });
 
@@ -3924,13 +3969,15 @@ TacsFiber Team and Management`;
 
             tbody.innerHTML = list.slice(0, 100).map(s => {
                 const assignedCol = s.assignedCollector || 'Unassigned';
+                const currentBalance = s.effectiveBalance !== undefined ? s.effectiveBalance : (parseFloat(s.balance) || 0);
+
                 return `
                     <tr class="hover:bg-slate-50 border-b">
                         <td class="py-2.5 px-3 font-mono font-bold text-indigo-600">${s.id}</td>
                         <td class="py-2.5 px-3 font-bold text-slate-800">${s.name}</td>
                         <td class="py-2.5 px-3 text-slate-600">${s.barangay || 'Poblacion'} <span class="font-mono text-[11px] text-slate-400">(${s.contact})</span></td>
                         <td class="py-2.5 px-3 font-bold">Day ${s.dueDay || 19}</td>
-                        <td class="py-2.5 px-3 font-bold text-rose-600">₱${(s.balance || 0).toLocaleString()}</td>
+                        <td class="py-2.5 px-3 font-bold text-rose-600">₱${currentBalance.toLocaleString()}</td>
                         <td class="py-2.5 px-3 text-center">
                             <button onclick="openAssignModal('${s.id}')" class="px-2 py-1 rounded text-xs font-bold ${assignedCol !== 'Unassigned' ? 'bg-amber-500 text-white' : 'bg-slate-200 text-slate-600'} cursor-pointer">
                                 ${assignedCol}
