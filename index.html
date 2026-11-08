@@ -720,114 +720,141 @@
             </div>
 
             <!-- VIEW: COLLECTION ALERT -->
-            <div id="view-collection-alert" class="hidden space-y-6">
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-6">
-                    <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-                        <div>
-                            <h3 class="text-base font-bold text-slate-800 flex items-center space-x-2">
-                                <i class="fa-solid fa-triangle-exclamation text-rose-600"></i><span>Collection Alerts & Billing Notifications</span>
-                            </h3>
-                            <p class="text-xs text-slate-500">Monitor Overdue, Due Today, and Coming Due accounts with SMS & Messenger integration.</p>
-                        </div>
+<div id="view-collection-alert" class="hidden space-y-6">
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-6">
+        
+        <!-- HEADER & TOP FILTERS -->
+        <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 border-b border-slate-100 pb-4">
+            <div>
+                <h3 class="text-base font-bold text-slate-800 flex items-center space-x-2">
+                    <i class="fa-solid fa-triangle-exclamation text-rose-600"></i>
+                    <span>Collection Alerts & Billing Notifications</span>
+                </h3>
+                <p class="text-xs text-slate-500">Monitor Overdue, Due Today, and Coming Due accounts with SMS & Messenger integration.</p>
+            </div>
 
-                        <div class="flex flex-wrap items-center gap-3 w-full lg:w-auto">
-                            <div class="flex items-center space-x-2 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200">
-                                <label class="text-xs font-bold text-slate-700"><i class="fa-solid fa-filter text-rose-500 mr-1"></i>Barangay:</label>
-                                <select id="alertBrgyFilter" onchange="renderCollectionAlertTables()" class="border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-800 bg-white focus:ring-2 focus:ring-rose-500 focus:outline-none">
-                                    <option value="ALL">All Barangays</option>
-                                </select>
-                            </div>
+            <div class="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+                <!-- SEARCH BY NAME BAR -->
+                <div class="flex items-center space-x-2 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200 w-full sm:w-auto">
+                    <i class="fa-solid fa-magnifying-glass text-slate-400 text-xs"></i>
+                    <input type="text" id="alertSearchInput" onkeyup="renderCollectionAlertTables()" placeholder="SEARCH BY NAME..." class="bg-transparent border-none text-xs font-bold text-slate-800 focus:outline-none w-full sm:w-48 uppercase">
+                </div>
 
-                            <div class="flex items-center space-x-2 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200">
-                                <label class="text-xs font-bold text-slate-700"><i class="fa-solid fa-calendar-days text-rose-500 mr-1"></i>Due Day:</label>
-                                <select id="alertDueFilter" onchange="renderCollectionAlertTables()" class="border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-800 bg-white focus:ring-2 focus:ring-rose-500 focus:outline-none">
-                                    <option value="ALL">All Due Dates</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
+                <!-- BARANGAY FILTER -->
+                <div class="flex items-center space-x-2 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200">
+                    <label class="text-xs font-bold text-slate-700"><i class="fa-solid fa-filter text-rose-500 mr-1"></i>Barangay:</label>
+                    <select id="alertBrgyFilter" onchange="renderCollectionAlertTables()" class="border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-800 bg-white focus:ring-2 focus:ring-rose-500 focus:outline-none">
+                        <option value="ALL">All Barangays</option>
+                    </select>
+                </div>
 
-                    <div class="space-y-6">
-                        <!-- OVERDUE ACCOUNTS -->
-                        <div id="section-overdue" class="border border-rose-200 rounded-2xl p-4 bg-rose-50/30 space-y-3">
-                            <div class="flex justify-between items-center">
-                                <h4 class="text-xs font-extrabold text-rose-700 uppercase tracking-wider flex items-center space-x-1.5">
-                                    <i class="fa-solid fa-circle-exclamation"></i><span>Overdue Accounts</span>
-                                </h4>
-                                <span id="count-overdue-badge" class="bg-rose-100 text-rose-800 text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>
-                            </div>
-                            <div class="overflow-x-auto border border-rose-100 rounded-xl bg-white">
-                                <table class="w-full text-left border-collapse text-xs">
-                                    <thead class="bg-rose-50 text-rose-900 font-bold">
-                                        <tr>
-                                            <th class="py-2.5 px-3">Account No.</th>
-                                            <th class="py-2.5 px-3">Customer Name</th>
-                                            <th class="py-2.5 px-3">Barangay / Contact</th>
-                                            <th class="py-2.5 px-3">Due Day</th>
-                                            <th class="py-2.5 px-3">Balance</th>
-                                            <th class="py-2.5 px-3 text-center">Assigned Collector</th>
-                                            <th class="py-2.5 px-3 text-right">Send Notification</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="table-overdue-body" class="divide-y divide-slate-100"></tbody>
-                                </table>
-                            </div>
-                        </div>
-
-                        <!-- DUE TODAY ACCOUNTS -->
-                        <div id="section-due-today" class="border border-amber-200 rounded-2xl p-4 bg-amber-50/30 space-y-3">
-                            <div class="flex justify-between items-center">
-                                <h4 class="text-xs font-extrabold text-amber-700 uppercase tracking-wider flex items-center space-x-1.5">
-                                    <i class="fa-solid fa-clock"></i><span>Due Today Accounts</span>
-                                </h4>
-                                <span id="count-today-badge" class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>
-                            </div>
-                            <div class="overflow-x-auto border border-amber-100 rounded-xl bg-white">
-                                <table class="w-full text-left border-collapse text-xs">
-                                    <thead class="bg-amber-50 text-amber-900 font-bold">
-                                        <tr>
-                                            <th class="py-2.5 px-3">Account No.</th>
-                                            <th class="py-2.5 px-3">Customer Name</th>
-                                            <th class="py-2.5 px-3">Barangay / Contact</th>
-                                            <th class="py-2.5 px-3">Due Day</th>
-                                            <th class="py-2.5 px-3">Balance</th>
-                                            <th class="py-2.5 px-3 text-center">Assigned Collector</th>
-                                            <th class="py-2.5 px-3 text-right">Send Notification</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="table-today-body" class="divide-y divide-slate-100"></tbody>
-                                </table>
-                            </div>
-                        </div>
-
-                        <!-- COMING DUE ACCOUNTS -->
-                        <div id="section-coming-due" class="border border-blue-200 rounded-2xl p-4 bg-blue-50/30 space-y-3">
-                            <div class="flex justify-between items-center">
-                                <h4 class="text-xs font-extrabold text-blue-700 uppercase tracking-wider flex items-center space-x-1.5">
-                                    <i class="fa-solid fa-calendar-check"></i><span>Coming Due Accounts (Next 3 Days)</span>
-                                </h4>
-                                <span id="count-coming-badge" class="bg-blue-100 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>
-                            </div>
-                            <div class="overflow-x-auto border border-blue-100 rounded-xl bg-white">
-                                <table class="w-full text-left border-collapse text-xs">
-                                    <thead class="bg-blue-50 text-blue-900 font-bold">
-                                        <tr>
-                                            <th class="py-2.5 px-3">Account No.</th>
-                                            <th class="py-2.5 px-3">Customer Name</th>
-                                            <th class="py-2.5 px-3">Barangay / Contact</th>
-                                            <th class="py-2.5 px-3">Due Day</th>
-                                            <th class="py-2.5 px-3">Balance</th>
-                                            <th class="py-2.5 px-3 text-center">Assigned Collector</th>
-                                            <th class="py-2.5 px-3 text-right">Send Notification</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="table-coming-body" class="divide-y divide-slate-100"></tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
+                <!-- DUE DAY FILTER -->
+                <div class="flex items-center space-x-2 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200">
+                    <label class="text-xs font-bold text-slate-700"><i class="fa-solid fa-calendar-days text-rose-500 mr-1"></i>Due Day:</label>
+                    <select id="alertDueFilter" onchange="renderCollectionAlertTables()" class="border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-800 bg-white focus:ring-2 focus:ring-rose-500 focus:outline-none">
+                        <option value="ALL">All Due Dates</option>
+                    </select>
                 </div>
             </div>
+        </div>
+
+        <!-- COLLECTION ALERT NAVIGATION TABS -->
+<div class="flex flex-wrap gap-2.5 border-b border-slate-200 pb-3">
+    <button onclick="switchCollectionTab('overdue')" id="tab-btn-overdue" class="px-4 py-2.5 rounded-xl font-bold text-xs bg-rose-600 text-white shadow-sm flex items-center gap-2 transition-all">
+        <i class="fa-solid fa-circle-exclamation"></i> OVERDUE ACCOUNTS
+    </button>
+    <button onclick="switchCollectionTab('duetoday')" id="tab-btn-duetoday" class="px-4 py-2.5 rounded-xl font-bold text-xs bg-slate-100 text-slate-600 hover:bg-slate-200 flex items-center gap-2 transition-all">
+        <i class="fa-solid fa-clock"></i> DUE TODAY ACCOUNTS
+    </button>
+    <button onclick="switchCollectionTab('comingdue')" id="tab-btn-comingdue" class="px-4 py-2.5 rounded-xl font-bold text-xs bg-slate-100 text-slate-600 hover:bg-slate-200 flex items-center gap-2 transition-all">
+        <i class="fa-solid fa-calendar-check"></i> COMING DUE ACCOUNTS (NEXT 3 DAYS)
+    </button>
+</div>
+
+        <!-- TAB CONTENTS CONTAINER -->
+        <div class="space-y-6">
+            
+            <!-- OVERDUE ACCOUNTS TAB CONTENT -->
+            <div id="section-overdue" class="collection-tab-content border border-rose-200 rounded-2xl p-4 bg-rose-50/30 space-y-3">
+                <div class="flex justify-between items-center">
+                    <h4 class="text-xs font-extrabold text-rose-700 uppercase tracking-wider flex items-center space-x-1.5">
+                        <i class="fa-solid fa-circle-exclamation"></i><span>Overdue Accounts</span>
+                    </h4>
+                    <span id="count-overdue-badge" class="bg-rose-100 text-rose-800 text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>
+                </div>
+                <div class="overflow-x-auto border border-rose-100 rounded-xl bg-white">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead class="bg-rose-50 text-rose-900 font-bold">
+                            <tr>
+                                <th class="py-2.5 px-3">Account No.</th>
+                                <th class="py-2.5 px-3">Customer Name</th>
+                                <th class="py-2.5 px-3">Barangay / Contact</th>
+                                <th class="py-2.5 px-3">Due Day</th>
+                                <th class="py-2.5 px-3">Balance</th>
+                                <th class="py-2.5 px-3 text-center">Assigned Collector</th>
+                                <th class="py-2.5 px-3 text-right">Send Notification</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-overdue-body" class="divide-y divide-slate-100"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- DUE TODAY ACCOUNTS TAB CONTENT -->
+            <div id="section-due-today" class="collection-tab-content hidden border border-amber-200 rounded-2xl p-4 bg-amber-50/30 space-y-3">
+                <div class="flex justify-between items-center">
+                    <h4 class="text-xs font-extrabold text-amber-700 uppercase tracking-wider flex items-center space-x-1.5">
+                        <i class="fa-solid fa-clock"></i><span>Due Today Accounts</span>
+                    </h4>
+                    <span id="count-today-badge" class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>
+                </div>
+                <div class="overflow-x-auto border border-amber-100 rounded-xl bg-white">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead class="bg-amber-50 text-amber-900 font-bold">
+                            <tr>
+                                <th class="py-2.5 px-3">Account No.</th>
+                                <th class="py-2.5 px-3">Customer Name</th>
+                                <th class="py-2.5 px-3">Barangay / Contact</th>
+                                <th class="py-2.5 px-3">Due Day</th>
+                                <th class="py-2.5 px-3">Balance</th>
+                                <th class="py-2.5 px-3 text-center">Assigned Collector</th>
+                                <th class="py-2.5 px-3 text-right">Send Notification</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-today-body" class="divide-y divide-slate-100"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- COMING DUE ACCOUNTS TAB CONTENT -->
+            <div id="section-coming-due" class="collection-tab-content hidden border border-blue-200 rounded-2xl p-4 bg-blue-50/30 space-y-3">
+                <div class="flex justify-between items-center">
+                    <h4 class="text-xs font-extrabold text-blue-700 uppercase tracking-wider flex items-center space-x-1.5">
+                        <i class="fa-solid fa-calendar-check"></i><span>Coming Due Accounts (Next 3 Days)</span>
+                    </h4>
+                    <span id="count-coming-badge" class="bg-blue-100 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>
+                </div>
+                <div class="overflow-x-auto border border-blue-100 rounded-xl bg-white">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead class="bg-blue-50 text-blue-900 font-bold">
+                            <tr>
+                                <th class="py-2.5 px-3">Account No.</th>
+                                <th class="py-2.5 px-3">Customer Name</th>
+                                <th class="py-2.5 px-3">Barangay / Contact</th>
+                                <th class="py-2.5 px-3">Due Day</th>
+                                <th class="py-2.5 px-3">Balance</th>
+                                <th class="py-2.5 px-3 text-center">Assigned Collector</th>
+                                <th class="py-2.5 px-3 text-right">Send Notification</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-coming-body" class="divide-y divide-slate-100"></tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
 
             <!-- VIEW: CUSTOMERS LIST -->
             <div id="view-customers-list" class="hidden space-y-6">
@@ -5348,6 +5375,34 @@ async function loadSalesExpensesHistory() {
 window.addEventListener('DOMContentLoaded', () => {
     loadSalesExpensesHistory();
 });
+
+function switchCollectionTab(tabName) {
+    // 1. Itago ang lahat ng tab content
+    document.querySelectorAll('.collection-tab-content').forEach(el => el.classList.add('hidden'));
+
+    // 2. I-reset ang kulay ng mga buttons sa default
+    const btnOverdue = document.getElementById('tab-btn-overdue');
+    const btnToday = document.getElementById('tab-btn-duetoday');
+    const btnComing = document.getElementById('tab-btn-comingdue');
+
+    const defaultClass = "px-4 py-2.5 rounded-xl font-bold text-xs bg-slate-100 text-slate-600 hover:bg-slate-200 flex items-center gap-2 transition-all";
+
+    if (btnOverdue) btnOverdue.className = defaultClass;
+    if (btnToday) btnToday.className = defaultClass;
+    if (btnComing) btnComing.className = defaultClass;
+
+    // 3. Ipakita ang pinili at kulayan ang active button
+    if (tabName === 'overdue') {
+        document.getElementById('section-overdue')?.classList.remove('hidden');
+        if (btnOverdue) btnOverdue.className = "px-4 py-2.5 rounded-xl font-bold text-xs bg-rose-600 text-white shadow-sm flex items-center gap-2 transition-all";
+    } else if (tabName === 'duetoday') {
+        document.getElementById('section-due-today')?.classList.remove('hidden');
+        if (btnToday) btnToday.className = "px-4 py-2.5 rounded-xl font-bold text-xs bg-amber-500 text-white shadow-sm flex items-center gap-2 transition-all";
+    } else if (tabName === 'comingdue') {
+        document.getElementById('section-coming-due')?.classList.remove('hidden');
+        if (btnComing) btnComing.className = "px-4 py-2.5 rounded-xl font-bold text-xs bg-blue-600 text-white shadow-sm flex items-center gap-2 transition-all";
+    }
+}
 
 // ⭐ TACSFIBER COMPLETE KEYBOARD SHORTCUTS MANAGER
         window.addEventListener('keydown', (e) => {
