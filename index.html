@@ -1321,6 +1321,16 @@
     </div>
 </div>
 
+<!-- COMPANY GRAND TOTAL SALES -->
+<div class="bg-indigo-50 p-5 rounded-2xl shadow-sm border border-indigo-200 space-y-3">
+    <h4 class="text-xs font-black uppercase tracking-wider text-indigo-900 flex items-center gap-2 border-b border-indigo-200 pb-2">
+        <i class="fa-solid fa-chart-pie"></i> Company Grand Total Sales
+    </h4>
+    <div id="company-grand-total-box" class="text-2xl font-mono font-black text-indigo-700 py-3 text-center bg-white rounded-xl shadow-inner">
+        ₱0.00
+    </div>
+</div>
+
     <!-- HISTORY LOG SECTION -->
     <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
         <div class="flex justify-between items-center border-b pb-2">
@@ -5103,7 +5113,6 @@ async function loadSalesAndIncomeSummary() {
     const rawStartDate = document.getElementById('audit-start-date')?.value || '';
     const rawEndDate = document.getElementById('audit-end-date')?.value || '';
 
-    // Kunin ang lahat ng bayad mula sa payment_logs
     let { data, error } = await sb.from('payment_logs').select('*');
 
     if (error || !data || data.length === 0) {
@@ -5120,7 +5129,6 @@ async function loadSalesAndIncomeSummary() {
         const rawDate = row.payment_date || row.date_paid || row.created_at || '';
         const rowDateStr = String(rawDate).split('T')[0].trim();
         
-        // Kunin nang buo ang pangalan ng collector/encoder at i-normalize sa lowercase
         const collectorField = String(
             row.collected_by || row.encoder || row.collector || row.staff || ''
         ).trim().toLowerCase();
@@ -5129,48 +5137,33 @@ async function loadSalesAndIncomeSummary() {
             row.amount_paid || row.amount || row.payment_amount || 0
         ) || 0;
 
-        // I-apply ang date filter kung naka-set
         if (rawStartDate && rowDateStr < rawStartDate) return;
         if (rawEndDate && rowDateStr > rawEndDate) return;
 
-        // Absolute Grand Total para sa buong kumpanya
         grandTotalSales += amount;
 
-        // Eksaktong pagtutugma para kay Rolando
         if (collectorField.includes('rolando')) {
             rolandoTotal += amount;
-        } 
-        // Eksaktong pagtutugma para kay Ronel (Sinasaklaw ang 'ronel', 'tacocong', o kombinasyon nito)
-        else if (collectorField.includes('ronel') || collectorField.includes('tacocong')) {
+        } else if (collectorField.includes('ronel')) {
             ronelTotal += amount;
-        } 
-        // Lahat ng iba pang collectors (tulad ni Charles Roble)
-        else {
+        } else {
             collectorTotal += amount;
         }
     });
 
-    // Ayon sa iyong alituntunin: Ang koleksyon ng Collector ay idinadagdag sa total ni Ronel Tacocong
-    const combinedRonelSales = ronelTotal + collectorTotal;
-    
-    // Ang pangkalahatang Total Sales na magtutugma sa buong Audit
-    const overallTotalSales = combinedRonelSales + rolandoTotal;
+    console.log(`[Audit Match Check] Ronel: ${ronelTotal}, Rolando: ${rolandoTotal}, Collector: ${collectorTotal}, Grand Total: ${grandTotalSales}`);
 
-    console.log("=== EXACT AUDIT MATCH RECONCILIATION ===");
-    console.log("Ronel Direct Sales:", ronelTotal);
-    console.log("Other Collector Sales:", collectorTotal);
-    console.log("Combined Ronel Sales (Dapat maging ₱36,600 + Collector):", combinedRonelSales);
-    console.log("Rolando Sales:", rolandoTotal);
-    console.log("Overall Total Sales:", overallTotalSales);
-
-    // I-update ang mga UI boxes sa dashboard
+    // --- UI ELEMENTS ---
     const ronelBox = document.getElementById('ronel-sales-box');
     const rolandoBox = document.getElementById('rolando-sales-box');
     const collectorBox = document.getElementById('collector-sales-box');
     const totalSalesInput = document.getElementById('input-total-sales');
+    
+    // 💡 DITO NATIN ILALAGAY ANG COMPANY GRAND TOTAL BOX UI UPDATE
+    const grandTotalBox = document.getElementById('company-grand-total-box');
 
     if (ronelBox) {
-        ronelBox.innerText = `₱${combinedRonelSales.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        ronelBox.innerText = `₱${ronelTotal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
     }
     if (rolandoBox) {
         rolandoBox.innerText = `₱${rolandoTotal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
@@ -5179,8 +5172,13 @@ async function loadSalesAndIncomeSummary() {
         collectorBox.innerText = `₱${collectorTotal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
     }
 
+    // 💡 KASAMA NA RIN ANG CODE NA ITO SA PAG-UPDATE NG GRAND TOTAL BOX
+    if (grandTotalBox) {
+        grandTotalBox.innerText = `₱${grandTotalSales.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+    }
+
     if (totalSalesInput) {
-        totalSalesInput.value = overallTotalSales.toFixed(2);
+        totalSalesInput.value = grandTotalSales.toFixed(2);
     }
 
     if (typeof calculateSalesAndExpenses === 'function') {
