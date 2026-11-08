@@ -1470,6 +1470,11 @@
             <span class="text-xs font-bold text-slate-700 uppercase tracking-wider">Registered PPPoE Secrets</span>
             <span id="mk-secrets-count" class="px-2.5 py-0.5 bg-indigo-100 text-indigo-700 rounded-full text-[11px] font-bold">0 Total</span>
         </div>
+	 <div class="flex items-center space-x-2">
+        <button onclick="openAddSecretModal()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all flex items-center space-x-1 shadow-sm">
+            <i class="fa-solid fa-user-plus mr-1"></i>
+            <span>Add Secret</span>
+        </button>
         <button onclick="fetchMikroTikSecrets()" class="bg-slate-800 hover:bg-slate-900 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1">
             <i class="fa-solid fa-rotate mr-1"></i><span>Refresh Secrets</span>
         </button>
@@ -1903,27 +1908,37 @@
         </div>
     </div>
 
-<!-- ADD PPPOE SECRET MODAL -->
+<!-- ADD / EDIT PPPOE SECRET MODAL -->
 <div id="secret-modal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl border border-slate-200">
         <div class="flex justify-between items-center border-b border-slate-100 pb-3">
-            <h3 class="text-base font-bold text-slate-800">Magdagdag ng PPPoE Secret</h3>
+            <h3 class="text-base font-bold text-slate-800" id="modal-title-text">Magdagdag ng PPPoE Secret</h3>
             <button onclick="closeSecretModal()" class="text-slate-400 hover:text-slate-600 font-bold text-lg">&times;</button>
         </div>
 
         <div class="space-y-3">
+            <input type="hidden" id="modal-original-username">
+
             <div>
-                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Username</label>
-                <input type="text" id="modal-username" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs font-medium bg-slate-50" placeholder="Ilagay ang pppoe username">
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Name / Username</label>
+                <input type="text" id="modal-username" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs font-medium bg-slate-50" placeholder="Hal. AlexandraDurano">
             </div>
 
             <div>
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Password</label>
-                <input type="text" id="modal-password" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs font-medium bg-slate-50" placeholder="Ilagay ang password">
+                <input type="text" id="modal-password" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs font-medium bg-slate-50" placeholder="Password">
             </div>
 
             <div>
-                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">PPPoE Profile / Speed Plan</label>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Service</label>
+                <select id="modal-service" class="w-full border border-slate-200 p-2.5 rounded-xl bg-white text-xs font-medium text-slate-700">
+                    <option value="pppoe">pppoe</option>
+                    <option value="any">any</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Profile / Speed Plan</label>
                 <select id="secret-profile-select" class="w-full border border-slate-200 p-2.5 rounded-xl bg-white text-xs font-medium text-slate-700">
                     <option value="">-- Pumili ng Profile --</option>
                 </select>
@@ -1931,8 +1946,8 @@
         </div>
 
         <div class="flex justify-end space-x-2 pt-3 border-t border-slate-100">
-            <button onclick="closeSecretModal()" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold hover:bg-slate-200 transition-all">Kanselahin</button>
-            <button onclick="saveSecretToMikroTik()" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition-all">I-save sa MikroTik</button>
+            <button onclick="closeSecretModal()" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold hover:bg-slate-200 transition-all">Cancel</button>
+            <button onclick="saveSecretToMikroTik()" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition-all">OK / Save</button>
         </div>
     </div>
 </div>
@@ -5755,11 +5770,15 @@ function switchMkSubTab(tab) {
 
 // Function para buksan ang modal at i-load ang mga profile galing MikroTik
 async function openAddSecretModal() {
+    document.getElementById('modal-title-text').innerText = 'Magdagdag ng PPPoE Secret';
+    document.getElementById('modal-original-username').value = '';
+    document.getElementById('modal-username').value = '';
+    document.getElementById('modal-password').value = '';
+    document.getElementById('modal-service').value = 'pppoe';
+    
     const modal = document.getElementById('secret-modal');
-    if (modal) {
-        modal.classList.remove('hidden');
-        await loadProfilesIntoDropdown();
-    }
+    modal.classList.remove('hidden');
+    await loadProfilesIntoDropdown();
 }
 
 // Function para isara ang modal
@@ -5790,27 +5809,69 @@ async function loadProfilesIntoDropdown() {
     }
 }
 
+async function openEditSecretModal(name, password, profile, service) {
+    document.getElementById('modal-title-text').innerText = `I-edit ang Secret: ${name}`;
+    document.getElementById('modal-original-username').value = name;
+    document.getElementById('modal-username').value = name;
+    document.getElementById('modal-password').value = password;
+    document.getElementById('modal-service').value = service || 'pppoe';
+    
+    const modal = document.getElementById('secret-modal');
+    modal.classList.remove('hidden');
+    
+    await loadProfilesIntoDropdown();
+    if (profile) {
+        document.getElementById('secret-profile-select').value = profile;
+    }
+}
+
+function closeSecretModal() {
+    document.getElementById('secret-modal').classList.add('hidden');
+}
+
+async function loadProfilesIntoDropdown() {
+    const selectElem = document.getElementById('secret-profile-select');
+    if (!selectElem) return;
+
+    try {
+        const response = await fetch('http://localhost:8081/api/profiles');
+        const profiles = await response.json();
+
+        if (Array.isArray(profiles) && profiles.length > 0) {
+            selectElem.innerHTML = '<option value="">-- Pumili ng Profile / Speed Plan --</option>' + 
+                profiles.map(prof => `<option value="${prof.name}">${prof.name} (${prof['rate-limit'] || 'Unlimited'})</option>`).join('');
+        }
+    } catch (err) {
+        console.error('Error sa pag-load ng profiles:', err);
+    }
+}
+
 // Function para i-save ang bagong secret sa MikroTik gamit ang Python bridge
 async function saveSecretToMikroTik() {
+    const originalUser = document.getElementById('modal-original-username').value.trim();
     const username = document.getElementById('modal-username').value.trim();
     const password = document.getElementById('modal-password').value.trim();
+    const service = document.getElementById('modal-service').value;
     const profile = document.getElementById('secret-profile-select').value;
 
     if (!username || !password || !profile) {
-        alert('Mangyaring punan ang Username, Password, at Pumili ng Profile.');
+        alert('Mangyaring punan ang Username, Password, at Profile.');
         return;
     }
 
+    const endpoint = originalUser ? 'edit' : 'add';
+    const url = `http://localhost:8081/api/secret/${endpoint}?original_user=${encodeURIComponent(originalUser)}&username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&service=${encodeURIComponent(service)}&profile=${encodeURIComponent(profile)}`;
+
     try {
-        const response = await fetch(`http://localhost:8081/api/secret/add?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&profile=${encodeURIComponent(profile)}`);
+        const response = await fetch(url);
         const result = await response.json();
 
         if (result.status === 'success') {
             alert(result.message);
             closeSecretModal();
-            fetchMikroTikSecrets(); // I-refresh ang secrets list
+            fetchMikroTikSecrets();
         } else {
-            alert('Error sa pag-save: ' + (result.message || 'Hindi matagumpay.'));
+            alert('Error: ' + (result.message || 'Hindi matagumpay.'));
         }
     } catch (err) {
         console.error(err);
@@ -5870,9 +5931,10 @@ async function fetchMikroTikSecrets() {
                         ${sec.disabled === 'true' ? 'DISABLED' : 'ENABLED'}
                     </span>
                 </td>
-                <td class="p-3 text-right">
-                    <button onclick="disableSecret('${sec.name}')" class="px-2.5 py-1 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 font-bold transition-all">Disable</button>
-                </td>
+                <td class="p-3 text-right space-x-1">
+                    <button onclick="openEditSecretModal('${sec.name}', '${sec.password || ''}', '${sec.profile || ''}', '${sec.service || 'pppoe'}')" class="px-2.5 py-1 bg-sky-50 text-sky-600 rounded-lg hover:bg-sky-100 font-bold transition-all text-xs">Edit</button>
+                 <button onclick="disableSecret('${sec.name}')" class="px-2.5 py-1 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 font-bold transition-all text-xs">Disable</button>
+            </td>
             </tr>
         `).join('');
 
