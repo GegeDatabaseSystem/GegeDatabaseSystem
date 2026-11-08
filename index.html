@@ -3657,6 +3657,59 @@ TacsFiber Team and Management`;
             link.click();
         }
 
+async function handleCustomerComplain(customerAccountNo, customerName, customerContact, customerBarangay, customerAddress, customerLandmark) {
+    // 1. Confirmation prompt
+    const isConfirmed = confirm(`Sigurado ka ba na may complain ito para kay ${customerName} (${customerAccountNo})?`);
+    
+    if (!isConfirmed) {
+        return;
+    }
+
+    const sb = typeof getSupabase === 'function' ? getSupabase() : null;
+    if (!sb) {
+        alert("Walang koneksyon sa Supabase.");
+        return;
+    }
+
+    // 2. Data na may kasamang numeric ID para sa int8 column
+    const todayStr = new Date().toISOString().split('T')[0];
+    const complainData = {
+        id: Date.now(), // Purong numero (bigint/int8) para pumasa sa not-null constraint
+        account_no: customerAccountNo,
+        customer_name: customerName,
+        contact: customerContact || '',
+        barangay: customerBarangay || 'N/A',
+        address: customerAddress || 'N/A',
+        landmark: customerLandmark || 'N/A',
+        date: todayStr,
+        status: 'PENDING'
+    };
+
+    const { error } = await sb.from('customer_complaints').insert([complainData]);
+
+    if (error) {
+        console.error("Error sa pag-save ng complain:", error);
+        alert("Supabase Error: " + error.message);
+        return;
+    }
+
+    // 3. Matagumpay na mensahe
+    alert("Ang complain na ito ay naitala na sa Complain list.");
+
+    // 4. Awtomatikong lumipat sa TAB: Customers Complain
+    if (typeof switchView === 'function') {
+        switchView('customers-complain');
+    } else {
+        const complainNavBtn = document.querySelector('[onclick*="customers-complain"]') || document.getElementById('nav-customers-complain');
+        if (complainNavBtn) complainNavBtn.click();
+    }
+
+    // 5. I-refresh ang Complain list data
+    if (typeof loadCustomersComplain === 'function') {
+        loadCustomersComplain();
+    }
+}
+
         function renderPlansTable() {
             const role = getActiveRole();
             if(role === 'COLLECTOR' || role === 'TECHNICIAN') return;
@@ -3907,7 +3960,9 @@ TacsFiber Team and Management`;
                             </button>
                         </td>
                         <td class="py-3 px-3 text-right space-x-1">
-                            <button onclick="selectCustomerForComplain('${s.id}')" class="bg-purple-600 text-white px-2 py-1 rounded text-xs font-bold cursor-pointer" title="Add Complain"><i class="fa-solid fa-screwdriver-wrench"></i></button>
+                            <button onclick="handleCustomerComplain('${s.id}', '${s.name}', '${s.contact || ''}', '${s.barangay || ''}')" class="bg-purple-600 text-white p-2 rounded-lg hover:bg-purple-700 transition" title="Add Complain">
+                                <i class="fa-solid fa-screwdriver-wrench"></i>
+                            </button>
                             <button onclick="openPaymentModal('${s.id}')" class="bg-emerald-600 text-white px-2 py-1 rounded text-xs cursor-pointer" title="Collect"><i class="fa-solid fa-peso-sign"></i></button>
                             <button onclick="openEditCustomerModal('${s.id}')" class="bg-indigo-600 text-white px-2 py-1 rounded text-xs cursor-pointer" title="Edit Customer Details"><i class="fa-solid fa-pen-to-square"></i></button>
                             <button onclick="viewCustomerPaymentHistoryPopup('${s.id}')" class="bg-cyan-600 text-white px-2 py-1 rounded text-xs cursor-pointer" title="View History"><i class="fa-solid fa-receipt"></i></button>
