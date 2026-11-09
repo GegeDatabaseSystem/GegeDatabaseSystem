@@ -6367,7 +6367,15 @@ async function fetchPayrollHistory() {
 
 // --- 6. MANAGE EMPLOYEES MODAL PLACEHOLDER ---
 function openManageEmployeesModal() {
-    alert("Dito mo mamaya ma-a-add o ma-e-edit ang mga empleyado at kanilang daily rates para diretso sa database ng TacsFiber.");
+    const modal = document.getElementById('manage-employees-modal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        if (typeof renderManageEmployeesTable === 'function') {
+            renderManageEmployeesTable();
+        }
+    } else {
+        console.error("Modal ID 'manage-employees-modal' not found in HTML!");
+    }
 }
 
 // ⭐ TACSFIBER COMPLETE KEYBOARD SHORTCUTS MANAGER
