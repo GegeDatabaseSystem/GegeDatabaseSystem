@@ -3157,7 +3157,7 @@ function exportCollectionListNotepad() {
             return;
         }
 
-        // 📌 SORT BY BARANGAY (A to Z) para madali ang lakad ng collector
+        // 📌 SORT BY BARANGAY (A to Z)
         list.sort((a, b) => {
             const brgyA = (a.barangay || 'Poblacion').toLowerCase();
             const brgyB = (b.barangay || 'Poblacion').toLowerCase();
@@ -3169,7 +3169,7 @@ function exportCollectionListNotepad() {
         const totalBalance = list.reduce((acc, s) => acc + (s.balance || 0), 0);
 
         let content = "====================================================\n";
-        content += "TACSFIBER INTERNET PROVIDER - COLLECTION LIST (SORTED BY BARANGAY)\n";
+        content += "TACSFIBER INTERNET PROVIDER - COLLECTION LIST\n";
         content += "STATUS: " + (statusTab === 'UNPAID' ? 'TO COLLECT (UNPAID)' : 'PAID / SETTLED') + "\n";
         content += "COLLECTOR: " + (currentRole === 'COLLECTOR' ? currentUser : 'ALL / ADMIN VIEW') + "\n";
         content += "DATE: " + today + "\n";
@@ -3182,12 +3182,12 @@ function exportCollectionListNotepad() {
         list.forEach((s, idx) => {
             const customerBrgy = s.barangay || 'Poblacion';
             
-            // Maglalagay ng malinaw na header bawat bagong Barangay
+            // Maglagay ng header kapag lumipat na ng ibang Barangay
             if (customerBrgy !== currentBarangay) {
                 currentBarangay = customerBrgy;
-                content += `\n----------------------------------------------------\n`;
-                content += `📍 BARANGAY: ${currentBarangay.toUpperCase()}\n`;
-                content += `----------------------------------------------------\n`;
+                content += "\n----------------------------------------------------\n";
+                content += "BARANGAY: " + currentBarangay.toUpperCase() + "\n";
+                content += "----------------------------------------------------\n";
             }
 
             content += (idx + 1) + ". ACCOUNT NO: " + s.id + "\n";
@@ -3201,16 +3201,22 @@ function exportCollectionListNotepad() {
             content += "....................................................\n";
         });
 
-        const encodedUri = encodeURIComponent(content);
-        const win = window.open('data:text/plain;charset=utf-8,' + encodedUri, '_blank');
+        // Blob URL download mechanism
+        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = "Collection_List_" + statusTab + "_" + currentUser.replace(/\s+/g, '_') + "_" + today + ".txt";
         
-        if (!win) {
-            alert("Naka-block ang pop-up window ng iyong browser. Paki-allow po ang pop-ups para sa site na ito.");
-        } else {
-            win.focus();
-        }
+        document.body.appendChild(link);
+        link.click();
+        
+        setTimeout(() => {
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }, 100);
 
-        console.log("Export sorted by Barangay opened successfully!");
+        console.log("File download triggered successfully via Blob URL!");
     } catch (err) {
         console.error("Error in exportCollectionListNotepad:", err);
         alert("May error sa pag-export: " + err.message);
