@@ -679,45 +679,86 @@
             </div>
 
             <!-- VIEW: REMITTANCE HISTORY -->
-            <div id="view-remittance-history" class="hidden space-y-6 max-w-4xl mx-auto">
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-6">
-                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4">
-                        <div>
-                            <h3 class="text-base font-bold text-slate-800 flex items-center space-x-2">
-                                <i class="fa-solid fa-clock-rotate-left text-indigo-600"></i><span>Remittance Turnover History</span>
-                            </h3>
-                            <p class="text-xs text-slate-500">Talaan ng lahat ng mga nakapipas na na-turn over na koleksyon.</p>
-                        </div>
-
-                        <div class="flex flex-wrap items-center gap-2">
-                            <input type="date" id="history-date-filter" onchange="renderRemittanceHistoryTable()" class="border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-800 bg-white focus:outline-none">
-                            <select id="history-collector-select" onchange="renderRemittanceHistoryTable()" class="border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-800 bg-white focus:outline-none">
-                                <option value="ALL">All Collectors</option>
-                            </select>
-                            <button onclick="renderRemittanceHistoryTable()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1 rounded-lg text-xs font-bold shadow">
-                                Filter
-                            </button>
-                        </div>
+<div id="view-remittance-history" class="hidden space-y-6 max-w-5xl mx-auto">
+    <div class="bg-white rounded-3xl shadow-xl border border-slate-200/80 p-6 space-y-6">
+        
+        <!-- Header Title & Filter Controls -->
+        <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 border-b border-slate-100 pb-5">
+            <div>
+                <h3 class="text-lg font-black text-slate-800 flex items-center space-x-2">
+                    <div class="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center text-sm shadow-sm">
+                        <i class="fa-solid fa-clock-rotate-left"></i>
                     </div>
-
-                    <div class="border border-slate-200 rounded-xl overflow-hidden max-h-[450px] overflow-y-auto">
-                        <table class="w-full text-left border-collapse text-xs">
-                            <thead class="bg-slate-100 text-slate-700 font-bold uppercase sticky top-0">
-                                <tr>
-                                    <th class="py-3 px-3">Batch ID</th>
-                                    <th class="py-3 px-3">Subscriber</th>
-                                    <th class="py-3 px-3">Billing Month</th>
-                                    <th class="py-3 px-3">Method</th>
-                                    <th class="py-3 px-3">Collector</th>
-                                    <th class="py-3 px-3">Turnover Date</th>
-                                    <th class="py-3 px-3 text-right">Amount</th>
-                                </tr>
-                            </thead>
-                            <tbody id="remittance-history-tbody" class="divide-y bg-white"></tbody>
-                        </table>
-                    </div>
-                </div>
+                    <span>Remittance Turnover History</span>
+                </h3>
+                <p class="text-xs text-slate-500 mt-1">Talaan at kasaysayan ng lahat ng na-turnover na koleksyon ng mga Collectors.</p>
             </div>
+
+            <!-- Filter Controls Container -->
+            <div class="flex flex-wrap items-center gap-2.5 w-full lg:w-auto">
+                <div class="flex items-center space-x-1.5 bg-slate-100/80 px-3 py-1.5 rounded-2xl border border-slate-200 shadow-inner">
+                    <i class="fa-solid fa-calendar-day text-indigo-500 text-xs"></i>
+                    <input type="date" id="history-date-filter" onchange="renderRemittanceHistoryTable()" class="border-0 bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer">
+                </div>
+
+                <div class="flex items-center space-x-1.5 bg-slate-100/80 px-3 py-1.5 rounded-2xl border border-slate-200 shadow-inner">
+                    <i class="fa-solid fa-user-check text-indigo-500 text-xs"></i>
+                    <select id="history-collector-select" onchange="renderRemittanceHistoryTable()" class="border-0 bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer">
+                        <option value="ALL">All Collectors</option>
+                    </select>
+                </div>
+
+                <button onclick="renderRemittanceHistoryTable()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-2xl text-xs font-bold shadow-md shadow-indigo-900/20 transition cursor-pointer flex items-center space-x-1.5">
+                    <i class="fa-solid fa-filter"></i><span>Filter</span>
+                </button>
+                <button onclick="resetRemittanceHistoryFilters()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-2 rounded-2xl text-xs font-bold transition cursor-pointer">
+                    <i class="fa-solid fa-rotate-left mr-1"></i>Reset
+                </button>
+            </div>
+        </div>
+
+        <!-- Real-time Filtered Summary Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="bg-gradient-to-br from-emerald-50 to-teal-50/50 border border-emerald-200/80 rounded-2xl p-4 shadow-sm">
+                <p class="text-[11px] font-extrabold text-emerald-800 uppercase tracking-wider flex items-center space-x-1.5">
+                    <i class="fa-solid fa-money-bill-wave"></i><span>Turned-Over Cash</span>
+                </p>
+                <h4 id="hist-summary-cash" class="text-2xl font-black text-emerald-700 mt-1">₱0.00</h4>
+            </div>
+            <div class="bg-gradient-to-br from-blue-50 to-indigo-50/50 border border-blue-200/80 rounded-2xl p-4 shadow-sm">
+                <p class="text-[11px] font-extrabold text-blue-800 uppercase tracking-wider flex items-center space-x-1.5">
+                    <i class="fa-solid fa-mobile-screen-button"></i><span>Turned-Over GCash</span>
+                </p>
+                <h4 id="hist-summary-gcash" class="text-2xl font-black text-blue-700 mt-1">₱0.00</h4>
+            </div>
+            <div class="bg-gradient-to-br from-indigo-50 to-purple-50/50 border border-indigo-200/80 rounded-2xl p-4 shadow-sm">
+                <p class="text-[11px] font-extrabold text-indigo-800 uppercase tracking-wider flex items-center space-x-1.5">
+                    <i class="fa-solid fa-vault"></i><span>Grand Total History</span>
+                </p>
+                <h4 id="hist-summary-grand" class="text-2xl font-black text-indigo-700 mt-1">₱0.00</h4>
+            </div>
+        </div>
+
+        <!-- Table View Container -->
+        <div class="border border-slate-200/80 rounded-2xl overflow-hidden shadow-sm max-h-[500px] overflow-y-auto">
+            <table class="w-full text-left border-collapse text-xs">
+                <thead class="bg-slate-100/90 text-slate-700 font-extrabold uppercase tracking-wider sticky top-0 z-10 border-b border-slate-200">
+                    <tr>
+                        <th class="py-3.5 px-4">Batch ID</th>
+                        <th class="py-3.5 px-4">Subscriber Name</th>
+                        <th class="py-3.5 px-4">Billing Month</th>
+                        <th class="py-3.5 px-4">Method</th>
+                        <th class="py-3.5 px-4">Collector</th>
+                        <th class="py-3.5 px-4">Turnover Date</th>
+                        <th class="py-3.5 px-4 text-right">Amount</th>
+                    </tr>
+                </thead>
+                <tbody id="remittance-history-tbody" class="divide-y divide-slate-100 bg-white"></tbody>
+            </table>
+        </div>
+
+    </div>
+</div>
 
             <!-- VIEW: COLLECTION ALERT -->
 <div id="view-collection-alert" class="hidden space-y-6">
@@ -1073,57 +1114,67 @@
             </div>
 
             <!-- VIEW: COLLECTION LIST -->
-            <div id="view-collection-list" class="hidden space-y-6">
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-6">
-                    <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-                        <div>
-                            <h3 class="text-base font-bold text-slate-800 flex items-center space-x-2">
-                                <i class="fa-solid fa-list-check text-amber-500"></i><span>Collection List</span>
-                            </h3>
-                            <p class="text-xs text-slate-500">Listahan ng mga kustomer na nakatakdang singilin at mga nakapagbayad na.</p>
-                        </div>
-
-                        <div class="flex flex-wrap items-center gap-3 w-full lg:w-auto">
-                            <div class="flex items-center space-x-1 bg-amber-50 p-1 rounded-xl border border-amber-200">
-                                <button id="btn-status-unpaid" onclick="setCollectionStatusFilter('UNPAID')" class="px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer bg-amber-600 text-white shadow-sm">
-                                    <i class="fa-solid fa-clock-rotate-left mr-1"></i>To Collect (Unpaid)
-                                </button>
-                                <button id="btn-status-paid" onclick="setCollectionStatusFilter('PAID')" class="px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer text-slate-600 hover:text-slate-900">
-                                    <i class="fa-solid fa-circle-check mr-1 text-emerald-600"></i>Paid / Settled
-                                </button>
-                            </div>
-
-                            <div class="flex items-center space-x-2 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200">
-                                <label class="text-xs font-bold text-slate-700"><i class="fa-solid fa-filter text-amber-500 mr-1"></i>Barangay:</label>
-                                <select id="barangayFilter" onchange="renderCollectionListTable()" class="border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-800 bg-white focus:ring-2 focus:ring-amber-500 focus:outline-none">
-                                    <option value="ALL">All Barangays</option>
-                                </select>
-                            </div>
-
-                            <input type="text" id="collection-list-search" oninput="renderCollectionListTable()" placeholder="Search name..." class="border border-slate-300 rounded-xl px-3.5 py-2 text-xs w-full sm:w-44 shadow-sm">
-                        </div>
-                    </div>
-                    <div id="collection-list-mobile-container" class="block md:hidden space-y-3 mt-3"></div>
-                    <div class="hidden md:block overflow-x-auto max-h-[65vh] relative border border-slate-200 rounded-xl">
-                        <table class="w-full text-left border-collapse table-auto min-w-[1000px]">
-                            <thead class="sticky top-0 z-20 bg-amber-50 text-amber-900 text-xs uppercase font-bold">
-                                <tr>
-                                    <th class="py-3 px-3">Account No.</th>
-                                    <th class="py-3 px-3">Customer Name</th>
-                                    <th class="py-3 px-3">Barangay</th>
-                                    <th class="py-3 px-3">Address</th>
-                                    <th class="py-3 px-3">Contact</th>
-                                    <th class="py-3 px-3">Due Day</th>
-                                    <th class="py-3 px-3">Assigned Collector</th>
-                                    <th class="py-3 px-3">Balance Status</th>
-                                    <th class="py-3 px-3 text-right">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody id="collection-list-table-body" class="divide-y divide-slate-100 text-xs bg-white"></tbody>
-                        </table>
-                    </div>
-                </div>
+<div id="view-collection-list" class="hidden space-y-6">
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-6">
+        <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+            <div>
+                <h3 class="text-base font-bold text-slate-800 flex items-center space-x-2">
+                    <i class="fa-solid fa-list-check text-amber-500"></i><span>Collection List</span>
+                </h3>
+                <p class="text-xs text-slate-500">Listahan ng mga kustomer na nakatakdang singilin at mga nakapagbayad na.</p>
             </div>
+
+            <div class="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+                <div class="flex items-center space-x-1 bg-amber-50 p-1 rounded-xl border border-amber-200">
+                    <button id="btn-status-unpaid" onclick="setCollectionStatusFilter('UNPAID')" class="px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer bg-amber-600 text-white shadow-sm">
+                        <i class="fa-solid fa-clock-rotate-left mr-1"></i>To Collect (Unpaid)
+                    </button>
+                    <button id="btn-status-paid" onclick="setCollectionStatusFilter('PAID')" class="px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer text-slate-600 hover:text-slate-900">
+                        <i class="fa-solid fa-circle-check mr-1 text-emerald-600"></i>Paid / Settled
+                    </button>
+                </div>
+
+                <div class="flex items-center space-x-2 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200">
+                    <label class="text-xs font-bold text-slate-700"><i class="fa-solid fa-filter text-amber-500 mr-1"></i>Barangay:</label>
+                    <select id="barangayFilter" onchange="renderCollectionListTable()" class="border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-800 bg-white focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                        <option value="ALL">All Barangays</option>
+                    </select>
+                </div>
+
+                <input type="text" id="collection-list-search" oninput="renderCollectionListTable()" placeholder="Search name..." class="border border-slate-300 rounded-xl px-3.5 py-2 text-xs w-full sm:w-44 shadow-sm">
+
+                <!-- Export Notepad (.txt) Button -->
+                <button onclick="exportCollectionListNotepad()" class="bg-amber-600 hover:bg-amber-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold shadow cursor-pointer transition flex items-center space-x-1.5">
+                    <i class="fa-solid fa-file-arrow-down"></i>
+                    <span>Export Notepad (.txt)</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Mobile Responsive Cards Container -->
+        <div id="collection-list-mobile-container" class="block md:hidden space-y-3 mt-3"></div>
+
+        <!-- Desktop Table Container -->
+        <div class="hidden md:block overflow-x-auto max-h-[65vh] relative border border-slate-200 rounded-xl">
+            <table class="w-full text-left border-collapse table-auto min-w-[1000px]">
+                <thead class="sticky top-0 z-20 bg-amber-50 text-amber-900 text-xs uppercase font-bold">
+                    <tr>
+                        <th class="py-3 px-3">Account No.</th>
+                        <th class="py-3 px-3">Customer Name</th>
+                        <th class="py-3 px-3">Barangay</th>
+                        <th class="py-3 px-3">Address</th>
+                        <th class="py-3 px-3">Contact</th>
+                        <th class="py-3 px-3">Due Day</th>
+                        <th class="py-3 px-3">Assigned Collector</th>
+                        <th class="py-3 px-3">Balance Status</th>
+                        <th class="py-3 px-3 text-right">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="collection-list-table-body" class="divide-y divide-slate-100 text-xs bg-white"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
 
             <!-- DISCONNECTED LIST VIEW -->
             <div id="view-disconnected-list" class="hidden space-y-6">
@@ -3075,6 +3126,78 @@ TacsFiber Team and Management`;
             }
         }
 
+function exportCollectionListNotepad() {
+    console.log("Export Notepad button clicked!"); // Para makita sa Console kung pumasok ang click
+
+    try {
+        const currentUser = getActiveUser();
+        const currentRole = getActiveRole();
+        const brgyFilter = document.getElementById('barangayFilter') ? document.getElementById('barangayFilter').value : 'ALL';
+        const search = document.getElementById('collection-list-search') ? document.getElementById('collection-list-search').value.toLowerCase().trim() : '';
+        const today = new Date().toISOString().split('T')[0];
+
+        // Filter batay sa kasalukuyang naka-view sa table
+        let list = subscribers;
+        if (currentRole === 'COLLECTOR') {
+            list = subscribers.filter(s => (s.assignedCollector || '').toLowerCase() === currentUser.toLowerCase());
+        }
+
+        const statusTab = typeof currentCollectionStatusTab !== 'undefined' ? currentCollectionStatusTab : 'UNPAID';
+
+        if (statusTab === 'UNPAID') {
+            list = list.filter(s => (s.balance || 0) > 0);
+        } else {
+            list = list.filter(s => (s.balance || 0) <= 0);
+        }
+
+        if (brgyFilter !== 'ALL') list = list.filter(s => (s.barangay || 'Poblacion') === brgyFilter);
+        if (search) list = list.filter(s => s.name.toLowerCase().includes(search));
+
+        if (list.length === 0) {
+            alert("Walang mga kustomer na ma-export sa kasalukuyang listahan.");
+            return;
+        }
+
+        const totalBalance = list.reduce((acc, s) => acc + (s.balance || 0), 0);
+
+        let content = "====================================================\n";
+        content += "TACSFIBER INTERNET PROVIDER - COLLECTION LIST\n";
+        content += "STATUS: " + (statusTab === 'UNPAID' ? 'TO COLLECT (UNPAID)' : 'PAID / SETTLED') + "\n";
+        content += "COLLECTOR: " + (currentRole === 'COLLECTOR' ? currentUser : 'ALL / ADMIN VIEW') + "\n";
+        content += "DATE: " + today + "\n";
+        content += "TOTAL SUBSCRIBERS: " + list.length + "\n";
+        content += "TOTAL BALANCE DUE: P" + totalBalance.toLocaleString(undefined, {minimumFractionDigits: 2}) + "\n";
+        content += "====================================================\n\n";
+
+        list.forEach((s, idx) => {
+            content += (idx + 1) + ". ACCOUNT NO: " + s.id + "\n";
+            content += "   CUSTOMER NAME: " + s.name + "\n";
+            content += "   BARANGAY     : " + (s.barangay || 'Poblacion') + "\n";
+            content += "   ADDRESS      : " + (s.address || 'N/A') + "\n";
+            content += "   CONTACT      : " + s.contact + "\n";
+            content += "   DUE DAY      : Day " + (s.dueDay || 19) + "\n";
+            content += "   COLLECTOR    : " + (s.assignedCollector || 'Unassigned') + "\n";
+            content += "   BALANCE DUE  : P" + (s.balance || 0).toLocaleString(undefined, {minimumFractionDigits: 2}) + "\n";
+            content += "----------------------------------------------------\n";
+        });
+
+        // Pag-generate at pag-trigger ng .txt file download
+        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = "Collection_List_" + statusTab + "_" + currentUser.replace(/\s+/g, '_') + "_" + today + ".txt";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        
+        console.log("Export download triggered successfully!");
+    } catch (err) {
+        console.error("Error in exportCollectionListNotepad:", err);
+        alert("May error sa pag-export: " + err.message);
+    }
+}
         // ================= USERS MANAGEMENT =================
         function renderUsersTable() {
             const tbody = document.getElementById('users-table-body');
@@ -4663,22 +4786,88 @@ function openPaymentModalBySubId(subId) {
         }
 
         function renderRemittanceHistoryTable() {
-            let historyLogs = paymentLogs.filter(p => p.turnedOver === true);
-            const tbody = document.getElementById('remittance-history-tbody');
-            if(!tbody) return;
+    const tbody = document.getElementById('remittance-history-tbody');
+    if (!tbody) return;
 
-            tbody.innerHTML = historyLogs.length === 0 ? `<tr><td colspan="7" class="py-6 text-center text-slate-400">Walang remittance history.</td></tr>` : historyLogs.map(p => `
-                <tr class="border-b hover:bg-slate-50">
-                    <td class="py-2.5 px-3 font-mono font-bold text-indigo-600">${p.batchId || 'BATCH'}</td>
-                    <td class="py-2.5 px-3 font-bold">${p.subscriberName}</td>
-                    <td class="py-2.5 px-3">${p.monthsPaid}</td>
-                    <td class="py-2.5 px-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${p.method==='GCash'?'bg-blue-100 text-blue-700':'bg-emerald-100 text-emerald-700'}">${p.method}</span></td>
-                    <td class="py-2.5 px-3">${p.encodedBy}</td>
-                    <td class="py-2.5 px-3 font-mono">${p.date}</td>
-                    <td class="py-2.5 px-3 text-right font-bold text-emerald-600">₱${(p.amountPaid||0).toLocaleString()}</td>
-                </tr>
-            `).join('');
-        }
+    const dateFilter = document.getElementById('history-date-filter') ? document.getElementById('history-date-filter').value : '';
+    const collectorFilter = document.getElementById('history-collector-select') ? document.getElementById('history-collector-select').value : 'ALL';
+
+    // Siguraduhing nakuha lang ang mga records na tunay na turned-over na
+    let historyLogs = paymentLogs.filter(p => p.turnedOver === true || p.turned_over === true);
+
+    // 1. FILTER BY DATE (Case-safe & substring match)
+    if (dateFilter) {
+        historyLogs = historyLogs.filter(p => {
+            const pDate = (p.date || p.payment_date || '').toString().split('T')[0];
+            return pDate === dateFilter;
+        });
+    }
+
+    // 2. FILTER BY COLLECTOR (Partial & Case-insensitive comparison)
+    if (collectorFilter !== 'ALL') {
+        historyLogs = historyLogs.filter(p => {
+            const encoder = (p.encodedBy || p.collected_by || '').toLowerCase().trim();
+            const target = collectorFilter.toLowerCase().trim();
+            // Tinitiyak na gagana kahit "Charles Roble" vs "Thomas Charles Roble"
+            return encoder.includes(target) || target.includes(encoder);
+        });
+    }
+
+    // Kinukwenta ang mga Summary Totals para sa magandang visual cards
+    const cashTotal = historyLogs.filter(p => (p.method || p.payment_method) === 'Cash').reduce((acc, p) => acc + (parseFloat(p.amountPaid || p.amount) || 0), 0);
+    const gcashTotal = historyLogs.filter(p => (p.method || p.payment_method) === 'GCash').reduce((acc, p) => acc + (parseFloat(p.amountPaid || p.amount) || 0), 0);
+    const grandTotal = cashTotal + gcashTotal;
+
+    // I-update ang Summary Badge Display kung mayroon sa UI
+    const cashEl = document.getElementById('hist-summary-cash');
+    const gcashEl = document.getElementById('hist-summary-gcash');
+    const grandEl = document.getElementById('hist-summary-grand');
+    if (cashEl) cashEl.innerText = '₱' + cashTotal.toLocaleString(undefined, {minimumFractionDigits: 2});
+    if (gcashEl) gcashEl.innerText = '₱' + gcashTotal.toLocaleString(undefined, {minimumFractionDigits: 2});
+    if (grandEl) grandEl.innerText = '₱' + grandTotal.toLocaleString(undefined, {minimumFractionDigits: 2});
+
+    if (historyLogs.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" class="py-8 text-center text-slate-400 bg-slate-50 font-medium">
+                    <i class="fa-solid fa-folder-open text-3xl mb-2 text-slate-300 block"></i>
+                    Walang nahanap na turnover history records para sa napiling filter.
+                </td>
+            </tr>`;
+        return;
+    }
+
+    tbody.innerHTML = historyLogs.map(p => {
+        const amt = parseFloat(p.amountPaid || p.amount) || 0;
+        const method = p.method || p.payment_method || 'Cash';
+        const collectorName = p.encodedBy || p.collected_by || 'System';
+        const pDate = (p.date || p.payment_date || '').toString().split('T')[0];
+
+        return `
+            <tr class="border-b border-slate-100 hover:bg-indigo-50/40 transition duration-150">
+                <td class="py-3 px-4 font-mono font-bold text-indigo-600 bg-slate-50/50 rounded-lg">${p.batchId || p.batch_id || 'BATCH-LOG'}</td>
+                <td class="py-3 px-4 font-bold text-slate-800">${p.subscriberName || p.subscriber_name || 'Subscriber'}</td>
+                <td class="py-3 px-4 font-medium text-slate-600">${p.monthsPaid || p.billing_id || 'N/A'}</td>
+                <td class="py-3 px-4">
+                    <span class="px-2.5 py-1 rounded-full text-[11px] font-extrabold ${method === 'GCash' ? 'bg-blue-100 text-blue-700 border border-blue-200' : 'bg-emerald-100 text-emerald-800 border border-emerald-200'}">
+                        <i class="fa-solid ${method === 'GCash' ? 'fa-mobile-screen-button' : 'fa-money-bill-wave'} mr-1"></i>${method}
+                    </span>
+                </td>
+                <td class="py-3 px-4 font-semibold text-slate-700">${collectorName}</td>
+                <td class="py-3 px-4 font-mono text-xs font-bold text-slate-500">${pDate}</td>
+                <td class="py-3 px-4 text-right font-black text-emerald-600 text-sm">₱${amt.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function resetRemittanceHistoryFilters() {
+    const dateInput = document.getElementById('history-date-filter');
+    const colSelect = document.getElementById('history-collector-select');
+    if (dateInput) dateInput.value = '';
+    if (colSelect) colSelect.value = 'ALL';
+    renderRemittanceHistoryTable();
+}
 
         function openAssignModal(subId) {
             const sub = subscribers.find(s => s.id === subId);
