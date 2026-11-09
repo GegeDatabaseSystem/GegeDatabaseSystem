@@ -1264,8 +1264,8 @@
                 <div class="flex space-x-2 border-b border-slate-200 mb-4 bg-white p-3 rounded-xl shadow-sm">
                     <button onclick="switchAuditSubTab('collection')" id="audit-tab-collection" class="px-4 py-2 font-bold text-xs rounded-lg border border-indigo-600 bg-indigo-600 text-white transition cursor-pointer">Collection Audit</button>
                     <button onclick="switchAuditSubTab('sales-expenses')" id="audit-tab-sales" class="px-4 py-2 font-bold text-xs rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition cursor-pointer">Sales & Expenses Summary</button>
+                    <button onclick="switchAuditSubTab('payroll')" id="audit-tab-payroll" class="px-4 py-2 font-bold text-xs rounded-lg border border-slate-300 bg-slate-100 text-slate-700 shadow-sm hover:bg-slate-200">💼 Employee Payroll</button>
                 </div>
-
                 <!-- COLLECTION AUDIT SECTION -->
                 <div id="collection-audit-section" class="space-y-6">
                     <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-6">
@@ -1494,6 +1494,128 @@
                 </tbody>
             </table>
         </div>
+    </div>
+
+    <!-- 📌 EMPLOYEE PAYROLL SUB-TAB CONTAINER (Idinagdag na dito para direkta at hindi na malito) -->
+    <div id="audit-subtab-payroll" class="hidden space-y-6 pt-4">
+
+        <!-- TOP SECTION: CALCULATOR & EMPLOYEE MANAGEMENT -->
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-6">
+            <div class="flex justify-between items-center pb-4 border-b border-slate-100">
+                <div>
+                    <h3 class="text-xl font-bold text-slate-800">Automated Employee Salary Calculator</h3>
+                    <p class="text-xs text-slate-500">Calculate duty days, OT, and deductions automatically before finalizing.</p>
+                </div>
+                <button onclick="openManageEmployeesModal()" class="px-4 py-2 bg-slate-800 text-white text-xs font-semibold rounded-lg hover:bg-slate-700">
+                    + Manage Employees & Rates
+                </button>
+            </div>
+
+            <!-- FORM INPUTS -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Select Employee</label>
+                    <select id="payroll-emp-select" onchange="onPayrollEmpChange()" class="w-full border border-slate-300 rounded-lg p-2.5 text-xs font-semibold bg-slate-50">
+                        <option value="">-- Select Employee --</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Pay Period Start</label>
+                    <input type="date" id="payroll-period-start" class="w-full border border-slate-300 rounded-lg p-2.5 text-xs">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Pay Period End</label>
+                    <input type="date" id="payroll-period-end" class="w-full border border-slate-300 rounded-lg p-2.5 text-xs">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Daily Rate (₱)</label>
+                    <input type="number" id="payroll-daily-rate" oninput="calculatePayrollNet()" placeholder="600" class="w-full border border-slate-300 rounded-lg p-2.5 text-xs bg-slate-100 font-bold text-slate-700" readonly>
+                </div>
+            </div>
+
+            <!-- NUMERICAL COMPUTATION FIELDS -->
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-4 pt-2">
+                <div>
+                    <label class="block text-xs font-medium text-slate-600 mb-1">Duty Days Worked</label>
+                    <input type="number" id="payroll-days" oninput="calculatePayrollNet()" value="0" min="0" step="0.5" class="w-full border border-slate-300 rounded-lg p-2 text-xs">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-600 mb-1">OT Hours</label>
+                    <input type="number" id="payroll-ot-hours" oninput="calculatePayrollNet()" value="0" min="0" step="0.5" class="w-full border border-slate-300 rounded-lg p-2 text-xs">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-600 mb-1">Late / Undertime (₱)</label>
+                    <input type="number" id="payroll-late-deduct" oninput="calculatePayrollNet()" value="0" min="0" class="w-full border border-slate-300 rounded-lg p-2 text-xs text-red-600">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-600 mb-1">Cash Advance / Vale (₱)</label>
+                    <input type="number" id="payroll-vale" oninput="calculatePayrollNet()" value="0" min="0" class="w-full border border-slate-300 rounded-lg p-2 text-xs text-red-600">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-600 mb-1">Bonus / Allowance (₱)</label>
+                    <input type="number" id="payroll-bonus" oninput="calculatePayrollNet()" value="0" min="0" class="w-full border border-slate-300 rounded-lg p-2 text-xs text-emerald-600">
+                </div>
+            </div>
+
+            <!-- COMPUTATION SUMMARY DISPLAY & SAVE -->
+            <div class="bg-slate-900 text-white p-4 rounded-xl flex flex-col md:flex-row justify-between items-center gap-4">
+                <div class="flex items-center space-x-6">
+                    <div>
+                        <span class="text-xs text-slate-400 block">Gross Basic Salary</span>
+                        <span id="disp-payroll-gross" class="text-lg font-bold">₱0.00</span>
+                    </div>
+                    <div class="text-slate-600 font-bold">+</div>
+                    <div>
+                        <span class="text-xs text-slate-400 block">OT & Bonus</span>
+                        <span id="disp-payroll-additions" class="text-lg font-bold text-emerald-400">₱0.00</span>
+                    </div>
+                    <div class="text-slate-600 font-bold">-</div>
+                    <div>
+                        <span class="text-xs text-slate-400 block">Total Deductions</span>
+                        <span id="disp-payroll-deductions" class="text-lg font-bold text-red-400">₱0.00</span>
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-4">
+                    <div class="text-right">
+                        <span class="text-xs text-slate-400 block uppercase font-semibold">NET SALARY TO PAY</span>
+                        <span id="disp-payroll-net" class="text-2xl font-black text-emerald-400">₱0.00</span>
+                    </div>
+                    <button onclick="submitSavePayroll()" class="px-5 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs rounded-xl shadow-lg transition">
+                        💾 Save & Finalize Salary
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- BOTTOM SECTION: PAYROLL HISTORY TABLE -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="p-4 border-b border-slate-100 flex justify-between items-center">
+                <h4 class="font-bold text-slate-800 text-sm">Finalized Payroll History</h4>
+                <button onclick="fetchPayrollHistory()" class="text-xs text-blue-600 font-medium hover:underline">🔄 Refresh History</button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                    <thead class="bg-slate-50 text-slate-600 font-bold uppercase border-b border-slate-200">
+                        <tr>
+                            <th class="p-3">Date Processed</th>
+                            <th class="p-3">Employee</th>
+                            <th class="p-3">Pay Period</th>
+                            <th class="p-3 text-center">Duty Days</th>
+                            <th class="p-3">Gross Pay</th>
+                            <th class="p-3">Deductions</th>
+                            <th class="p-3">Net Salary</th>
+                            <th class="p-3">Processed By</th>
+                            <th class="p-3 text-center">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="payroll-history-tbody" class="divide-y divide-slate-100">
+                        <!-- Dynamic Rows -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
     </div>
 
 </div>
@@ -5500,31 +5622,43 @@ function resetRemittanceHistoryFilters() {
         }, 60000);
         
 // Function para sa paglipat ng sub-tab sa Audit & Reports
-function switchAuditSubTab(tab) {
-    const collectionSec = document.getElementById('collection-audit-section');
-    const salesSec = document.getElementById('sales-expenses-section');
+function switchAuditSubTab(tabName) {
+    console.log("Switching tab to:", tabName); // Pwede mong makita sa F12 Console kung nag-a-update
+
+    const colSection = document.getElementById('collection-audit-section');
+    const salesSection = document.getElementById('sales-expenses-section');
+    const payrollSection = document.getElementById('audit-subtab-payroll');
+
     const btnCol = document.getElementById('audit-tab-collection');
     const btnSales = document.getElementById('audit-tab-sales');
+    const btnPay = document.getElementById('audit-tab-payroll');
 
-    if (tab === 'collection') {
-        if(salesSec) salesSec.classList.add('hidden');
-        if(collectionSec) collectionSec.classList.remove('hidden');
-        if(btnCol) {
-            btnCol.className = "px-4 py-2 font-bold text-xs rounded-lg border border-indigo-600 bg-indigo-600 text-white transition cursor-pointer";
+    // Direktang itago gamitin ang style.display para sigurado
+    if (colSection) colSection.style.display = 'none';
+    if (salesSection) salesSection.style.display = 'none';
+    if (payrollSection) payrollSection.style.display = 'none';
+
+    // I-reset ang kulay ng mga buttons
+    const inactiveClass = "px-4 py-2 font-bold text-xs rounded-lg border border-slate-300 bg-slate-100 text-slate-700 shadow-sm hover:bg-gray-200";
+    const activeClass = "px-4 py-2 font-bold text-xs rounded-lg border border-slate-300 bg-blue-600 text-white shadow-sm";
+
+    if (btnCol) btnCol.className = inactiveClass;
+    if (btnSales) btnSales.className = inactiveClass;
+    if (btnPay) btnPay.className = inactiveClass;
+
+    // Ipakita ang pinili
+    if (tabName === 'collection') {
+        if (colSection) colSection.style.display = 'block';
+        if (btnCol) btnCol.className = activeClass;
+    } else if (tabName === 'sales-expenses' || tabName === 'sales') {
+        if (salesSection) salesSection.style.display = 'block';
+        if (btnSales) btnSales.className = activeClass;
+    } else if (tabName === 'payroll') {
+        if (payrollSection) payrollSection.style.display = 'block';
+        if (btnPay) btnPay.className = activeClass;
+        if (typeof loadPayrollData === 'function') {
+            loadPayrollData();
         }
-        if(btnSales) {
-            btnSales.className = "px-4 py-2 font-bold text-xs rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition cursor-pointer";
-        }
-    } else {
-        if(collectionSec) collectionSec.classList.add('hidden');
-        if(salesSec) salesSec.classList.remove('hidden');
-        if(btnSales) {
-            btnSales.className = "px-4 py-2 font-bold text-xs rounded-lg border border-indigo-600 bg-indigo-600 text-white transition cursor-pointer";
-        }
-        if(btnCol) {
-            btnCol.className = "px-4 py-2 font-bold text-xs rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition cursor-pointer";
-        }
-        fetchSalesExpensesReports();
     }
 }
 
@@ -5969,6 +6103,222 @@ function switchCollectionTab(tabName) {
         document.getElementById('section-coming-due')?.classList.remove('hidden');
         if (btnComing) btnComing.className = "px-4 py-2.5 rounded-xl font-bold text-xs bg-blue-600 text-white shadow-sm flex items-center gap-2 transition-all";
     }
+}
+
+// ==========================================
+// TACSFIBER - EMPLOYEE PAYROLL & SALARY MODULE
+// ==========================================
+
+window.companyEmployees = [];
+window.payrollHistoryList = [];
+
+// --- 1. SWITCH AUDIT SUB-TABS (Collection, Sales, Payroll) ---
+function switchAuditSubTab(tabName) {
+    const colSection = document.getElementById('collection-audit-section');
+    const salesSection = document.getElementById('sales-expenses-section');
+    const payrollSection = document.getElementById('audit-subtab-payroll');
+
+    const btnCol = document.getElementById('audit-tab-collection');
+    const btnSales = document.getElementById('audit-tab-sales');
+    const btnPay = document.getElementById('audit-tab-payroll');
+
+    // Itago lahat muna
+    if (colSection) colSection.classList.add('hidden');
+    if (salesSection) salesSection.classList.add('hidden');
+    if (payrollSection) payrollSection.classList.add('hidden');
+
+    // I-reset ang kulay ng mga button
+    const inactiveClass = "px-4 py-2 font-bold text-xs rounded-lg border border-slate-300 bg-slate-100 text-slate-700 shadow-sm hover:bg-gray-200";
+    const activeClass = "px-4 py-2 font-bold text-xs rounded-lg border border-slate-300 bg-blue-600 text-white shadow-sm";
+
+    if (btnCol) btnCol.className = inactiveClass;
+    if (btnSales) btnSales.className = inactiveClass;
+    if (btnPay) btnPay.className = inactiveClass;
+
+    // Ipakita ang pinili
+    if (tabName === 'collection') {
+        if (colSection) colSection.classList.remove('hidden');
+        if (btnCol) btnCol.className = activeClass;
+    } else if (tabName === 'sales-expenses') {
+        if (salesSection) salesSection.classList.remove('hidden');
+        if (btnSales) btnSales.className = activeClass;
+    } else if (tabName === 'payroll') {
+        if (payrollSection) payrollSection.classList.remove('hidden');
+        if (btnPay) btnPay.className = activeClass;
+        loadPayrollData();
+    }
+}
+
+// --- 2. LOAD EMPLOYEES & PAYROLL HISTORY ---
+async function loadPayrollData() {
+    await fetchCompanyEmployees();
+    await fetchPayrollHistory();
+}
+
+async function fetchCompanyEmployees() {
+    const sb = typeof getSupabase === 'function' ? getSupabase() : (window.supabaseClient || null);
+    if (!sb) return;
+
+    try {
+        const { data, error } = await sb.from('company_employees').select('*').order('name');
+        if (!error && data && data.length > 0) {
+            window.companyEmployees = data;
+        } else {
+            // Default fallback employees kung wala pa sa Supabase table
+            window.companyEmployees = [
+                { id: 1, name: 'Merson', role: 'TECHNICIAN', daily_rate: 600 },
+                { id: 2, name: 'Thomas Charles Roble', role: 'COLLECTOR', daily_rate: 550 },
+                { id: 3, name: 'Rolando Tacocong', role: 'ASSISTANT_ADMIN', daily_rate: 700 }
+            ];
+        }
+
+        const select = document.getElementById('payroll-emp-select');
+        if (select) {
+            select.innerHTML = '<option value="">-- Select Employee --</option>' +
+                window.companyEmployees.map(e => `<option value="${e.name}">${e.name} (${e.role})</option>`).join('');
+        }
+    } catch (e) {
+        console.error("Error loading employees:", e);
+    }
+}
+
+function onPayrollEmpChange() {
+    const empName = document.getElementById('payroll-emp-select').value;
+    const emp = (window.companyEmployees || []).find(e => e.name === empName);
+    const rateInput = document.getElementById('payroll-daily-rate');
+
+    if (emp && rateInput) {
+        rateInput.value = emp.daily_rate || 0;
+    } else if (rateInput) {
+        rateInput.value = 0;
+    }
+    calculatePayrollNet();
+}
+
+// --- 3. LIVE PAYROLL CALCULATOR (Duty Days, OT, Late, Vale, Bonus) ---
+function calculatePayrollNet() {
+    const dailyRate = parseFloat(document.getElementById('payroll-daily-rate').value) || 0;
+    const days = parseFloat(document.getElementById('payroll-days').value) || 0;
+    const otHours = parseFloat(document.getElementById('payroll-ot-hours').value) || 0;
+    const late = parseFloat(document.getElementById('payroll-late-deduct').value) || 0;
+    const vale = parseFloat(document.getElementById('payroll-vale').value) || 0;
+    const bonus = parseFloat(document.getElementById('payroll-bonus').value) || 0;
+
+    // Overtime formula: (Daily Rate / 8 hours) * 1.25
+    const hourlyRate = dailyRate / 8;
+    const otPay = otHours * (hourlyRate * 1.25);
+
+    const gross = days * dailyRate;
+    const additions = otPay + bonus;
+    const deductions = late + vale;
+    const net = gross + additions - deductions;
+
+    // Display sa UI
+    document.getElementById('disp-payroll-gross').innerText = `₱${gross.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+    document.getElementById('disp-payroll-additions').innerText = `₱${additions.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+    document.getElementById('disp-payroll-deductions').innerText = `₱${deductions.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+    document.getElementById('disp-payroll-net').innerText = `₱${net.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+}
+
+// --- 4. SAVE FINALIZED SALARY TO SUPABASE ---
+async function submitSavePayroll() {
+    const empName = document.getElementById('payroll-emp-select').value;
+    const start = document.getElementById('payroll-period-start').value;
+    const end = document.getElementById('payroll-period-end').value;
+    const dailyRate = parseFloat(document.getElementById('payroll-daily-rate').value) || 0;
+    const days = parseFloat(document.getElementById('payroll-days').value) || 0;
+    const otHours = parseFloat(document.getElementById('payroll-ot-hours').value) || 0;
+    const late = parseFloat(document.getElementById('payroll-late-deduct').value) || 0;
+    const vale = parseFloat(document.getElementById('payroll-vale').value) || 0;
+    const bonus = parseFloat(document.getElementById('payroll-bonus').value) || 0;
+
+    if (!empName) return alert("Paki-pili ang empleyado!");
+    if (!start || !end) return alert("Paki-set ang Pay Period dates!");
+    if (days <= 0) return alert("Paki-lagay ang tamang Duty Days!");
+
+    const hourlyRate = dailyRate / 8;
+    const otPay = otHours * (hourlyRate * 1.25);
+    const gross = days * dailyRate;
+    const net = gross + otPay + bonus - (late + vale);
+
+    const record = {
+        employee_name: empName,
+        period_start: start,
+        period_end: end,
+        days_worked: days,
+        daily_rate: dailyRate,
+        overtime_hours: otHours,
+        overtime_pay: otPay,
+        late_deduction: late,
+        cash_advance: vale,
+        other_bonus: bonus,
+        net_salary: net,
+        processed_by: (window.currentUser ? window.currentUser.name : 'Ronel Tacocong')
+    };
+
+    try {
+        const sb = typeof getSupabase === 'function' ? getSupabase() : (window.supabaseClient || null);
+        if (sb) {
+            const { error } = await sb.from('payroll_history').insert([record]);
+            if (error) {
+                console.error("Supabase Payroll Insert Error:", error);
+                alert("Babala: Na-compute na pero may aberya sa pag-save sa Supabase cloud. Subukan ulit.");
+                return;
+            }
+        }
+    } catch (e) {
+        console.error("Supabase Error:", e);
+    }
+
+    alert(`Tagumpay! Na-save at nai-finalize na ang sweldo ni ${empName} na may Net Salary na ₱${net.toLocaleString('en-US', {minimumFractionDigits: 2})}.`);
+    fetchPayrollHistory();
+}
+
+// --- 5. FETCH & DISPLAY PAYROLL HISTORY TABLE ---
+async function fetchPayrollHistory() {
+    const tbody = document.getElementById('payroll-history-tbody');
+    if (!tbody) return;
+
+    let history = [];
+    try {
+        const sb = typeof getSupabase === 'function' ? getSupabase() : (window.supabaseClient || null);
+        if (sb) {
+            const { data } = await sb.from('payroll_history').select('*').order('created_at', { ascending: false });
+            if (data) history = data;
+        }
+    } catch (e) {}
+
+    if (history.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-slate-400">Wala pang naisagawang payroll records.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = history.map(item => {
+        const dateStr = item.created_at ? new Date(item.created_at).toLocaleDateString() : 'N/A';
+        const gross = (item.days_worked * item.daily_rate) || 0;
+        const totalDeduct = (item.late_deduction || 0) + (item.cash_advance || 0);
+
+        return `
+            <tr class="hover:bg-slate-50 border-b border-slate-100">
+                <td class="p-3 text-slate-500">${dateStr}</td>
+                <td class="p-3 font-bold text-slate-800">${item.employee_name}</td>
+                <td class="p-3 text-slate-600">${item.period_start} to ${item.period_end}</td>
+                <td class="p-3 text-center font-semibold">${item.days_worked}</td>
+                <td class="p-3 text-slate-700">₱${gross.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+                <td class="p-3 text-red-500">-₱${totalDeduct.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+                <td class="p-3 font-black text-emerald-600 text-sm">₱${(item.net_salary || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+                <td class="p-3 text-slate-400">${item.processed_by || 'Admin'}</td>
+                <td class="p-3 text-center">
+                    <button onclick="alert('Payslip preview for ${item.employee_name}')" class="px-2 py-1 bg-slate-100 text-slate-700 rounded hover:bg-slate-200">🖨️ Payslip</button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+// --- 6. MANAGE EMPLOYEES MODAL PLACEHOLDER ---
+function openManageEmployeesModal() {
+    alert("Dito mo mamaya ma-a-add o ma-e-edit ang mga empleyado at kanilang daily rates para diretso sa database ng TacsFiber.");
 }
 
 // ⭐ TACSFIBER COMPLETE KEYBOARD SHORTCUTS MANAGER
