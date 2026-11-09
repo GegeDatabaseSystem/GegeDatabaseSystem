@@ -2017,20 +2017,42 @@
         });
 
         window.addEventListener('offline', updateOnlineStatus);
- // --- USER SELF-SERVICE CHANGE PASSWORD (LOGIN PAGE) ---
-function openUserChangePasswordModal() {
+// --- 1. OPEN MODAL & LOAD USERS FROM SUPABASE ---
+async function openUserChangePasswordModal() {
     const modal = document.getElementById('user-change-password-modal');
-    const select = document.getElementById('user-self-select');
+    const select = document.getElementById('user-select-user') || document.getElementById('user-self-select');
     
     if (modal && select) {
-        if (typeof systemUsers !== 'undefined' && systemUsers.length > 0) {
-            select.innerHTML = systemUsers.map(u => {
-                const uname = u.username || u.name || '';
-                const fname = u.name || u.username || '';
-                const urole = u.role || 'USER';
-                return `<option value="${uname}">${fname} (${urole})</option>`;
-            }).join('');
+        // Kunin ang mga user mula sa Supabase para sigurado
+        try {
+            const sb = typeof getSupabase === 'function' ? getSupabase() : (window.supabaseClient || null);
+            if (sb) {
+                const { data, error } = await sb.from('system_users').select('*');
+                if (data && !error && data.length > 0) {
+                    window.systemUsers = data;
+                }
+            }
+        } catch (err) {
+            console.error("Error loading users:", err);
         }
+
+        // Kung sakaling wala pa rin, gamitin ang default array
+        if (!window.systemUsers || window.systemUsers.length === 0) {
+            window.systemUsers = [
+                { username: 'Ronel Tacocong', name: 'Ronel Tacocong', role: 'ADMIN', pass: 'admin' },
+                { username: 'Rolando Tacocong', name: 'Rolando Tacocong', role: 'ASSISTANT_ADMIN', pass: 'pass' },
+                { username: 'Thomas Charles Roble', name: 'Thomas Charles Roble', role: 'COLLECTOR', pass: 'pass' },
+                { username: 'Merson', name: 'Merson', role: 'TECHNICIAN', pass: 'pass' }
+            ];
+        }
+
+        // I-populate ang dropdown
+        select.innerHTML = window.systemUsers.map(u => {
+            const uname = u.username || u.name || '';
+            const urole = u.role || 'USER';
+            return `<option value="${uname}">${uname} (${urole})</option>`;
+        }).join('');
+
         modal.classList.remove('hidden');
         modal.classList.add('flex');
     }
@@ -2042,7 +2064,6 @@ function closeUserChangePasswordModal() {
         modal.classList.remove('flex');
         modal.classList.add('hidden');
         
-        // Linisin ang mga input fields kapag sinarado
         const oldPassEl = document.getElementById('user-old-pass');
         const newPassEl = document.getElementById('user-new-pass');
         if (oldPassEl) oldPassEl.value = '';
@@ -2050,14 +2071,15 @@ function closeUserChangePasswordModal() {
     }
 }
 
+// --- 2. SUBMIT CHANGE PASSWORD ---
 async function submitUserChangePassword() {
-    const selectEl = document.getElementById('user-self-select');
+    const selectEl = document.getElementById('user-select-user') || document.getElementById('user-self-select');
     const oldPassEl = document.getElementById('user-old-pass');
     const newPassEl = document.getElementById('user-new-pass');
 
     if (!selectEl || !oldPassEl || !newPassEl) return;
 
-    const username = selectEl.value;
+    const selectedUsername = selectEl.value.trim();
     const oldPass = oldPassEl.value.trim();
     const newPass = newPassEl.value.trim();
 
@@ -2071,37 +2093,53 @@ async function submitUserChangePassword() {
         return;
     }
 
-    // Hanapin ang user sa systemUsers array (sinusuportahan pareho ang .username at .name)
-    let user = systemUsers.find(u => 
-        (u.username && u.username.toLowerCase() === username.toLowerCase()) || 
-        (u.name && u.name.toLowerCase() === username.toLowerCase())
-    );
+    // Siguraduhing may systemUsers array
+    let usersList = window.systemUsers || (typeof systemUsers !== 'undefined' ? systemUsers : []);
+    
+    // Kung blangko pa rin, pilitin nating i-fetch ulit sa Supabase sa mismong oras na ito
+    if (usersList.length === 0) {
+        try {
+            const sb = typeof getSupabase === 'function' ? getSupabase() : null;
+            if (sb) {
+                const { data } = await sb.from('system_users').select('*');
+                if (data) usersList = data;
+            }
+        } catch (e) {}
+    }
+
+    // Hanapin ang user gamit ang selected username (Case-insensitive match)
+    let user = usersList.find(u => {
+        const uName = String(u.username || u.name || '').trim().toLowerCase();
+        return uName === selectedUsername.toLowerCase();
+    });
 
     if (!user) {
-        alert("Hindi nahanap ang user profile.");
+        alert("Hindi nahanap ang user profile para kay: " + selectedUsername);
         return;
     }
 
-    // Suriin kung tama ang lumang password (sinusuportahan ang .password o .pass)
-    const currentPass = user.password || user.pass || '';
+    // Suriin kung tama ang lumang password (suportahan ang .pass o .password)
+    const currentPass = String(user.pass || user.password || '');
     if (currentPass !== oldPass) {
         alert("Mali ang kasalukuyang (lumang) password na iyong inilagay.");
         return;
     }
 
     // I-update sa local memory
-    user.password = newPass;
     user.pass = newPass;
+    user.password = newPass;
 
-    // Supabase DB Update (konektado sa Cloud)
+    // Supabase DB Update (Gamit ang tamang 'pass' column)
     try {
         const sb = typeof getSupabase === 'function' ? getSupabase() : (window.supabaseClient || null);
         if (sb) {
-            // Sinusubukan i-update ang parehong posibleng column names sa Supabase ('password' o 'pass')
+            const targetField = user.username ? 'username' : 'name';
+            const targetVal = user.username || user.name || selectedUsername;
+            
             const { error } = await sb
                 .from('system_users')
-                .update({ password: newPass, pass: newPass })
-                .eq('username', username);
+                .update({ pass: newPass })
+                .eq(targetField, targetVal);
 
             if (error) {
                 console.error("Supabase Password Sync Error:", error);
@@ -2111,7 +2149,7 @@ async function submitUserChangePassword() {
         console.error("Supabase connection error:", err);
     }
 
-    alert("Tagumpay! Na-update na ang iyong password. Maaari ka nang mag-log in gamit ang bagong password.");
+    alert("Tagumpay! Na-update na ang iyong password para kay " + selectedUsername + ". Maaari ka nang mag-log in gamit ang bagong password.");
     closeUserChangePasswordModal();
 }
 
@@ -2140,27 +2178,31 @@ async function submitAdminForceReset() {
         return;
     }
 
-    let user = systemUsers.find(u => u.username.toLowerCase() === targetUsername.toLowerCase());
+    let user = systemUsers.find(u => (u.username || '').toLowerCase() === targetUsername.toLowerCase() || (u.name || '').toLowerCase() === targetUsername.toLowerCase());
     if (user) {
         user.password = newPass;
+        user.pass = newPass;
 
-        // Supabase Cloud Sync Update
-        if (typeof supabase !== 'undefined') {
-            const { error } = await supabase
-                .from('system_users')
-                .update({ password: newPass })
-                .eq('username', targetUsername);
+        try {
+            const sb = typeof getSupabase === 'function' ? getSupabase() : null;
+            if (sb) {
+                const { error } = await sb
+                    .from('system_users')
+                    .update({ pass: newPass }) // 📌 Dito rin pinalitan ng 'pass'
+                    .eq('username', targetUsername);
 
-            if (error) {
-                console.error("Admin Supabase Overwrite Error:", error);
+                if (error) console.error("Admin Supabase Overwrite Error:", error);
             }
+        } catch (err) {
+            console.error("Supabase error:", err);
         }
 
-        alert(`Na-reset na ang password ni ${user.name} (${targetUsername}) sa: "${newPass}". Maaari na ulit silang makapag-log in.`);
+        alert(`Na-reset na ang password ni ${targetUsername} sa: "${newPass}".`);
         document.getElementById('admin-new-pass').value = '';
         closeAdminResetModal();
+        if (typeof renderUsersTable === 'function') renderUsersTable();
     }
-}       
+}      
 
         function updateOnlineStatus() {
             const badge = document.getElementById('network-status-badge');
