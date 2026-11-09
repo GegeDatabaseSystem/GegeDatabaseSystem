@@ -1603,6 +1603,73 @@
 
 </div>
 
+<!-- 📌 MANAGE EMPLOYEES & RATES MODAL -->
+<div id="manage-employees-modal" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden border border-slate-200">
+        <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+            <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                <i class="fa-solid fa-users-gear text-indigo-600"></i> Manage Company Employees & Daily Rates
+            </h3>
+            <button onclick="closeManageEmployeesModal()" class="text-slate-400 hover:text-slate-700 font-bold text-base">&times;</button>
+        </div>
+
+        <div class="p-6 space-y-5">
+            <!-- Form para sa pag-add ng bagong empleyado -->
+            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+                <h4 class="text-xs font-black uppercase text-slate-700 tracking-wider">Add New Employee</h4>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 mb-1">Full Name</label>
+                        <input type="text" id="new-emp-name" placeholder="Pangalan" class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 mb-1">Role / Position</label>
+                        <select id="new-emp-role" class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white font-semibold">
+                            <option value="TECHNICIAN">TECHNICIAN</option>
+                            <option value="COLLECTOR">COLLECTOR</option>
+                            <option value="ASSISTANT_ADMIN">ASSISTANT_ADMIN</option>
+                            <option value="STAFF">STAFF</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 mb-1">Daily Rate (₱)</label>
+                        <input type="number" id="new-emp-rate" placeholder="600" class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white">
+                    </div>
+                </div>
+                <button onclick="saveNewEmployeeToSupabase()" class="w-full mt-2 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-lg shadow transition">
+                    + Save Employee to Database
+                </button>
+            </div>
+
+            <!-- Listahan ng mga kasalukuyang empleyado -->
+            <div class="space-y-2">
+                <h4 class="text-xs font-black uppercase text-slate-700 tracking-wider">Current Employees List</h4>
+                <div class="max-h-48 overflow-y-auto border border-slate-200 rounded-xl">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-slate-100 text-slate-600 font-bold uppercase sticky top-0">
+                            <tr>
+                                <th class="p-2.5">Name</th>
+                                <th class="p-2.5">Role</th>
+                                <th class="p-2.5">Daily Rate</th>
+                                <th class="p-2.5 text-center">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="manage-employees-tbody" class="divide-y divide-slate-100 bg-white">
+                            <!-- Dynamic rows -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="px-6 py-3 bg-slate-50 border-t border-slate-100 flex justify-end">
+            <button onclick="closeManageEmployeesModal()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs rounded-lg">
+                Close
+            </button>
+        </div>
+    </div>
+</div>
+
             <!-- USERS VIEW -->
             <div id="view-users" class="hidden space-y-6 max-w-3xl mx-auto">
                 <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-6">
