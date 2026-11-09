@@ -4887,47 +4887,52 @@ function openPaymentModalBySubId(subId) {
         }
 
         function renderAuditTable() {
-            const tbody = document.getElementById('audit-table-body');
-            const collectorFilter = document.getElementById('auditCollectorFilter') ? document.getElementById('auditCollectorFilter').value : 'ALL';
-            const dateFrom = document.getElementById('audit-date-from') ? document.getElementById('audit-date-from').value : '';
-            const dateTo = document.getElementById('audit-date-to') ? document.getElementById('audit-date-to').value : '';
-            const totalAmountEl = document.getElementById('audit-total-amount');
+    const tbody = document.getElementById('audit-table-body');
+    const collectorFilter = document.getElementById('auditCollectorFilter') ? document.getElementById('auditCollectorFilter').value : 'ALL';
+    const dateFrom = document.getElementById('audit-date-from') ? document.getElementById('audit-date-from').value : '';
+    const dateTo = document.getElementById('audit-date-to') ? document.getElementById('audit-date-to').value : '';
+    const totalAmountEl = document.getElementById('audit-total-amount');
 
-            if(!tbody) return;
+    if(!tbody) return;
 
-            let filtered = paymentLogs;
+    let filtered = paymentLogs;
 
-            if(collectorFilter !== 'ALL') {
-                filtered = filtered.filter(p => (p.encodedBy || '').toLowerCase() === collectorFilter.toLowerCase());
-            }
+    // Case-insensitive & trimmed comparison para sa Collector Name
+    if(collectorFilter !== 'ALL') {
+        filtered = filtered.filter(p => {
+            const encoder = (p.encodedBy || p.collected_by || '').toLowerCase().trim();
+            const target = collectorFilter.toLowerCase().trim();
+            return encoder === target;
+        });
+    }
 
-            if(dateFrom) {
-                filtered = filtered.filter(p => p.date >= dateFrom);
-            }
+    if(dateFrom) {
+        filtered = filtered.filter(p => p.date >= dateFrom);
+    }
 
-            if(dateTo) {
-                filtered = filtered.filter(p => p.date <= dateTo);
-            }
+    if(dateTo) {
+        filtered = filtered.filter(p => p.date <= dateTo);
+    }
 
-            const totalSum = filtered.reduce((acc, p) => acc + (p.amountPaid || 0), 0);
-            if(totalAmountEl) totalAmountEl.innerText = '₱' + totalSum.toLocaleString(undefined, {minimumFractionDigits: 2});
+    const totalSum = filtered.reduce((acc, p) => acc + (parseFloat(p.amountPaid) || parseFloat(p.amount) || 0), 0);
+    if(totalAmountEl) totalAmountEl.innerText = '₱' + totalSum.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
 
-            if(filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-slate-400">Walang nahanap na collection audit records sa mga filter na ito.</td></tr>`;
-                return;
-            }
+    if(filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-slate-400">Walang nahanap na collection audit records sa mga filter na ito.</td></tr>`;
+        return;
+    }
 
-            tbody.innerHTML = filtered.map(p => `
-                <tr class="hover:bg-slate-50 border-b">
-                    <td class="py-2.5 px-3 font-mono">${p.date}</td>
-                    <td class="py-2.5 px-3 font-bold">${p.subscriberName}</td>
-                    <td class="py-2.5 px-3">${p.monthsPaid}</td>
-                    <td class="py-2.5 px-3"><span class="px-2 py-0.5 rounded text-[11px] font-bold ${p.method==='GCash'?'bg-blue-100 text-blue-700':'bg-emerald-100 text-emerald-700'}">${p.method}</span></td>
-                    <td class="py-2.5 px-3 font-bold text-emerald-600">₱${(p.amountPaid||0).toLocaleString()}</td>
-                    <td class="py-2.5 px-3">${p.encodedBy}</td>
-                </tr>
-            `).join('');
-        }
+    tbody.innerHTML = filtered.map(p => `
+        <tr class="hover:bg-slate-50 border-b">
+            <td class="py-2.5 px-3 font-mono">${p.date}</td>
+            <td class="py-2.5 px-3 font-bold">${p.subscriberName || p.subscriber_name}</td>
+            <td class="py-2.5 px-3">${p.monthsPaid || p.billing_id}</td>
+            <td class="py-2.5 px-3"><span class="px-2 py-0.5 rounded text-[11px] font-bold ${ (p.method||p.payment_method)==='GCash' ? 'bg-blue-100 text-blue-700':'bg-emerald-100 text-emerald-700'}">${p.method || p.payment_method}</span></td>
+            <td class="py-2.5 px-3 font-bold text-emerald-600">₱${(parseFloat(p.amountPaid) || parseFloat(p.amount) || 0).toLocaleString()}</td>
+            <td class="py-2.5 px-3">${p.encodedBy || p.collected_by}</td>
+        </tr>
+    `).join('');
+}
 
         function resetAuditFilters() {
             document.getElementById('auditCollectorFilter').value = 'ALL';
