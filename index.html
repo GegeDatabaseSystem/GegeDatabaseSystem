@@ -1259,244 +1259,227 @@
             </div>
 
             <!-- AUDIT & REPORTS VIEW -->
-            <div id="view-audit-reports" class="hidden space-y-6">
-                <!-- MGA SUB-TABS (Para mamili kung Collection Audit o Sales & Expenses) -->
-                <div class="flex space-x-2 border-b border-slate-200 mb-4 bg-white p-3 rounded-xl shadow-sm">
-                    <button onclick="switchAuditSubTab('collection')" id="audit-tab-collection" class="px-4 py-2 font-bold text-xs rounded-lg border border-indigo-600 bg-indigo-600 text-white transition cursor-pointer">Collection Audit</button>
-                    <button onclick="switchAuditSubTab('sales-expenses')" id="audit-tab-sales" class="px-4 py-2 font-bold text-xs rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition cursor-pointer">Sales & Expenses Summary</button>
-                    <button onclick="switchAuditSubTab('payroll')" id="audit-tab-payroll" class="px-4 py-2 font-bold text-xs rounded-lg border border-slate-300 bg-slate-100 text-slate-700 shadow-sm hover:bg-slate-200">💼 Employee Payroll</button>
-                </div>
-                <!-- COLLECTION AUDIT SECTION -->
-                <div id="collection-audit-section" class="space-y-6">
-                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-6">
-                        <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 border-b pb-4">
-                            <div>
-                                <h3 class="text-base font-bold text-slate-800 flex items-center space-x-2">
-                                    <i class="fa-solid fa-file-shield text-amber-500"></i><span>Collection Audit & Reports</span>
-                                </h3>
-                                <p class="text-xs text-slate-500">Filter collections by collector, custom date range (From and To), and export reports.</p>
-                            </div>
-
-                            <div class="flex flex-wrap items-center gap-3 w-full lg:w-auto">
-                                <div class="flex items-center space-x-2 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200">
-                                    <label class="text-xs font-bold text-slate-700"><i class="fa-solid fa-user-check text-amber-500 mr-1"></i>Collector:</label>
-                                    <select id="auditCollectorFilter" onchange="renderAuditTable()" class="border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-800 bg-white focus:ring-2 focus:ring-amber-500 focus:outline-none">
-                                        <option value="ALL">All Collectors</option>
-                                    </select>
-                                </div>
-
-                                <div class="flex items-center space-x-2 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200">
-                                    <label class="text-xs font-bold text-slate-700">From:</label>
-                                    <input type="date" id="audit-date-from" onchange="renderAuditTable()" class="border border-slate-300 rounded-lg px-2 py-1 text-xs font-bold bg-white">
-                                    <label class="text-xs font-bold text-slate-700">To:</label>
-                                    <input type="date" id="audit-date-to" onchange="renderAuditTable()" class="border border-slate-300 rounded-lg px-2 py-1 text-xs font-bold bg-white">
-                                </div>
-
-                                <button onclick="resetAuditFilters()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition">Reset</button>
-                            </div>
-                        </div>
-
-                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-emerald-50 border border-emerald-200 rounded-xl p-4">
-                            <div>
-                                <p class="text-xs font-bold text-emerald-800 uppercase tracking-wider">Filtered Total Collection</p>
-                                <h4 id="audit-total-amount" class="text-2xl font-black text-emerald-600 mt-0.5">₱0.00</h4>
-                            </div>
-                            <div class="flex items-center space-x-3">
-                                <button onclick="exportAuditReportCSV()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow cursor-pointer transition flex items-center space-x-2">
-                                    <i class="fa-solid fa-file-arrow-down"></i><span>Export Report (.csv)</span>
-                                </button>
-                                <div class="bg-emerald-600 text-white p-3 rounded-xl shadow-sm">
-                                    <i class="fa-solid fa-receipt text-xl"></i>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="overflow-x-auto max-h-[60vh] border border-slate-200 rounded-xl">
-                            <table class="w-full text-left border-collapse text-xs">
-                                <thead class="bg-slate-100 text-slate-700 uppercase font-bold sticky top-0 z-10">
-                                    <tr>
-                                        <th class="py-3 px-3">Date Collected</th>
-                                        <th class="py-3 px-3">Subscriber Name</th>
-                                        <th class="py-3 px-3">Billing Month</th>
-                                        <th class="py-3 px-3">Method</th>
-                                        <th class="py-3 px-3">Amount</th>
-                                        <th class="py-3 px-3">Collector / Encoder</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="audit-table-body" class="divide-y divide-slate-100 bg-white"></tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-<!-- AUDIT DATE FILTER SECTION -->
-    <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4 mb-6">
-        <div class="flex items-center gap-2">
-            <i class="fa-solid fa-filter text-indigo-600"></i>
-            <span class="text-xs font-black uppercase text-slate-700 tracking-wider">Audit Date Filter:</span>
-        </div>
-        <div class="flex flex-wrap items-center gap-3">
-            <div class="flex items-center gap-2">
-                <label class="text-xs font-bold text-slate-500">From:</label>
-                <input type="date" id="audit-start-date" onchange="loadSalesAndIncomeSummary()" class="text-xs font-mono border border-slate-300 rounded-lg px-3 py-1.5 bg-slate-50 text-slate-700">
-            </div>
-            <div class="flex items-center gap-2">
-                <label class="text-xs font-bold text-slate-500">To:</label>
-                <input type="date" id="audit-end-date" onchange="loadSalesAndIncomeSummary()" class="text-xs font-mono border border-slate-300 rounded-lg px-3 py-1.5 bg-slate-50 text-slate-700">
-            </div>
-            <button onclick="loadSalesAndIncomeSummary()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow transition flex items-center gap-1.5">
-                <i class="fa-solid fa-rotate"></i> Filter Sales
-            </button>
-        </div>
-    </div>
-               <!-- SALES & EXPENSES SUMMARY TAB CONTENT -->
-<div id="sales-expenses-section" class="hidden space-y-6">
+<div id="view-audit-reports" class="hidden space-y-6">
     
-    <!-- TOP SECTION: NET INCOME & EXPENSES BREAKDOWN -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        
-        <!-- NET INCOME SUMMARY CARD -->
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
-            <h3 class="text-sm font-black uppercase text-slate-700 tracking-wider flex items-center gap-2 border-b pb-2">
-                <i class="fa-solid fa-calculator text-emerald-600"></i> Net Income Summary
-            </h3>
-            
-            <div class="space-y-3">
+    <!-- MGA SUB-TABS -->
+    <div class="flex space-x-2 border-b border-slate-200 mb-4 bg-white p-3 rounded-xl shadow-sm">
+        <button onclick="switchAuditSubTab('collection')" id="audit-tab-collection" class="px-4 py-2 font-bold text-xs rounded-lg border border-indigo-600 bg-indigo-600 text-white transition cursor-pointer">Collection Audit</button>
+        <button onclick="switchAuditSubTab('sales-expenses')" id="audit-tab-sales" class="px-4 py-2 font-bold text-xs rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition cursor-pointer">Sales & Expenses Summary</button>
+        <button onclick="switchAuditSubTab('payroll')" id="audit-tab-payroll" class="px-4 py-2 font-bold text-xs rounded-lg border border-slate-300 bg-slate-100 text-slate-700 shadow-sm hover:bg-slate-200">💼 Employee Payroll</button>
+    </div>
+
+    <!-- 1. COLLECTION AUDIT SECTION -->
+    <div id="collection-audit-section" class="space-y-6">
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-6">
+            <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 border-b pb-4">
                 <div>
-                    <label class="block text-xs font-bold text-slate-600 mb-1">Total Sales (Combined):</label>
-                    <div class="relative">
-                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 font-bold">₱</span>
-                        <input type="number" id="input-total-sales" readonly class="w-full pl-8 pr-3 py-2 text-sm font-mono font-bold bg-slate-50 border border-slate-300 rounded-lg text-slate-700" placeholder="0.00">
+                    <h3 class="text-base font-bold text-slate-800 flex items-center space-x-2">
+                        <i class="fa-solid fa-file-shield text-amber-500"></i><span>Collection Audit & Reports</span>
+                    </h3>
+                    <p class="text-xs text-slate-500">Filter collections by collector, custom date range (From and To), and export reports.</p>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+                    <div class="flex items-center space-x-2 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200">
+                        <label class="text-xs font-bold text-slate-700"><i class="fa-solid fa-user-check text-amber-500 mr-1"></i>Collector:</label>
+                        <select id="auditCollectorFilter" onchange="renderAuditTable()" class="border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-800 bg-white focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                            <option value="ALL">All Collectors</option>
+                        </select>
                     </div>
-                </div>
 
-                <div class="flex justify-between items-center py-2 px-3 bg-rose-50 rounded-xl border border-rose-100">
-                    <span class="text-xs font-bold text-rose-700">Total Expenses:</span>
-                    <span id="display-total-expenses" class="text-sm font-mono font-black text-rose-600">₱0.00</span>
-                </div>
+                    <div class="flex items-center space-x-2 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200">
+                        <label class="text-xs font-bold text-slate-700">From:</label>
+                        <input type="date" id="audit-date-from" onchange="renderAuditTable()" class="border border-slate-300 rounded-lg px-2 py-1 text-xs font-bold bg-white">
+                        <label class="text-xs font-bold text-slate-700">To:</label>
+                        <input type="date" id="audit-date-to" onchange="renderAuditTable()" class="border border-slate-300 rounded-lg px-2 py-1 text-xs font-bold bg-white">
+                    </div>
 
-                <div class="flex justify-between items-center py-3 px-4 bg-emerald-50 rounded-xl border border-emerald-200">
-                    <span class="text-sm font-black text-emerald-800">Net Income:</span>
-                    <span id="display-net-income" class="text-base font-mono font-black text-emerald-600">₱0.00</span>
+                    <button onclick="resetAuditFilters()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition">Reset</button>
                 </div>
             </div>
-        </div>
 
-        <!-- EXPENSES BREAKDOWN CARD -->
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
-            <h3 class="text-sm font-black uppercase text-slate-700 tracking-wider flex items-center gap-2 border-b pb-2">
-                <i class="fa-solid fa-receipt text-rose-600"></i> Expenses Breakdown
-            </h3>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4" id="expenses-breakdown-grid">
-                <!-- ADMIN EXPENSES -->
-                <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2" id="card-admin-expenses">
-                    <span class="text-[11px] font-black uppercase text-indigo-600 tracking-wider block border-b border-slate-200 pb-1">
-                        <i class="fa-solid fa-user-shield"></i> Admin Expenses
-                    </span>
-                    <div class="space-y-1.5">
-                        <input type="number" id="exp-admin-internet" oninput="calculateSalesAndExpenses()" placeholder="Internet Bill" class="w-full text-xs font-mono border border-slate-300 rounded px-2 py-1 bg-white">
-                        <input type="number" id="exp-admin-materials" oninput="calculateSalesAndExpenses()" placeholder="Materials" class="w-full text-xs font-mono border border-slate-300 rounded px-2 py-1 bg-white">
-                        <input type="number" id="exp-admin-salary" oninput="calculateSalesAndExpenses()" placeholder="Salary" class="w-full text-xs font-mono border border-slate-300 rounded px-2 py-1 bg-white">
-                        <input type="number" id="exp-admin-gasoline" oninput="calculateSalesAndExpenses()" placeholder="Gasoline" class="w-full text-xs font-mono border border-slate-300 rounded px-2 py-1 bg-white">
-                        <input type="number" id="exp-admin-others" oninput="calculateSalesAndExpenses()" placeholder="Others" class="w-full text-xs font-mono border border-slate-300 rounded px-2 py-1 bg-white">
-                    </div>
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+                <div>
+                    <p class="text-xs font-bold text-emerald-800 uppercase tracking-wider">Filtered Total Collection</p>
+                    <h4 id="audit-total-amount" class="text-2xl font-black text-emerald-600 mt-0.5">₱0.00</h4>
                 </div>
-
-                <!-- ASSISTANT ADMIN EXPENSES -->
-                <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2" id="card-asst-expenses">
-                    <span class="text-[11px] font-black uppercase text-emerald-600 tracking-wider block border-b border-slate-200 pb-1">
-                        <i class="fa-solid fa-user-gear"></i> Asst Admin Expenses
-                    </span>
-                    <div class="space-y-1.5">
-                        <input type="number" id="exp-asst-internet" oninput="calculateSalesAndExpenses()" placeholder="Internet Bill" class="w-full text-xs font-mono border border-slate-300 rounded px-2 py-1 bg-white">
-                        <input type="number" id="exp-asst-materials" oninput="calculateSalesAndExpenses()" placeholder="Materials" class="w-full text-xs font-mono border border-slate-300 rounded px-2 py-1 bg-white">
-                        <input type="number" id="exp-asst-salary" oninput="calculateSalesAndExpenses()" placeholder="Salary" class="w-full text-xs font-mono border border-slate-300 rounded px-2 py-1 bg-white">
-                        <input type="number" id="exp-asst-gasoline" oninput="calculateSalesAndExpenses()" placeholder="Gasoline" class="w-full text-xs font-mono border border-slate-300 rounded px-2 py-1 bg-white">
-                        <input type="number" id="exp-asst-others" oninput="calculateSalesAndExpenses()" placeholder="Others" class="w-full text-xs font-mono border border-slate-300 rounded px-2 py-1 bg-white">
+                <div class="flex items-center space-x-3">
+                    <button onclick="exportAuditReportCSV()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow cursor-pointer transition flex items-center space-x-2">
+                        <i class="fa-solid fa-file-arrow-down"></i><span>Export Report (.csv)</span>
+                    </button>
+                    <div class="bg-emerald-600 text-white p-3 rounded-xl shadow-sm">
+                        <i class="fa-solid fa-receipt text-xl"></i>
                     </div>
                 </div>
             </div>
-        </div>
 
+            <div class="overflow-x-auto max-h-[60vh] border border-slate-200 rounded-xl">
+                <table class="w-full text-left border-collapse text-xs">
+                    <thead class="bg-slate-100 text-slate-700 uppercase font-bold sticky top-0 z-10">
+                        <tr>
+                            <th class="py-3 px-3">Date Collected</th>
+                            <th class="py-3 px-3">Subscriber Name</th>
+                            <th class="py-3 px-3">Billing Month</th>
+                            <th class="py-3 px-3">Method</th>
+                            <th class="py-3 px-3">Amount</th>
+                            <th class="py-3 px-3">Collector / Encoder</th>
+                        </tr>
+                    </thead>
+                    <tbody id="audit-table-body" class="divide-y divide-slate-100 bg-white"></tbody>
+                </table>
+            </div>
+        </div>
     </div>
 
-    <!-- LOWER SECTION: RONEL & ROLANDO TOTAL SALES BREAKDOWN -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <!-- 2. SALES & EXPENSES SECTION (Naka-balot na lahat dito pati ang filter) -->
+    <div id="sales-expenses-section" class="hidden space-y-6">
         
-        <!-- RONEL TACOCONG TOTAL SALES -->
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-3">
-            <h4 class="text-xs font-black uppercase tracking-wider text-indigo-700 flex items-center gap-2 border-b pb-2">
-                <i class="fa-solid fa-user-shield"></i> Ronel Tacocong Total Sales
-            </h4>
-            <div id="ronel-sales-box" class="text-2xl font-mono font-black text-slate-800 py-3 text-center bg-indigo-50/50 rounded-xl border border-indigo-100">
-                ₱0.00
+        <!-- AUDIT DATE FILTER SECTION -->
+        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-filter text-indigo-600"></i>
+                <span class="text-xs font-black uppercase text-slate-700 tracking-wider">Audit Date Filter:</span>
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+                <div class="flex items-center gap-2">
+                    <label class="text-xs font-bold text-slate-500">From:</label>
+                    <input type="date" id="audit-start-date" onchange="loadSalesAndIncomeSummary()" class="text-xs font-mono border border-slate-300 rounded-lg px-3 py-1.5 bg-slate-50 text-slate-700">
+                </div>
+                <div class="flex items-center gap-2">
+                    <label class="text-xs font-bold text-slate-500">To:</label>
+                    <input type="date" id="audit-end-date" onchange="loadSalesAndIncomeSummary()" class="text-xs font-mono border border-slate-300 rounded-lg px-3 py-1.5 bg-slate-50 text-slate-700">
+                </div>
+                <button onclick="loadSalesAndIncomeSummary()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-rotate"></i> Filter Sales
+                </button>
             </div>
         </div>
 
-        <!-- ROLANDO TACOCONG TOTAL SALES -->
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-3">
-            <h4 class="text-xs font-black uppercase tracking-wider text-emerald-700 flex items-center gap-2 border-b pb-2">
-                <i class="fa-solid fa-user-gear"></i> Rolando Tacocong Total Sales
-            </h4>
-            <div id="rolando-sales-box" class="text-2xl font-mono font-black text-slate-800 py-3 text-center bg-emerald-50/50 rounded-xl border border-emerald-100">
-                ₱0.00
+        <!-- NET INCOME & EXPENSES BREAKDOWN -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- NET INCOME SUMMARY CARD -->
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+                <h3 class="text-sm font-black uppercase text-slate-700 tracking-wider flex items-center gap-2 border-b pb-2">
+                    <i class="fa-solid fa-calculator text-emerald-600"></i> Net Income Summary
+                </h3>
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">Total Sales (Combined):</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 font-bold">₱</span>
+                            <input type="number" id="input-total-sales" readonly class="w-full pl-8 pr-3 py-2 text-sm font-mono font-bold bg-slate-50 border border-slate-300 rounded-lg text-slate-700" placeholder="0.00">
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center py-2 px-3 bg-rose-50 rounded-xl border border-rose-100">
+                        <span class="text-xs font-bold text-rose-700">Total Expenses:</span>
+                        <span id="display-total-expenses" class="text-sm font-mono font-black text-rose-600">₱0.00</span>
+                    </div>
+                    <div class="flex justify-between items-center py-3 px-4 bg-emerald-50 rounded-xl border border-emerald-200">
+                        <span class="text-sm font-black text-emerald-800">Net Income:</span>
+                        <span id="display-net-income" class="text-base font-mono font-black text-emerald-600">₱0.00</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- EXPENSES BREAKDOWN CARD -->
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+                <h3 class="text-sm font-black uppercase text-slate-700 tracking-wider flex items-center gap-2 border-b pb-2">
+                    <i class="fa-solid fa-receipt text-rose-600"></i> Expenses Breakdown
+                </h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4" id="expenses-breakdown-grid">
+                    <!-- ADMIN EXPENSES -->
+                    <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2">
+                        <span class="text-[11px] font-black uppercase text-indigo-600 tracking-wider block border-b border-slate-200 pb-1">
+                            <i class="fa-solid fa-user-shield"></i> Admin Expenses
+                        </span>
+                        <div class="space-y-1.5">
+                            <input type="number" id="exp-admin-internet" oninput="calculateSalesAndExpenses()" placeholder="Internet Bill" class="w-full text-xs font-mono border border-slate-300 rounded px-2 py-1 bg-white">
+                            <input type="number" id="exp-admin-materials" oninput="calculateSalesAndExpenses()" placeholder="Materials" class="w-full text-xs font-mono border border-slate-300 rounded px-2 py-1 bg-white">
+                            <input type="number" id="exp-admin-salary" oninput="calculateSalesAndExpenses()" placeholder="Salary" class="w-full text-xs font-mono border border-slate-300 rounded px-2 py-1 bg-white">
+                            <input type="number" id="exp-admin-gasoline" oninput="calculateSalesAndExpenses()" placeholder="Gasoline" class="w-full text-xs font-mono border border-slate-300 rounded px-2 py-1 bg-white">
+                            <input type="number" id="exp-admin-others" oninput="calculateSalesAndExpenses()" placeholder="Others" class="w-full text-xs font-mono border border-slate-300 rounded px-2 py-1 bg-white">
+                        </div>
+                    </div>
+
+                    <!-- ASSISTANT ADMIN EXPENSES -->
+                    <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2">
+                        <span class="text-[11px] font-black uppercase text-emerald-600 tracking-wider block border-b border-slate-200 pb-1">
+                            <i class="fa-solid fa-user-gear"></i> Asst Admin Expenses
+                        </span>
+                        <div class="space-y-1.5">
+                            <input type="number" id="exp-asst-internet" oninput="calculateSalesAndExpenses()" placeholder="Internet Bill" class="w-full text-xs font-mono border border-slate-300 rounded px-2 py-1 bg-white">
+                            <input type="number" id="exp-asst-materials" oninput="calculateSalesAndExpenses()" placeholder="Materials" class="w-full text-xs font-mono border border-slate-300 rounded px-2 py-1 bg-white">
+                            <input type="number" id="exp-asst-salary" oninput="calculateSalesAndExpenses()" placeholder="Salary" class="w-full text-xs font-mono border border-slate-300 rounded px-2 py-1 bg-white">
+                            <input type="number" id="exp-asst-gasoline" oninput="calculateSalesAndExpenses()" placeholder="Gasoline" class="w-full text-xs font-mono border border-slate-300 rounded px-2 py-1 bg-white">
+                            <input type="number" id="exp-asst-others" oninput="calculateSalesAndExpenses()" placeholder="Others" class="w-full text-xs font-mono border border-slate-300 rounded px-2 py-1 bg-white">
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
-    </div>
-
-<!-- COLLECTOR TOTAL SALES -->
-<div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-3">
-    <h4 class="text-xs font-black uppercase tracking-wider text-amber-700 flex items-center gap-2 border-b pb-2">
-        <i class="fa-solid fa-user-tie"></i> Collector Total Sales
-    </h4>
-    <div id="collector-sales-box" class="text-2xl font-mono font-black text-slate-800 py-3 text-center bg-amber-50/50 rounded-xl">
-        ₱0.00
-    </div>
-</div>
-
-<!-- COMPANY GRAND TOTAL SALES -->
-<div class="bg-indigo-50 p-5 rounded-2xl shadow-sm border border-indigo-200 space-y-3">
-    <h4 class="text-xs font-black uppercase tracking-wider text-indigo-900 flex items-center gap-2 border-b border-indigo-200 pb-2">
-        <i class="fa-solid fa-chart-pie"></i> Company Grand Total Sales
-    </h4>
-    <div id="company-grand-total-box" class="text-2xl font-mono font-black text-indigo-700 py-3 text-center bg-white rounded-xl shadow-inner">
-        ₱0.00
-    </div>
-</div>
-
-    <!-- HISTORY LOG SECTION -->
-    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
-        <div class="flex justify-between items-center border-b pb-2">
-            <h3 class="text-sm font-black uppercase text-slate-700 tracking-wider flex items-center gap-2">
-                <i class="fa-solid fa-clock-rotate-left text-slate-500"></i> Saved Sales & Expenses History Log
-            </h3>
-            <button onclick="saveSalesReportToSupabase()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow transition flex items-center gap-2">
-                <i class="fa-solid fa-cloud-arrow-up"></i> Save Report to Supabase
-            </button>
+        <!-- LOWER SECTION: TOTAL SALES BREAKDOWN -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-3">
+                <h4 class="text-xs font-black uppercase tracking-wider text-indigo-700 flex items-center gap-2 border-b pb-2">
+                    <i class="fa-solid fa-user-shield"></i> Ronel Tacocong Total Sales
+                </h4>
+                <div id="ronel-sales-box" class="text-2xl font-mono font-black text-slate-800 py-3 text-center bg-indigo-50/50 rounded-xl border border-indigo-100">₱0.00</div>
+            </div>
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-3">
+                <h4 class="text-xs font-black uppercase tracking-wider text-emerald-700 flex items-center gap-2 border-b pb-2">
+                    <i class="fa-solid fa-user-gear"></i> Rolando Tacocong Total Sales
+                </h4>
+                <div id="rolando-sales-box" class="text-2xl font-mono font-black text-slate-800 py-3 text-center bg-emerald-50/50 rounded-xl border border-emerald-100">₱0.00</div>
+            </div>
         </div>
 
-        <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse">
-                <thead>
-                    <tr class="bg-slate-50 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b">
-                        <th class="py-3 px-4">Date & Time Finished</th>
-                        <th class="py-3 px-4">Total Sales</th>
-                        <th class="py-3 px-4">Total Expenses</th>
-                        <th class="py-3 px-4">Net Income</th>
-                        <th class="py-3 px-4 text-right">Encoded By</th>
-                    </tr>
-                </thead>
-                <tbody id="sales-expenses-history-tbody">
-                    <tr>
-                        <td colspan="5" class="text-center py-6 text-slate-400 font-sans text-xs">Wala pang record ng sales at expenses.</td>
-                    </tr>
-                </tbody>
-            </table>
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-3">
+            <h4 class="text-xs font-black uppercase tracking-wider text-amber-700 flex items-center gap-2 border-b pb-2">
+                <i class="fa-solid fa-user-tie"></i> Collector Total Sales
+            </h4>
+            <div id="collector-sales-box" class="text-2xl font-mono font-black text-slate-800 py-3 text-center bg-amber-50/50 rounded-xl">₱0.00</div>
+        </div>
+
+        <div class="bg-indigo-50 p-5 rounded-2xl shadow-sm border border-indigo-200 space-y-3">
+            <h4 class="text-xs font-black uppercase tracking-wider text-indigo-900 flex items-center gap-2 border-b border-indigo-200 pb-2">
+                <i class="fa-solid fa-chart-pie"></i> Company Grand Total Sales
+            </h4>
+            <div id="company-grand-total-box" class="text-2xl font-mono font-black text-indigo-700 py-3 text-center bg-white rounded-xl shadow-inner">₱0.00</div>
+        </div>
+
+        <!-- HISTORY LOG SECTION -->
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+            <div class="flex justify-between items-center border-b pb-2">
+                <h3 class="text-sm font-black uppercase text-slate-700 tracking-wider flex items-center gap-2">
+                    <i class="fa-solid fa-clock-rotate-left text-slate-500"></i> Saved Sales & Expenses History Log
+                </h3>
+                <button onclick="saveSalesReportToSupabase()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow transition flex items-center gap-2">
+                    <i class="fa-solid fa-cloud-arrow-up"></i> Save Report to Supabase
+                </button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-50 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b">
+                            <th class="py-3 px-4">Date & Time Finished</th>
+                            <th class="py-3 px-4">Total Sales</th>
+                            <th class="py-3 px-4">Total Expenses</th>
+                            <th class="py-3 px-4">Net Income</th>
+                            <th class="py-3 px-4 text-right">Encoded By</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sales-expenses-history-tbody">
+                        <tr>
+                            <td colspan="5" class="text-center py-6 text-slate-400 font-sans text-xs">Wala pang record ng sales at expenses.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
-    <!-- 📌 EMPLOYEE PAYROLL SUB-TAB CONTAINER (Idinagdag na dito para direkta at hindi na malito) -->
+    <!-- 3. EMPLOYEE PAYROLL SUB-TAB CONTAINER -->
     <div id="audit-subtab-payroll" class="hidden space-y-6 pt-4">
 
         <!-- TOP SECTION: CALCULATOR & EMPLOYEE MANAGEMENT -->
@@ -1619,7 +1602,6 @@
     </div>
 
 </div>
-            </div>
 
             <!-- USERS VIEW -->
             <div id="view-users" class="hidden space-y-6 max-w-3xl mx-auto">
