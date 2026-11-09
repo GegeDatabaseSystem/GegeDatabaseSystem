@@ -6366,6 +6366,7 @@ async function fetchPayrollHistory() {
 }
 
 // --- 6. MANAGE EMPLOYEES MODAL PLACEHOLDER ---
+// 1. Function para buksan ang Modal
 function openManageEmployeesModal() {
     const modal = document.getElementById('manage-employees-modal');
     if (modal) {
@@ -6374,7 +6375,75 @@ function openManageEmployeesModal() {
             renderManageEmployeesTable();
         }
     } else {
-        console.error("Modal ID 'manage-employees-modal' not found in HTML!");
+        console.error("Modal ID 'manage-employees-modal' not found!");
+    }
+}
+
+// 2. Function para isara ang Modal (Close & X buttons)
+function closeManageEmployeesModal() {
+    const modal = document.getElementById('manage-employees-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+}
+
+// 3. Function para i-save ang bagong empleyado sa Supabase
+async function saveNewEmployeeToSupabase() {
+    const nameInput = document.getElementById('new-emp-name');
+    const roleInput = document.getElementById('new-emp-role');
+    const rateInput = document.getElementById('new-emp-rate');
+
+    if (!nameInput || !roleInput || !rateInput) {
+        alert("May kulang sa form inputs!");
+        return;
+    }
+
+    const name = nameInput.value.trim();
+    const role = roleInput.value;
+    const rate = parseFloat(rateInput.value) || 0;
+
+    if (!name) {
+        alert("Paki-lagay ang pangalan ng empleyado!");
+        nameInput.focus();
+        return;
+    }
+    if (rate <= 0) {
+        alert("Paki-lagay ang tamang Daily Rate!");
+        rateInput.focus();
+        return;
+    }
+
+    const newEmp = { name, role, daily_rate: rate };
+
+    try {
+        const sb = typeof getSupabase === 'function' ? getSupabase() : (window.supabaseClient || window.supabase || null);
+        if (!sb) {
+            alert("Walang nakitang koneksyon sa Supabase!");
+            return;
+        }
+
+        const { error } = await sb.from('company_employees').insert([newEmp]);
+        
+        if (error) {
+            console.error("Error saving employee:", error);
+            alert("Hindi na-save sa Supabase: " + (error.message || JSON.stringify(error)));
+            return;
+        }
+
+        alert(`✅ Tagumpay! Naidagdag na si "${name}" (${role} - ₱${rate}) sa database!`);
+        
+        // I-clear ang inputs
+        nameInput.value = '';
+        rateInput.value = '';
+
+        // I-refresh ang data
+        if (typeof fetchCompanyEmployees === 'function') await fetchCompanyEmployees();
+        if (typeof renderManageEmployeesTable === 'function') renderManageEmployeesTable();
+        if (typeof loadPayrollEmployees === 'function') loadPayrollEmployees();
+
+    } catch (e) {
+        console.error("Exception sa pag-save:", e);
+        alert("Nagka-error sa pag-save: " + e.message);
     }
 }
 
