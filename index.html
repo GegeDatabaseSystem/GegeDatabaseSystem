@@ -1494,7 +1494,7 @@
                 </button>
             </div>
 <!-- 📌 CASH ADVANCE & REMAINING BALANCE INFO CARD -->
-<div id="employee-ca-info-card" class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 hidden">
+<div id="employee-ca-info-card" class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
     <div class="flex justify-between items-center">
         <div>
             <h5 class="font-bold text-amber-800 text-xs flex items-center gap-1.5">
@@ -1519,6 +1519,12 @@
     </div>
 </div>
 
+<!-- 📌 BUTTON PARA SA CA MODAL -->
+        <div class="mb-4">
+            <button onclick="openCAModal()" class="px-4 py-2 bg-amber-600 text-white text-xs font-semibold rounded-lg hover:bg-amber-700 shadow-sm flex items-center gap-1.5 transition-colors">
+                <i class="fa-solid fa-wallet"></i> + Mag-add ng CA
+            </button>
+        </div>
             <!-- FORM INPUTS -->
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
@@ -1646,6 +1652,7 @@
                             <th class="p-3">Gross Pay</th>
                             <th class="p-3">Deductions</th>
                             <th class="p-3">Net Salary</th>
+                            <th class="p-3 text-amber-700">Rem. CA Balance</th> <!-- 📌 Bagong Column para sa natitirang utang -->
                             <th class="p-3">Processed By</th>
                             <th class="p-3 text-center">Action</th>
                         </tr>
@@ -6411,45 +6418,75 @@ async function fetchPayrollHistory() {
     const tbody = document.getElementById('payroll-history-tbody');
     if (!tbody) return;
 
-    let history = [];
+    tbody.innerHTML = `<tr><td colspan="10" class="p-4 text-center text-slate-400">Kumukuha ng datos...</td></tr>`;
+
     try {
         const sb = typeof getSupabase === 'function' ? getSupabase() : (window.supabaseClient || null);
-        if (sb) {
-            const { data } = await sb.from('payroll_history').select('*').order('created_at', { ascending: false });
-            if (data) history = data;
+        if (!sb) return;
+
+        // Kunin ang payroll history mula sa Supabase
+        const { data: historyData, error } = await sb
+            .from('payroll_history')
+            .select('*')
+            .order('id', { ascending: false });
+
+        if (error) throw error;
+
+        if (!historyData || historyData.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="10" class="p-4 text-center text-slate-400">Walang nakitang finalized payroll history.</td></tr>`;
+            return;
         }
-    } catch (e) {}
 
-    if (history.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-slate-400">Wala pang naisagawang payroll records.</td></tr>`;
-        return;
-    }
+        tbody.innerHTML = '';
 
-    tbody.innerHTML = history.map(item => {
-        const dateStr = item.created_at ? new Date(item.created_at).toLocaleDateString() : 'N/A';
-        const gross = (item.days_worked * item.daily_rate) || 0;
-        const totalDeduct = (item.late_deduction || 0) + (item.cash_advance || 0);
+        for (const row of historyData) {
+            // Kunin ang pangalan ng empleyado alinsunod sa posibleng column name sa database
+            const empName = row.employee || row.employee_name || row.name || 'Unknown Employee';
+            const cleanEmpName = empName.split('(')[0].trim();
+            
+            let caBalance = 0;
 
-        return `
-            <tr class="hover:bg-slate-50 border-b border-slate-100">
-                <td class="p-3 text-slate-500">${dateStr}</td>
-                <td class="p-3 font-bold text-slate-800">${item.employee_name}</td>
-                <td class="p-3 text-slate-600">${item.period_start} to ${item.period_end}</td>
-                <td class="p-3 text-center font-semibold">${item.days_worked}</td>
-                <td class="p-3 text-slate-700">₱${gross.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
-                <td class="p-3 text-red-500">-₱${totalDeduct.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
-                <td class="p-3 font-black text-emerald-600 text-sm">₱${(item.net_salary || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
-                <td class="p-3 text-slate-400">${item.processed_by || 'Admin'}</td>
-                <td class="p-3 text-center">
-                    <button onclick="alert('Payslip preview for ${item.employee_name}')" class="px-2 py-1 bg-slate-100 text-slate-700 rounded hover:bg-slate-200">🖨️ Payslip</button>
+            // Kunin ang Rem. CA Balance mula sa employee_advances table
+            const { data: caData } = await sb
+                .from('employee_advances')
+                .select('remaining_balance')
+                .ilike('employee_name', `%${cleanEmpName}%`)
+                .maybeSingle();
+
+            if (caData) {
+                caBalance = parseFloat(caData.remaining_balance || 0);
+            }
+
+            const tr = document.createElement('tr');
+            tr.className = "hover:bg-slate-50 transition-colors";
+            tr.innerHTML = `
+                <td class="p-3 font-medium text-slate-700">${row.date_processed || row.created_at || '--'}</td>
+                <td class="p-3 font-bold text-slate-800">${empName}</td>
+                <td class="p-3 text-slate-600">${row.pay_period || row.period || '--'}</td>
+                <td class="p-3 text-center font-semibold text-slate-700">${row.duty_days || row.days_worked || 0}</td>
+                <td class="p-3 font-mono text-slate-700">₱${parseFloat(row.gross_pay || row.gross || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+                <td class="p-3 font-mono text-rose-600 font-semibold">-₱${parseFloat(row.deductions || row.total_deductions || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+                <td class="p-3 font-mono font-bold text-emerald-600">₱${parseFloat(row.net_salary || row.net_pay || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+                <td class="p-3 font-mono font-bold ${caBalance > 0 ? 'text-amber-600 bg-amber-50/50 rounded' : 'text-slate-400'}">
+                    ${caBalance > 0 ? '₱' + caBalance.toLocaleString('en-US', {minimumFractionDigits: 2}) : '₱0.00 (Wala)'}
                 </td>
-            </tr>
-        `;
-    }).join('');
+                <td class="p-3 text-slate-600">${row.processed_by || 'Admin'}</td>
+                <td class="p-3 text-center">
+                    <button onclick="printPayslip('${row.id}')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[11px] font-semibold transition-colors flex items-center gap-1 mx-auto">
+                        <i class="fa-solid fa-print text-slate-500"></i> Payslip
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        }
+
+    } catch (e) {
+        console.error("Error fetching payroll history:", e);
+        tbody.innerHTML = `<tr><td colspan="10" class="p-4 text-center text-rose-500 font-medium">May aberya sa pag-load ng history.</td></tr>`;
+    }
 }
 
 // --- 6. MANAGE EMPLOYEES MODAL PLACEHOLDER ---
-// 1. Function para buksan ang Modal
 function openManageEmployeesModal() {
     const modal = document.getElementById('manage-employees-modal');
     if (modal) {
@@ -6595,14 +6632,18 @@ async function checkEmployeeCashAdvance(empName) {
 
     if (!empName) {
         if (card) card.classList.add('hidden');
+        if (caInput) caInput.value = 0;
         return;
     }
 
     try {
-        const sb = typeof getSupabase === 'function' ? getSupabase() : window.supabaseClient;
-        if (!sb) return;
+        const sb = typeof getSupabase === 'function' ? getSupabase() : (window.supabaseClient || null);
+        if (!sb) {
+            console.error("Supabase client not found!");
+            return;
+        }
 
-        // Kunin ang record mula sa employee_advances table gamit ang pangalan ng empleyado
+        // Kunin ang record mula sa employee_advances table base sa pangalan ng empleyado
         const { data, error } = await sb
             .from('employee_advances')
             .select('*')
@@ -6610,31 +6651,32 @@ async function checkEmployeeCashAdvance(empName) {
             .single();
 
         if (data && card) {
-            card.classList.remove('hidden'); // Ipakita ang info card kung may record
+            card.classList.remove('hidden'); // I-alis ang hidden para lumitaw ang card sa UI!
             if (nameSpan) nameSpan.textContent = data.employee_name;
             if (totalAdvSpan) totalAdvSpan.textContent = `₱${parseFloat(data.total_advance || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}`;
             if (remBalSpan) remBalSpan.textContent = `₱${parseFloat(data.remaining_balance || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}`;
             
-            // Default deduction per cut-off (hal. ₱1,000 o ang natitirang balanse kung mas mababa)
             const installment = parseFloat(data.deduction_per_cutoff || 1000);
             const deductAmount = Math.min(parseFloat(data.remaining_balance || 0), installment);
             
             if (cutDeductSpan) cutDeductSpan.textContent = `₱${deductAmount.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
             
-            // Kusa ding ilalagay sa Cash Advance / Vale input box para sa calculation
+            // Kusa ding ilalagay sa Vale / Cash Advance input box sa calculator
             if (caInput) {
                 caInput.value = deductAmount;
+                if (typeof calculatePayrollNet === 'function') calculatePayrollNet();
             }
         } else {
+            // Kung walang utang / walang record sa table
             if (card) card.classList.add('hidden');
             if (caInput) caInput.value = 0;
+            if (typeof calculatePayrollNet === 'function') calculatePayrollNet();
         }
     } catch (e) {
         console.log("Walang active cash advance record para kay:", empName);
         if (card) card.classList.add('hidden');
     }
 }
-
 // 3. Tawagin ang summary pagka-load ng page
 document.addEventListener("DOMContentLoaded", () => {
     loadCutoffSummaryReport();
@@ -6672,6 +6714,105 @@ async function updateEmployeeCashAdvanceOnSave(empName, deductedAmount) {
         console.error("Error updating cash advance balance on save:", e);
     }
 }
+
+// 1. Buksan ang CA Modal at i-load ang mga empleyado sa dropdown
+async function openCAModal() {
+    const modal = document.getElementById('cash-advance-modal');
+    const select = document.getElementById('ca-modal-emp');
+    if (!modal || !select) return;
+
+    modal.classList.remove('hidden');
+    select.innerHTML = '<option value="">-- Piliin ang Empleyado --</option>';
+
+    try {
+        const sb = typeof getSupabase === 'function' ? getSupabase() : (window.supabaseClient || null);
+        if (!sb) return;
+
+        // Kunin ang listahan ng mga empleyado mula sa database
+        const { data } = await sb.from('company_employees').select('*');
+        if (data && data.length > 0) {
+            data.forEach(emp => {
+                const opt = document.createElement('option');
+                opt.value = emp.name || emp.employee_name;
+                opt.textContent = emp.name || emp.employee_name;
+                select.appendChild(opt);
+            });
+        }
+    } catch (e) {
+        console.error("Error loading employees for CA modal:", e);
+    }
+}
+
+// 2. Isara ang modal
+function closeCAModal() {
+    const modal = document.getElementById('cash-advance-modal');
+    if (modal) modal.classList.add('hidden');
+}
+
+// 3. I-save o I-update ang Cash Advance sa Supabase
+async function saveNewCashAdvance() {
+    const empName = document.getElementById('ca-modal-emp').value;
+    const totalAdv = parseFloat(document.getElementById('ca-modal-total').value) || 0;
+    const deduction = parseFloat(document.getElementById('ca-modal-deduction').value) || 1000;
+
+    if (!empName) return alert("Paki-pili ang pangalan ng empleyado!");
+    if (totalAdv <= 0) return alert("Paki-lagay ang tamang halaga ng utang!");
+
+    try {
+        const sb = typeof getSupabase === 'function' ? getSupabase() : (window.supabaseClient || null);
+        if (!sb) return;
+
+        // Suriin kung may umiiral nang record ang empleyado sa employee_advances
+        const { data: existing } = await sb
+            .from('employee_advances')
+            .select('*')
+            .eq('employee_name', empName)
+            .maybeSingle();
+
+        if (existing) {
+            // Kung may utang na, idagdag ang bagong utang sa kasalukuyang balanse
+            const newTotal = parseFloat(existing.total_advance) + totalAdv;
+            const newBalance = parseFloat(existing.remaining_balance) + totalAdv;
+
+            const { error } = await sb
+                .from('employee_advances')
+                .update({ 
+                    total_advance: newTotal, 
+                    remaining_balance: newBalance,
+                    deduction_per_cutoff: deduction 
+                })
+                .eq('employee_name', empName);
+
+            if (error) throw error;
+        } else {
+            // Kung bago pa lang ang utang
+            const { error } = await sb
+                .from('employee_advances')
+                .insert([{ 
+                    employee_name: empName, 
+                    total_advance: totalAdv, 
+                    remaining_balance: totalAdv, 
+                    deduction_per_cutoff: deduction 
+                }]);
+
+            if (error) throw error;
+        }
+
+        alert(`Tagumpay! Naitala ang Cash Advance na ₱${totalAdv.toLocaleString()} para kay ${empName}.`);
+        closeCAModal();
+
+        // I-refresh kung naka-select na ang empleyado sa calculator
+        const activeEmpSelect = document.getElementById('payroll-emp-select');
+        if (activeEmpSelect && activeEmpSelect.value) {
+            checkEmployeeCashAdvance(activeEmpSelect.value);
+        }
+
+    } catch (e) {
+        console.error("Error saving cash advance:", e);
+        alert("May aberya sa pag-save ng Cash Advance sa database.");
+    }
+}
+
 // ⭐ TACSFIBER COMPLETE KEYBOARD SHORTCUTS MANAGER
         window.addEventListener('keydown', (e) => {
             // 1. UNIVERSAL CTRL + F / CMD + F: Focus sa visible search input ng kahit anong active tab
