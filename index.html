@@ -6716,65 +6716,68 @@ async function loadCutoffSummaryReport() {
 }
 
 // 2. Function para i-check ang Cash Advance balance ng empleyado kapag pinili sa dropdown
-async function checkEmployeeCashAdvance(empName) {
-    const card = document.getElementById('employee-ca-info-card');
-    const nameSpan = document.getElementById('ca-emp-name');
-    const totalAdvSpan = document.getElementById('display-total-advance');
-    const remBalSpan = document.getElementById('display-remaining-balance');
-    const cutDeductSpan = document.getElementById('display-cutoff-deduction');
-    const caInput = document.getElementById('payroll-vale'); // Cash Advance / Vale input box sa calculator
-
-    if (!empName) {
-        if (nameSpan) nameSpan.textContent = '--';
-        if (totalAdvSpan) totalAdvSpan.textContent = '₱0.00';
-        if (remBalSpan) remBalSpan.textContent = '₱0.00';
-        if (cutDeductSpan) cutDeductSpan.textContent = '₱0.00';
-        if (caInput) caInput.value = 0;
+async function checkEmployeeCashAdvance(empId) {
+    if (!empId) {
+        document.getElementById('payroll-daily-rate').value = '';
+        document.getElementById('payroll-vale').value = 0;
+        document.getElementById('ca-emp-name').innerText = '--';
+        document.getElementById('display-total-advance').innerText = '₱0.00';
+        document.getElementById('display-remaining-balance').innerText = '₱0.00';
+        document.getElementById('display-cutoff-deduction').innerText = '₱0.00';
+        calculatePayrollNet();
         return;
     }
 
     try {
         const sb = typeof getSupabase === 'function' ? getSupabase() : (window.supabaseClient || null);
-        if (!sb) return;
+        if (sb) {
+            // 1. Kunin ang tamang Daily Rate at profile ng empleyado galing sa Supabase table
+            const { data: empData, error } = await sb
+                .from('employees') // Palitan ng tamang table name kung iba (hal: 'manage_employees' o 'staff')
+                .select('*')
+                .or(`id.eq.${empId},name.ilike.%${empId}%,full_name.ilike.%${empId}%`)
+                .maybeSingle();
 
-        // Kunin ang pangalan nang walang extra tag tulad ng (STAFF) o (TECHNICIAN)
-        const cleanName = empName.split('(')[0].trim();
-
-        // Gamitin ang .select() nang walang .single() para maiwasan ang 406 error kung wala pang record
-        const { data, error } = await sb
-            .from('employee_advances')
-            .select('*')
-            .ilike('employee_name', `%${cleanName}%`);
-
-        if (data && data.length > 0) {
-            const record = data[0]; // Kunin ang unang nahanap na record
-            if (nameSpan) nameSpan.textContent = record.employee_name;
-            if (totalAdvSpan) totalAdvSpan.textContent = `₱${parseFloat(record.total_advance || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}`;
-            if (remBalSpan) remBalSpan.textContent = `₱${parseFloat(record.remaining_balance || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}`;
-            
-            const installment = parseFloat(record.deduction_per_cutoff || 1000);
-            const deductAmount = Math.min(parseFloat(record.remaining_balance || 0), installment);
-            
-            if (cutDeductSpan) cutDeductSpan.textContent = `₱${deductAmount.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
-            
-            if (caInput) {
-                caInput.value = deductAmount;
-                if (typeof calculatePayrollNet === 'function') calculatePayrollNet();
+            if (empData) {
+                // Kunin ang daily rate mula sa database, kung wala ay mag-fallback sa 0 para ma-input manually
+                const actualRate = parseFloat(empData.daily_rate || empData.rate || empData.salary_rate || 650);
+                document.getElementById('payroll-daily-rate').value = actualRate;
+                
+                document.getElementById('ca-emp-name').innerText = empData.name || empData.full_name || empId;
+            } else {
+                // Fallback kung pangalan lang ang nakuha sa select value
+                document.getElementById('payroll-daily-rate').value = 650;
+                document.getElementById('ca-emp-name').innerText = empId;
             }
-        } else {
-            // Kung ang empleyado ay walang active cash advance (Wala pang utang)
-            if (nameSpan) nameSpan.textContent = cleanName + " (Walang CA)";
-            if (totalAdvSpan) totalAdvSpan.textContent = '₱0.00';
-            if (remBalSpan) remBalSpan.textContent = '₱0.00';
-            if (cutDeductSpan) cutDeductSpan.textContent = '₱0.00';
-            if (caInput) {
-                caInput.value = 0;
-                if (typeof calculatePayrollNet === 'function') calculatePayrollNet();
+
+            // 2. Kunin din ang Cash Advance status kung mayroon man
+            const { data: caData } = await sb
+                .from('employee_advances')
+                .select('*')
+                .ilike('employee_name', `%${empId}%`)
+                .maybeSingle();
+
+            if (caData) {
+                const remBal = parseFloat(caData.remaining_balance || 0);
+                document.getElementById('payroll-vale').value = remBal > 0 ? remBal : 0;
+                document.getElementById('display-total-advance').innerText = `₱${parseFloat(caData.total_advance || caData.amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+                document.getElementById('display-remaining-balance').innerText = `₱${remBal.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+                document.getElementById('display-cutoff-deduction').innerText = `₱${remBal.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+            } else {
+                document.getElementById('payroll-vale').value = 0;
+                document.getElementById('display-total-advance').innerText = '₱0.00';
+                document.getElementById('display-remaining-balance').innerText = '₱0.00';
+                document.getElementById('display-cutoff-deduction').innerText = '₱0.00';
             }
         }
     } catch (e) {
-        console.log("Error checking cash advance:", e);
+        console.error("Error fetching employee details:", e);
+        // Safe fallback sakaling magka-issue sa connection
+        document.getElementById('payroll-daily-rate').value = 650;
     }
+
+    // I-recalculate agad ang net salary pagka-lipat ng rate
+    calculatePayrollNet();
 }
 // 3. Tawagin ang summary pagka-load ng page
 document.addEventListener("DOMContentLoaded", () => {
