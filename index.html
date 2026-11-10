@@ -1570,6 +1570,39 @@
                 </div>
             </div>
         </div>
+<!-- 📌 CUT-OFF SALARY SUMMARY SUB-REPORT (PERMANENT RECORD) -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-6">
+            <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <div>
+                    <h4 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                        <i class="fa-solid fa-chart-pie text-indigo-600"></i> Cut-Off Salary Summary Report
+                    </h4>
+                    <p class="text-[11px] text-slate-500">Total amount of employee salaries and deductions per pay period (Permanent Record).</p>
+                </div>
+                <button onclick="loadCutoffSummaryReport()" class="text-xs text-blue-600 font-medium hover:underline flex items-center gap-1">
+                    🔄 Refresh Summary
+                </button>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                    <thead class="bg-slate-100 text-slate-700 font-bold uppercase border-b border-slate-200">
+                        <tr>
+                            <th class="p-3">Pay Period</th>
+                            <th class="p-3 text-center">Employees Paid</th>
+                            <th class="p-3 text-right">Total Gross Pay</th>
+                            <th class="p-3 text-right">Total Deductions</th>
+                            <th class="p-3 text-right">Total Net Disbursed</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cutoff-summary-tbody" class="divide-y divide-slate-100 bg-white">
+                        <tr>
+                            <td colspan="5" class="p-4 text-center text-slate-400">Loading cut-off summary data...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
 
         <!-- BOTTOM SECTION: PAYROLL HISTORY TABLE -->
         <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
@@ -6308,11 +6341,33 @@ async function submitSavePayroll() {
     try {
         const sb = typeof getSupabase === 'function' ? getSupabase() : (window.supabaseClient || null);
         if (sb) {
+            // 1. I-save ang payroll record sa history
             const { error } = await sb.from('payroll_history').insert([record]);
             if (error) {
                 console.error("Supabase Payroll Insert Error:", error);
                 alert("Babala: Na-compute na pero may aberya sa pag-save sa Supabase cloud. Subukan ulit.");
                 return;
+            }
+
+            // 2. Kusa ring ibabawas sa Supabase balance ng Cash Advance ang ibinawas ngayong cut-off (kung meron man)
+            if (vale > 0) {
+                const { data: advData } = await sb
+                    .from('employee_advances')
+                    .select('*')
+                    .eq('employee_name', empName)
+                    .single();
+
+                if (advData) {
+                    const currentBalance = parseFloat(advData.remaining_balance) || 0;
+                    const newBalance = Math.max(0, currentBalance - vale);
+
+                    await sb
+                        .from('employee_advances')
+                        .update({ remaining_balance: newBalance })
+                        .eq('employee_name', empName);
+
+                    console.log(`[CA Auto-Deducted] ${empName} remaining balance is now: ₱${newBalance}`);
+                }
             }
         }
     } catch (e) {
@@ -6320,7 +6375,10 @@ async function submitSavePayroll() {
     }
 
     alert(`Tagumpay! Na-save at nai-finalize na ang sweldo ni ${empName} na may Net Salary na ₱${net.toLocaleString('en-US', {minimumFractionDigits: 2})}.`);
-    fetchPayrollHistory();
+    
+    // I-refresh ang history table at ang cut-off summary report
+    if (typeof fetchPayrollHistory === 'function') fetchPayrollHistory();
+    if (typeof loadCutoffSummaryReport === 'function') loadCutoffSummaryReport();
 }
 
 // --- 5. FETCH & DISPLAY PAYROLL HISTORY TABLE ---
@@ -6447,6 +6505,122 @@ async function saveNewEmployeeToSupabase() {
     }
 }
 
+// 1. Function para i-load ang Cut-off Summary Report mula sa Supabase
+async function loadCutoffSummaryReport() {
+    const tbody = document.getElementById('cutoff-summary-tbody');
+    if (!tbody) return;
+
+    try {
+        const sb = typeof getSupabase === 'function' ? getSupabase() : window.supabaseClient;
+        if (!sb) return;
+
+        const { data, error } = await sb
+            .from('payroll_history')
+            .select('*')
+            .order('period_start', { ascending: false });
+
+        if (error || !data || data.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-slate-400">Walang pang cut-off history na nakatala.</td></tr>`;
+            return;
+        }
+
+        // I-group ang data kada Pay Period
+        const summaries = {};
+        data.forEach(item => {
+            const periodKey = `${item.period_start} to ${item.period_end}`;
+            if (!summaries[periodKey]) {
+                summaries[periodKey] = {
+                    period: periodKey,
+                    count: 0,
+                    gross: 0,
+                    deductions: 0,
+                    net: 0
+                };
+            }
+            summaries[periodKey].count += 1;
+            summaries[periodKey].gross += parseFloat(item.gross_pay || 0);
+            summaries[periodKey].deductions += parseFloat(item.cash_advance || 0) + parseFloat(item.late_deduction || 0);
+            summaries[periodKey].net += parseFloat(item.net_salary || 0);
+        });
+
+        // I-render sa table
+        tbody.innerHTML = Object.values(summaries).map(s => `
+            <tr class="hover:bg-slate-50 font-medium">
+                <td class="p-3 text-slate-800 font-bold">${s.period}</td>
+                <td class="p-3 text-center text-slate-600">${s.count} Employees</td>
+                <td class="p-3 text-right font-mono text-slate-700">₱${s.gross.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+                <td class="p-3 text-right font-mono text-rose-600">-₱${s.deductions.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+                <td class="p-3 text-right font-mono text-emerald-600 font-bold">₱${s.net.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+            </tr>
+        `).join('');
+
+    } catch (e) {
+        console.error("Error loading cutoff summary:", e);
+    }
+}
+
+// 2. Function para i-check ang Cash Advance balance ng empleyado kapag pinili sa dropdown
+async function checkEmployeeCashAdvance(empName) {
+    try {
+        const sb = typeof getSupabase === 'function' ? getSupabase() : window.supabaseClient;
+        if (!sb) return;
+
+        const { data, error } = await sb
+            .from('employee_advances')
+            .select('*')
+            .eq('employee_name', empName)
+            .single();
+
+        const caInput = document.getElementById('cash-advance-input'); // Siguraduhing ito ang ID ng CA input mo
+        if (data && caInput) {
+            const deductAmount = Math.min(data.remaining_balance, data.deduction_per_cutoff);
+            caInput.value = deductAmount;
+            console.log(`[CA Loaded] ${empName} - Remaining Balance: ₱${data.remaining_balance}`);
+        } else if (caInput) {
+            caInput.value = 0;
+        }
+    } catch (e) {
+        console.log("Walang active cash advance para sa empleyadong ito.");
+    }
+}
+
+// 3. Tawagin ang summary pagka-load ng page
+document.addEventListener("DOMContentLoaded", () => {
+    loadCutoffSummaryReport();
+});
+
+// Function na tatawagin pagka-save ng payroll para ibawas sa Supabase ang Cash Advance
+async function updateEmployeeCashAdvanceOnSave(empName, deductedAmount) {
+    const deductVal = parseFloat(deductedAmount) || 0;
+    if (!empName || deductVal <= 0) return;
+
+    try {
+        const sb = typeof getSupabase === 'function' ? getSupabase() : window.supabaseClient;
+        if (!sb) return;
+
+        // 1. Kunin ang kasalukuyang record ng empleyado sa employee_advances
+        const { data, error } = await sb
+            .from('employee_advances')
+            .select('*')
+            .eq('employee_name', empName)
+            .single();
+
+        if (data) {
+            const currentBalance = parseFloat(data.remaining_balance) || 0;
+            const newBalance = Math.max(0, currentBalance - deductVal);
+
+            // 2. I-update ang remaining balance sa Supabase
+            await sb
+                .from('employee_advances')
+                .update({ remaining_balance: newBalance })
+                .eq('employee_name', empName);
+
+            console.log(`[CA Updated] ${empName} remaining balance is now: ₱${newBalance}`);
+        }
+    } catch (e) {
+        console.error("Error updating cash advance balance on save:", e);
+    }
+}
 // ⭐ TACSFIBER COMPLETE KEYBOARD SHORTCUTS MANAGER
         window.addEventListener('keydown', (e) => {
             // 1. UNIVERSAL CTRL + F / CMD + F: Focus sa visible search input ng kahit anong active tab
