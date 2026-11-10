@@ -6347,17 +6347,27 @@ function onPayrollEmpChange() {
 }
 
 // --- 3. LIVE PAYROLL CALCULATOR (Duty Days, OT, Late, Vale, Bonus) ---
+// --- 3. LIVE PAYROLL CALCULATOR (Duty Days, OT, Late, Vale, Bonus) ---
 function calculatePayrollNet() {
-    const dailyRate = parseFloat(document.getElementById('payroll-daily-rate').value) || 0;
-    const days = parseFloat(document.getElementById('payroll-days').value) || 0;
-    const otHours = parseFloat(document.getElementById('payroll-ot-hours').value) || 0;
-    const late = parseFloat(document.getElementById('payroll-late-deduct').value) || 0;
-    const vale = parseFloat(document.getElementById('payroll-vale').value) || 0;
-    const bonus = parseFloat(document.getElementById('payroll-bonus').value) || 0;
+    // Kunin ang value, kung blangko o 0, mag-fallback sa 600 (o sa kasalukuyang value ng input)
+    let dailyRateInput = document.getElementById('payroll-daily-rate');
+    let dailyRate = parseFloat(dailyRateInput?.value) || 0;
+    
+    // Fallback safeguard: kung 0 o blangko ang daily rate pero may piniling empleyado o default, gawing 600
+    if (dailyRate <= 0) {
+        dailyRate = 600; 
+        if (dailyRateInput) dailyRateInput.value = 600;
+    }
 
-    // Overtime formula: (Daily Rate / 8 hours) * 1.25
+    const days = parseFloat(document.getElementById('payroll-days')?.value) || 0;
+    const otHours = parseFloat(document.getElementById('payroll-ot-hours')?.value) || 0;
+    const late = parseFloat(document.getElementById('payroll-late-deduct')?.value) || 0;
+    const vale = parseFloat(document.getElementById('payroll-vale')?.value) || 0;
+    const bonus = parseFloat(document.getElementById('payroll-bonus')?.value) || 0;
+
+    // Overtime formula: Regular hourly rate lang (Daily Rate / 8) — WALANG 25% ADDITION
     const hourlyRate = dailyRate / 8;
-    const otPay = otHours * (hourlyRate * 1.25);
+    const otPay = otHours * hourlyRate;
 
     const gross = days * dailyRate;
     const additions = otPay + bonus;
@@ -6365,18 +6375,42 @@ function calculatePayrollNet() {
     const net = gross + additions - deductions;
 
     // Display sa UI
-    document.getElementById('disp-payroll-gross').innerText = `₱${gross.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
-    document.getElementById('disp-payroll-additions').innerText = `₱${additions.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
-    document.getElementById('disp-payroll-deductions').innerText = `₱${deductions.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
-    document.getElementById('disp-payroll-net').innerText = `₱${net.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+    const dispGross = document.getElementById('disp-payroll-gross');
+    const dispAdditions = document.getElementById('disp-payroll-additions');
+    const dispDeductions = document.getElementById('disp-payroll-deductions');
+    const dispNet = document.getElementById('disp-payroll-net');
+
+    if (dispGross) dispGross.innerText = `₱${gross.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+    if (dispAdditions) dispAdditions.innerText = `₱${additions.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+    if (dispDeductions) dispDeductions.innerText = `₱${deductions.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+    
+    if (dispNet) {
+        dispNet.innerText = `₱${net.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        
+        // Kulayan ng pulang alert kung sakaling maging negatibo ang net pay
+        if (net < 0) {
+            dispNet.classList.remove('text-emerald-400');
+            dispNet.classList.add('text-rose-400');
+        } else {
+            dispNet.classList.remove('text-rose-400');
+            dispNet.classList.add('text-emerald-400');
+        }
+    }
 }
 
-// --- 4. SAVE FINALIZED SALARY TO SUPABASE ---
+// Patakbuhin agad pagka-load para mag-compute agad ang mga nakalagay na numero
+window.addEventListener('DOMContentLoaded', () => {
+    calculatePayrollNet();
+});
+
+// --- 4. SAVE FINALIZED SALARY TO SUPABASE & HISTORY ---
 async function submitSavePayroll() {
     const empName = document.getElementById('payroll-emp-select').value;
     const start = document.getElementById('payroll-period-start').value;
     const end = document.getElementById('payroll-period-end').value;
-    const dailyRate = parseFloat(document.getElementById('payroll-daily-rate').value) || 0;
+    const payPeriodStr = (start && end) ? `${start} to ${end}` : '--'; // <--- Tinitiyak na may laman ang Pay Period
+
+    const dailyRate = parseFloat(document.getElementById('payroll-daily-rate').value) || 600;
     const days = parseFloat(document.getElementById('payroll-days').value) || 0;
     const otHours = parseFloat(document.getElementById('payroll-ot-hours').value) || 0;
     const late = parseFloat(document.getElementById('payroll-late-deduct').value) || 0;
@@ -6387,15 +6421,19 @@ async function submitSavePayroll() {
     if (!start || !end) return alert("Paki-set ang Pay Period dates!");
     if (days <= 0) return alert("Paki-lagay ang tamang Duty Days!");
 
+    // Overtime formula: Regular hourly rate lang (Daily Rate / 8) — WALANG 25% ADDITION
     const hourlyRate = dailyRate / 8;
-    const otPay = otHours * (hourlyRate * 1.25);
+    const otPay = otHours * hourlyRate;
+    
     const gross = days * dailyRate;
-    const net = gross + otPay + bonus - (late + vale);
+    const totalDeductions = late + vale; // <--- Kabuuang Deductions (Late + Vale)
+    const net = gross + otPay + bonus - totalDeductions;
 
     const record = {
         employee_name: empName,
         period_start: start,
         period_end: end,
+        pay_period: payPeriodStr, // <--- Isinasama na natin ito para sa table
         days_worked: days,
         daily_rate: dailyRate,
         overtime_hours: otHours,
@@ -6403,6 +6441,8 @@ async function submitSavePayroll() {
         late_deduction: late,
         cash_advance: vale,
         other_bonus: bonus,
+        gross_pay: gross,
+        deductions: totalDeductions, // <--- Isinasama na rin ang total deductions
         net_salary: net,
         processed_by: (window.currentUser ? window.currentUser.name : 'Ronel Tacocong')
     };
@@ -6410,7 +6450,7 @@ async function submitSavePayroll() {
     try {
         const sb = typeof getSupabase === 'function' ? getSupabase() : (window.supabaseClient || null);
         if (sb) {
-            // 1. I-save ang payroll record sa history
+            // 1. I-save ang payroll record sa Supabase
             const { error } = await sb.from('payroll_history').insert([record]);
             if (error) {
                 console.error("Supabase Payroll Insert Error:", error);
@@ -6418,7 +6458,7 @@ async function submitSavePayroll() {
                 return;
             }
 
-            // 2. Kusa ring ibabawas sa Supabase balance ng Cash Advance ang ibinawas ngayong cut-off (kung meron man)
+            // 2. Kusa ring ibabawas sa Supabase balance ng Cash Advance ang ibinawas ngayong cut-off
             if (vale > 0) {
                 const { data: advData } = await sb
                     .from('employee_advances')
@@ -6443,7 +6483,7 @@ async function submitSavePayroll() {
         console.error("Supabase Error:", e);
     }
 
-    alert(`Tagumpay! Na-save at nai-finalize na ang sweldo ni ${empName} na may Net Salary na ₱${net.toLocaleString('en-US', {minimumFractionDigits: 2})}.`);
+    alert(`Tagumpay! Na-save at nai-finalize na ang sweldo ni ${empName} na may Net Salary na ₱${net.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}.`);
     
     // I-refresh ang history table at ang cut-off summary report
     if (typeof fetchPayrollHistory === 'function') fetchPayrollHistory();
@@ -6455,7 +6495,7 @@ async function fetchPayrollHistory() {
     const tbody = document.getElementById('payroll-history-tbody');
     if (!tbody) return;
 
-    tbody.innerHTML = `<tr><td colspan="10" class="p-4 text-center text-slate-400">Kumukuha ng datos...</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10" class="p-6 text-center text-slate-400 text-xs font-medium">Kumukuha ng datos mula sa Supabase...</td></tr>`;
 
     try {
         const sb = typeof getSupabase === 'function' ? getSupabase() : (window.supabaseClient || null);
@@ -6470,7 +6510,7 @@ async function fetchPayrollHistory() {
         if (error) throw error;
 
         if (!historyData || historyData.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="10" class="p-4 text-center text-slate-400">Walang nakitang finalized payroll history.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="10" class="p-6 text-center text-slate-400 text-xs">Wala pang nakitang finalized payroll history.</td></tr>`;
             return;
         }
 
@@ -6494,23 +6534,40 @@ async function fetchPayrollHistory() {
                 caBalance = parseFloat(caData.remaining_balance || 0);
             }
 
+            // Linisin ang date format para maging readable (hal: Nov 10, 2026 02:33 PM)
+            let rawDate = row.date_processed || row.created_at || '';
+            let formattedDate = rawDate;
+            try {
+                const d = new Date(rawDate);
+                if (!isNaN(d.getTime())) {
+                    formattedDate = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' ' + 
+                                    d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                }
+            } catch (e) {}
+
+            const grossValue = parseFloat(row.gross_pay || row.gross || 0);
+            const deductValue = parseFloat(row.deductions || row.total_deductions || 0);
+            const netValue = parseFloat(row.net_salary || row.net_pay || 0);
+
             const tr = document.createElement('tr');
-            tr.className = "hover:bg-slate-50 transition-colors";
+            tr.className = "hover:bg-slate-50/80 transition-colors text-xs border-b border-slate-100";
             tr.innerHTML = `
-                <td class="p-3 font-medium text-slate-700">${row.date_processed || row.created_at || '--'}</td>
-                <td class="p-3 font-bold text-slate-800">${empName}</td>
-                <td class="p-3 text-slate-600">${row.pay_period || row.period || '--'}</td>
-                <td class="p-3 text-center font-semibold text-slate-700">${row.duty_days || row.days_worked || 0}</td>
-                <td class="p-3 font-mono text-slate-700">₱${parseFloat(row.gross_pay || row.gross || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
-                <td class="p-3 font-mono text-rose-600 font-semibold">-₱${parseFloat(row.deductions || row.total_deductions || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
-                <td class="p-3 font-mono font-bold text-emerald-600">₱${parseFloat(row.net_salary || row.net_pay || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
-                <td class="p-3 font-mono font-bold ${caBalance > 0 ? 'text-amber-600 bg-amber-50/50 rounded' : 'text-slate-400'}">
+                <td class="py-3 px-4 text-slate-500 font-medium">${formattedDate}</td>
+                <td class="py-3 px-4 font-bold text-slate-800">${empName}</td>
+                <td class="py-3 px-4 text-slate-600 font-medium">${row.pay_period || row.period || '--'}</td>
+                <td class="py-3 px-4 text-center font-bold text-slate-700 bg-slate-50/50">${row.duty_days || row.days_worked || 0}</td>
+                <td class="py-3 px-4 font-mono text-slate-800 font-semibold">₱${grossValue.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+                <td class="py-3 px-4 font-mono text-rose-600 font-semibold">₱${deductValue.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+                <td class="py-3 px-4 font-mono font-bold text-emerald-600">₱${netValue.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+                <td class="py-3 px-4 font-mono font-bold ${caBalance > 0 ? 'text-amber-600 bg-amber-50/30' : 'text-slate-400'}">
                     ${caBalance > 0 ? '₱' + caBalance.toLocaleString('en-US', {minimumFractionDigits: 2}) : '₱0.00 (Wala)'}
                 </td>
-                <td class="p-3 text-slate-600">${row.processed_by || 'Admin'}</td>
-                <td class="p-3 text-center">
-                    <button onclick="printPayslip('${row.id}')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[11px] font-semibold transition-colors flex items-center gap-1 mx-auto">
-                        <i class="fa-solid fa-print text-slate-500"></i> Payslip
+                <td class="py-3 px-4 text-slate-600">
+                    <span class="px-2 py-0.5 bg-slate-100 text-slate-700 rounded-full text-[10px] font-semibold">${row.processed_by || 'Admin'}</span>
+                </td>
+                <td class="py-3 px-4 text-right">
+                    <button onclick="printPayslip('${row.id}')" class="bg-slate-800 hover:bg-slate-700 text-white px-3 py-1.5 rounded-lg text-[11px] font-bold shadow-sm transition-all flex items-center gap-1 ml-auto">
+                        <i class="fa-solid fa-print text-[10px]"></i> Payslip
                     </button>
                 </td>
             `;
@@ -6519,7 +6576,7 @@ async function fetchPayrollHistory() {
 
     } catch (e) {
         console.error("Error fetching payroll history:", e);
-        tbody.innerHTML = `<tr><td colspan="10" class="p-4 text-center text-rose-500 font-medium">May aberya sa pag-load ng history.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="10" class="p-4 text-center text-rose-500 font-medium text-xs">May aberya sa pag-load ng history mula sa cloud.</td></tr>`;
     }
 }
 
