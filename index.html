@@ -1735,6 +1735,43 @@
     </div>
 </div>
 
+<!-- 📌 MODAL PARA SA PAG-ADD NG CASH ADVANCE -->
+<div id="cash-advance-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl border border-slate-200">
+        <div class="flex justify-between items-center pb-3 border-b border-slate-100 mb-4">
+            <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                <i class="fa-solid fa-file-invoice-dollar text-amber-600"></i> Magdagdag ng Cash Advance (CA)
+            </h3>
+            <button onclick="closeCAModal()" class="text-slate-400 hover:text-slate-600 text-sm font-bold">✕</button>
+        </div>
+        
+        <div class="space-y-4">
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Pangalan ng Empleyado</label>
+                <select id="ca-modal-emp" class="w-full border border-slate-300 rounded-lg p-2.5 text-xs font-semibold bg-white">
+                    <option value="">-- Piliin ang Empleyado --</option>
+                </select>
+            </div>
+            
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Kabuuang Halaga ng Utang (Total Advance ₱)</label>
+                <input type="number" id="ca-modal-total" placeholder="5000" class="w-full border border-slate-300 rounded-lg p-2.5 text-xs font-mono font-bold text-slate-800">
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Bawas kada Cut-off (₱)</label>
+                <input type="number" id="ca-modal-deduction" value="1000" placeholder="1000" class="w-full border border-slate-300 rounded-lg p-2.5 text-xs font-mono font-bold text-slate-800">
+                <p class="text-[10px] text-slate-500 mt-1">Ito ang awtomatikong ibabawas sa sweldo nila bawat cut-off.</p>
+            </div>
+        </div>
+
+        <div class="flex justify-end gap-2 mt-6 pt-3 border-t border-slate-100">
+            <button onclick="closeCAModal()" class="px-4 py-2 bg-slate-200 text-slate-700 text-xs font-bold rounded-lg hover:bg-slate-300">Close</button>
+            <button onclick="saveNewCashAdvance()" class="px-4 py-2 bg-amber-600 text-white text-xs font-bold rounded-lg hover:bg-amber-700 shadow-sm">Save</button>
+        </div>
+    </div>
+</div>
+
             <!-- USERS VIEW -->
             <div id="view-users" class="hidden space-y-6 max-w-3xl mx-auto">
                 <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-6">
@@ -6628,53 +6665,58 @@ async function checkEmployeeCashAdvance(empName) {
     const totalAdvSpan = document.getElementById('display-total-advance');
     const remBalSpan = document.getElementById('display-remaining-balance');
     const cutDeductSpan = document.getElementById('display-cutoff-deduction');
-    const caInput = document.getElementById('payroll-vale'); // Ang Cash Advance / Vale input box sa calculator
+    const caInput = document.getElementById('payroll-vale'); // Cash Advance / Vale input box sa calculator
 
     if (!empName) {
-        if (card) card.classList.add('hidden');
+        if (nameSpan) nameSpan.textContent = '--';
+        if (totalAdvSpan) totalAdvSpan.textContent = '₱0.00';
+        if (remBalSpan) remBalSpan.textContent = '₱0.00';
+        if (cutDeductSpan) cutDeductSpan.textContent = '₱0.00';
         if (caInput) caInput.value = 0;
         return;
     }
 
     try {
         const sb = typeof getSupabase === 'function' ? getSupabase() : (window.supabaseClient || null);
-        if (!sb) {
-            console.error("Supabase client not found!");
-            return;
-        }
+        if (!sb) return;
 
-        // Kunin ang record mula sa employee_advances table base sa pangalan ng empleyado
+        // Kunin ang pangalan nang walang extra tag tulad ng (STAFF) o (TECHNICIAN)
+        const cleanName = empName.split('(')[0].trim();
+
+        // Gamitin ang .select() nang walang .single() para maiwasan ang 406 error kung wala pang record
         const { data, error } = await sb
             .from('employee_advances')
             .select('*')
-            .eq('employee_name', empName)
-            .single();
+            .ilike('employee_name', `%${cleanName}%`);
 
-        if (data && card) {
-            card.classList.remove('hidden'); // I-alis ang hidden para lumitaw ang card sa UI!
-            if (nameSpan) nameSpan.textContent = data.employee_name;
-            if (totalAdvSpan) totalAdvSpan.textContent = `₱${parseFloat(data.total_advance || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}`;
-            if (remBalSpan) remBalSpan.textContent = `₱${parseFloat(data.remaining_balance || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+        if (data && data.length > 0) {
+            const record = data[0]; // Kunin ang unang nahanap na record
+            if (nameSpan) nameSpan.textContent = record.employee_name;
+            if (totalAdvSpan) totalAdvSpan.textContent = `₱${parseFloat(record.total_advance || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+            if (remBalSpan) remBalSpan.textContent = `₱${parseFloat(record.remaining_balance || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}`;
             
-            const installment = parseFloat(data.deduction_per_cutoff || 1000);
-            const deductAmount = Math.min(parseFloat(data.remaining_balance || 0), installment);
+            const installment = parseFloat(record.deduction_per_cutoff || 1000);
+            const deductAmount = Math.min(parseFloat(record.remaining_balance || 0), installment);
             
             if (cutDeductSpan) cutDeductSpan.textContent = `₱${deductAmount.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
             
-            // Kusa ding ilalagay sa Vale / Cash Advance input box sa calculator
             if (caInput) {
                 caInput.value = deductAmount;
                 if (typeof calculatePayrollNet === 'function') calculatePayrollNet();
             }
         } else {
-            // Kung walang utang / walang record sa table
-            if (card) card.classList.add('hidden');
-            if (caInput) caInput.value = 0;
-            if (typeof calculatePayrollNet === 'function') calculatePayrollNet();
+            // Kung ang empleyado ay walang active cash advance (Wala pang utang)
+            if (nameSpan) nameSpan.textContent = cleanName + " (Walang CA)";
+            if (totalAdvSpan) totalAdvSpan.textContent = '₱0.00';
+            if (remBalSpan) remBalSpan.textContent = '₱0.00';
+            if (cutDeductSpan) cutDeductSpan.textContent = '₱0.00';
+            if (caInput) {
+                caInput.value = 0;
+                if (typeof calculatePayrollNet === 'function') calculatePayrollNet();
+            }
         }
     } catch (e) {
-        console.log("Walang active cash advance record para kay:", empName);
-        if (card) card.classList.add('hidden');
+        console.log("Error checking cash advance:", e);
     }
 }
 // 3. Tawagin ang summary pagka-load ng page
@@ -6716,30 +6758,27 @@ async function updateEmployeeCashAdvanceOnSave(empName, deductedAmount) {
 }
 
 // 1. Buksan ang CA Modal at i-load ang mga empleyado sa dropdown
-async function openCAModal() {
+function openCAModal() {
     const modal = document.getElementById('cash-advance-modal');
-    const select = document.getElementById('ca-modal-emp');
-    if (!modal || !select) return;
+    const modalSelect = document.getElementById('ca-modal-emp');
+    const mainSelect = document.getElementById('payroll-emp-select');
+    
+    if (!modal || !modalSelect) return;
 
     modal.classList.remove('hidden');
-    select.innerHTML = '<option value="">-- Piliin ang Empleyado --</option>';
+    modalSelect.innerHTML = '<option value="">-- Piliin ang Empleyado --</option>';
 
-    try {
-        const sb = typeof getSupabase === 'function' ? getSupabase() : (window.supabaseClient || null);
-        if (!sb) return;
-
-        // Kunin ang listahan ng mga empleyado mula sa database
-        const { data } = await sb.from('company_employees').select('*');
-        if (data && data.length > 0) {
-            data.forEach(emp => {
-                const opt = document.createElement('option');
-                opt.value = emp.name || emp.employee_name;
-                opt.textContent = emp.name || emp.employee_name;
-                select.appendChild(opt);
-            });
+    // Kopyahin ang mga option mula sa pangunahing employee dropdown sa calculator
+    if (mainSelect && mainSelect.options.length > 1) {
+        for (let i = 1; i < mainSelect.options.length; i++) {
+            const optVal = mainSelect.options[i].value;
+            const optText = mainSelect.options[i].text;
+            
+            const newOpt = document.createElement('option');
+            newOpt.value = optVal;
+            newOpt.textContent = optText;
+            modalSelect.appendChild(newOpt);
         }
-    } catch (e) {
-        console.error("Error loading employees for CA modal:", e);
     }
 }
 
@@ -6749,7 +6788,7 @@ function closeCAModal() {
     if (modal) modal.classList.add('hidden');
 }
 
-// 3. I-save o I-update ang Cash Advance sa Supabase
+// 3. I-save o I-update ang Cash Advance sa Supabase (Ginagamit ang .ilike at .maybeSingle para iwas 406 error)
 async function saveNewCashAdvance() {
     const empName = document.getElementById('ca-modal-emp').value;
     const totalAdv = parseFloat(document.getElementById('ca-modal-total').value) || 0;
@@ -6762,15 +6801,16 @@ async function saveNewCashAdvance() {
         const sb = typeof getSupabase === 'function' ? getSupabase() : (window.supabaseClient || null);
         if (!sb) return;
 
+        const cleanName = empName.split('(')[0].trim();
+
         // Suriin kung may umiiral nang record ang empleyado sa employee_advances
-        const { data: existing } = await sb
+        const { data: existingList } = await sb
             .from('employee_advances')
             .select('*')
-            .eq('employee_name', empName)
-            .maybeSingle();
+            .ilike('employee_name', `%${cleanName}%`);
 
-        if (existing) {
-            // Kung may utang na, idagdag ang bagong utang sa kasalukuyang balanse
+        if (existingList && existingList.length > 0) {
+            const existing = existingList[0];
             const newTotal = parseFloat(existing.total_advance) + totalAdv;
             const newBalance = parseFloat(existing.remaining_balance) + totalAdv;
 
@@ -6781,7 +6821,7 @@ async function saveNewCashAdvance() {
                     remaining_balance: newBalance,
                     deduction_per_cutoff: deduction 
                 })
-                .eq('employee_name', empName);
+                .eq('id', existing.id);
 
             if (error) throw error;
         } else {
@@ -6801,7 +6841,7 @@ async function saveNewCashAdvance() {
         alert(`Tagumpay! Naitala ang Cash Advance na ₱${totalAdv.toLocaleString()} para kay ${empName}.`);
         closeCAModal();
 
-        // I-refresh kung naka-select na ang empleyado sa calculator
+        // I-refresh agad ang info card sa calculator kung nakapili na ng empleyado
         const activeEmpSelect = document.getElementById('payroll-emp-select');
         if (activeEmpSelect && activeEmpSelect.value) {
             checkEmployeeCashAdvance(activeEmpSelect.value);
