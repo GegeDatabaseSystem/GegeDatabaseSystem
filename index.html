@@ -1649,10 +1649,12 @@
                             <th class="p-3">Employee</th>
                             <th class="p-3">Pay Period</th>
                             <th class="p-3 text-center">Duty Days</th>
+                            <th class="p-3">Basic Pay</th>
+                            <th class="p-3">OT & Bonus</th>
                             <th class="p-3">Gross Pay</th>
                             <th class="p-3">Deductions</th>
                             <th class="p-3">Net Salary</th>
-                            <th class="p-3 text-amber-700">Rem. CA Balance</th> <!-- 📌 Bagong Column para sa natitirang utang -->
+                            <th class="p-3 text-amber-700">Rem. CA Balance</th>
                             <th class="p-3">Processed By</th>
                             <th class="p-3 text-center">Action</th>
                         </tr>
@@ -6495,13 +6497,12 @@ async function fetchPayrollHistory() {
     const tbody = document.getElementById('payroll-history-tbody');
     if (!tbody) return;
 
-    tbody.innerHTML = `<tr><td colspan="10" class="p-6 text-center text-slate-400 text-xs font-medium">Kumukuha ng datos mula sa Supabase...</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="12" class="p-6 text-center text-slate-400 text-xs font-medium">Kumukuha ng datos mula sa Supabase...</td></tr>`;
 
     try {
         const sb = typeof getSupabase === 'function' ? getSupabase() : (window.supabaseClient || null);
         if (!sb) return;
 
-        // Kunin ang payroll history mula sa Supabase
         const { data: historyData, error } = await sb
             .from('payroll_history')
             .select('*')
@@ -6510,20 +6511,17 @@ async function fetchPayrollHistory() {
         if (error) throw error;
 
         if (!historyData || historyData.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="10" class="p-6 text-center text-slate-400 text-xs">Wala pang nakitang finalized payroll history.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="12" class="p-6 text-center text-slate-400 text-xs">Wala pang nakitang finalized payroll history.</td></tr>`;
             return;
         }
 
         tbody.innerHTML = '';
 
         for (const row of historyData) {
-            // Kunin ang pangalan ng empleyado alinsunod sa posibleng column name sa database
             const empName = row.employee || row.employee_name || row.name || 'Unknown Employee';
             const cleanEmpName = empName.split('(')[0].trim();
             
             let caBalance = 0;
-
-            // Kunin ang Rem. CA Balance mula sa employee_advances table
             const { data: caData } = await sb
                 .from('employee_advances')
                 .select('remaining_balance')
@@ -6534,7 +6532,6 @@ async function fetchPayrollHistory() {
                 caBalance = parseFloat(caData.remaining_balance || 0);
             }
 
-            // Linisin ang date format para maging readable (hal: Nov 10, 2026 02:33 PM)
             let rawDate = row.date_processed || row.created_at || '';
             let formattedDate = rawDate;
             try {
@@ -6545,9 +6542,17 @@ async function fetchPayrollHistory() {
                 }
             } catch (e) {}
 
-            const grossValue = parseFloat(row.gross_pay || row.gross || 0);
-            const deductValue = parseFloat(row.deductions || row.total_deductions || 0);
-            const netValue = parseFloat(row.net_salary || row.net_pay || 0);
+            const dailyRate = parseFloat(row.daily_rate || 650);
+            const daysWorked = parseFloat(row.days_worked || row.duty_days || 0);
+            const basicPay = daysWorked * dailyRate;
+            
+            const otPay = parseFloat(row.overtime_pay || 0);
+            const bonus = parseFloat(row.other_bonus || 0);
+            const otAndBonus = otPay + bonus;
+
+            const grossValue = basicPay + otAndBonus;
+            const deductValue = parseFloat(row.deductions || row.late_deduction || row.cash_advance || 0);
+            const netValue = grossValue - deductValue;
 
             const tr = document.createElement('tr');
             tr.className = "hover:bg-slate-50/80 transition-colors text-xs border-b border-slate-100";
@@ -6555,10 +6560,12 @@ async function fetchPayrollHistory() {
                 <td class="py-3 px-4 text-slate-500 font-medium">${formattedDate}</td>
                 <td class="py-3 px-4 font-bold text-slate-800">${empName}</td>
                 <td class="py-3 px-4 text-slate-600 font-medium">${row.pay_period || row.period || '--'}</td>
-                <td class="py-3 px-4 text-center font-bold text-slate-700 bg-slate-50/50">${row.duty_days || row.days_worked || 0}</td>
-                <td class="py-3 px-4 font-mono text-slate-800 font-semibold">₱${grossValue.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
-                <td class="py-3 px-4 font-mono text-rose-600 font-semibold">₱${deductValue.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
-                <td class="py-3 px-4 font-mono font-bold text-emerald-600">₱${netValue.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+                <td class="py-3 px-4 text-center font-bold text-slate-700 bg-slate-50/50">${daysWorked}</td>
+                <td class="py-3 px-4 font-mono text-slate-700">₱${basicPay.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+                <td class="py-3 px-4 font-mono text-emerald-600 font-semibold">+₱${otAndBonus.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+                <td class="py-3 px-4 font-mono text-slate-900 font-bold bg-slate-50/80">₱${grossValue.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+                <td class="py-3 px-4 font-mono text-rose-600 font-semibold">-₱${deductValue.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+                <td class="py-3 px-4 font-mono font-bold text-emerald-600 bg-emerald-50/20">₱${netValue.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
                 <td class="py-3 px-4 font-mono font-bold ${caBalance > 0 ? 'text-amber-600 bg-amber-50/30' : 'text-slate-400'}">
                     ${caBalance > 0 ? '₱' + caBalance.toLocaleString('en-US', {minimumFractionDigits: 2}) : '₱0.00 (Wala)'}
                 </td>
@@ -6576,7 +6583,7 @@ async function fetchPayrollHistory() {
 
     } catch (e) {
         console.error("Error fetching payroll history:", e);
-        tbody.innerHTML = `<tr><td colspan="10" class="p-4 text-center text-rose-500 font-medium text-xs">May aberya sa pag-load ng history mula sa cloud.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="12" class="p-4 text-center text-rose-500 font-medium text-xs">May aberya sa pag-load ng history mula sa cloud.</td></tr>`;
     }
 }
 
