@@ -1494,36 +1494,36 @@
                 </button>
             </div>
 <!-- 📌 CASH ADVANCE & REMAINING BALANCE INFO CARD -->
-        <div id="employee-ca-info-card" class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 hidden">
-            <div class="flex justify-between items-center">
-                <div>
-                    <h5 class="font-bold text-amber-800 text-xs flex items-center gap-1.5">
-                        <i class="fa-solid fa-wallet text-amber-600"></i> Cash Advance Status: <span id="ca-emp-name" class="underline">--</span>
-                    </h5>
-                    <p class="text-[11px] text-amber-700 mt-0.5">Kabuuang Utang at Natitirang Balanse para sa Cut-off na ito.</p>
-                </div>
-                <div class="flex gap-4 text-right">
-                    <div>
-                        <span class="text-[10px] uppercase font-bold text-slate-500 block">Total Advance</span>
-                        <span id="display-total-advance" class="text-xs font-mono font-bold text-slate-800">₱0.00</span>
-                    </div>
-                    <div>
-                        <span class="text-[10px] uppercase font-bold text-slate-500 block">Remaining Balance</span>
-                        <span id="display-remaining-balance" class="text-xs font-mono font-bold text-rose-600">₱0.00</span>
-                    </div>
-                    <div>
-                        <span class="text-[10px] uppercase font-bold text-slate-500 block">Cut-off Deduction</span>
-                        <span id="display-cutoff-deduction" class="text-xs font-mono font-bold text-indigo-600">₱0.00</span>
-                    </div>
-                </div>
+<div id="employee-ca-info-card" class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 hidden">
+    <div class="flex justify-between items-center">
+        <div>
+            <h5 class="font-bold text-amber-800 text-xs flex items-center gap-1.5">
+                <i class="fa-solid fa-wallet text-amber-600"></i> Cash Advance Status: <span id="ca-emp-name" class="underline">--</span>
+            </h5>
+            <p class="text-[11px] text-amber-700 mt-0.5">Kabuuang Utang at Natitirang Balanse para sa Cut-off na ito.</p>
+        </div>
+        <div class="flex gap-4 text-right">
+            <div>
+                <span class="text-[10px] uppercase font-bold text-slate-500 block">Total Advance</span>
+                <span id="display-total-advance" class="text-xs font-mono font-bold text-slate-800">₱0.00</span>
+            </div>
+            <div>
+                <span class="text-[10px] uppercase font-bold text-slate-500 block">Remaining Balance</span>
+                <span id="display-remaining-balance" class="text-xs font-mono font-bold text-rose-600">₱0.00</span>
+            </div>
+            <div>
+                <span class="text-[10px] uppercase font-bold text-slate-500 block">Cut-off Deduction</span>
+                <span id="display-cutoff-deduction" class="text-xs font-mono font-bold text-indigo-600">₱0.00</span>
             </div>
         </div>
+    </div>
+</div>
 
             <!-- FORM INPUTS -->
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
                     <label class="block text-xs font-bold text-slate-700 mb-1">Select Employee</label>
-                    <select id="payroll-emp-select" onchange="onPayrollEmpChange()" class="w-full border border-slate-300 rounded-lg p-2.5 text-xs font-semibold bg-slate-50">
+                    <select id="payroll-emp-select" onchange="checkEmployeeCashAdvance(this.value)" class="w-full border border-slate-300 rounded-lg p-2.5 text-xs font-semibold">
                         <option value="">-- Select Employee --</option>
                     </select>
                 </div>
@@ -6586,26 +6586,52 @@ async function loadCutoffSummaryReport() {
 
 // 2. Function para i-check ang Cash Advance balance ng empleyado kapag pinili sa dropdown
 async function checkEmployeeCashAdvance(empName) {
+    const card = document.getElementById('employee-ca-info-card');
+    const nameSpan = document.getElementById('ca-emp-name');
+    const totalAdvSpan = document.getElementById('display-total-advance');
+    const remBalSpan = document.getElementById('display-remaining-balance');
+    const cutDeductSpan = document.getElementById('display-cutoff-deduction');
+    const caInput = document.getElementById('payroll-vale'); // Ang Cash Advance / Vale input box sa calculator
+
+    if (!empName) {
+        if (card) card.classList.add('hidden');
+        return;
+    }
+
     try {
         const sb = typeof getSupabase === 'function' ? getSupabase() : window.supabaseClient;
         if (!sb) return;
 
+        // Kunin ang record mula sa employee_advances table gamit ang pangalan ng empleyado
         const { data, error } = await sb
             .from('employee_advances')
             .select('*')
             .eq('employee_name', empName)
             .single();
 
-        const caInput = document.getElementById('cash-advance-input'); // Siguraduhing ito ang ID ng CA input mo
-        if (data && caInput) {
-            const deductAmount = Math.min(data.remaining_balance, data.deduction_per_cutoff);
-            caInput.value = deductAmount;
-            console.log(`[CA Loaded] ${empName} - Remaining Balance: ₱${data.remaining_balance}`);
-        } else if (caInput) {
-            caInput.value = 0;
+        if (data && card) {
+            card.classList.remove('hidden'); // Ipakita ang info card kung may record
+            if (nameSpan) nameSpan.textContent = data.employee_name;
+            if (totalAdvSpan) totalAdvSpan.textContent = `₱${parseFloat(data.total_advance || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+            if (remBalSpan) remBalSpan.textContent = `₱${parseFloat(data.remaining_balance || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+            
+            // Default deduction per cut-off (hal. ₱1,000 o ang natitirang balanse kung mas mababa)
+            const installment = parseFloat(data.deduction_per_cutoff || 1000);
+            const deductAmount = Math.min(parseFloat(data.remaining_balance || 0), installment);
+            
+            if (cutDeductSpan) cutDeductSpan.textContent = `₱${deductAmount.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+            
+            // Kusa ding ilalagay sa Cash Advance / Vale input box para sa calculation
+            if (caInput) {
+                caInput.value = deductAmount;
+            }
+        } else {
+            if (card) card.classList.add('hidden');
+            if (caInput) caInput.value = 0;
         }
     } catch (e) {
-        console.log("Walang active cash advance para sa empleyadong ito.");
+        console.log("Walang active cash advance record para kay:", empName);
+        if (card) card.classList.add('hidden');
     }
 }
 
