@@ -1493,6 +1493,31 @@
                     + Manage Employees & Rates
                 </button>
             </div>
+<!-- 📌 CASH ADVANCE & REMAINING BALANCE INFO CARD -->
+        <div id="employee-ca-info-card" class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 hidden">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h5 class="font-bold text-amber-800 text-xs flex items-center gap-1.5">
+                        <i class="fa-solid fa-wallet text-amber-600"></i> Cash Advance Status: <span id="ca-emp-name" class="underline">--</span>
+                    </h5>
+                    <p class="text-[11px] text-amber-700 mt-0.5">Kabuuang Utang at Natitirang Balanse para sa Cut-off na ito.</p>
+                </div>
+                <div class="flex gap-4 text-right">
+                    <div>
+                        <span class="text-[10px] uppercase font-bold text-slate-500 block">Total Advance</span>
+                        <span id="display-total-advance" class="text-xs font-mono font-bold text-slate-800">₱0.00</span>
+                    </div>
+                    <div>
+                        <span class="text-[10px] uppercase font-bold text-slate-500 block">Remaining Balance</span>
+                        <span id="display-remaining-balance" class="text-xs font-mono font-bold text-rose-600">₱0.00</span>
+                    </div>
+                    <div>
+                        <span class="text-[10px] uppercase font-bold text-slate-500 block">Cut-off Deduction</span>
+                        <span id="display-cutoff-deduction" class="text-xs font-mono font-bold text-indigo-600">₱0.00</span>
+                    </div>
+                </div>
+            </div>
+        </div>
 
             <!-- FORM INPUTS -->
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
