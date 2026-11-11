@@ -6261,7 +6261,6 @@ function switchCollectionTab(tabName) {
 // ==========================================
 // TACSFIBER - EMPLOYEE PAYROLL & SALARY MODULE
 // ==========================================
-
 window.companyEmployees = [];
 window.payrollHistoryList = [];
 
@@ -6327,13 +6326,57 @@ async function fetchCompanyEmployees() {
 
         const select = document.getElementById('payroll-emp-select');
         if (select) {
+            // Idinagdag natin ang data-rate attribute sa bawat option gamit ang e.daily_rate
             select.innerHTML = '<option value="">-- Select Employee --</option>' +
-                window.companyEmployees.map(e => `<option value="${e.name}">${e.name} (${e.role})</option>`).join('');
+                window.companyEmployees.map(e => `<option value="${e.name}" data-rate="${e.daily_rate}">${e.name} (${e.role})</option>`).join('');
         }
     } catch (e) {
         console.error("Error loading employees:", e);
     }
 }
+
+// Idinagdag natin ang Event Listener na ito para kusang magbago ang Daily Rate input field
+document.addEventListener('DOMContentLoaded', () => {
+    const select = document.getElementById('payroll-emp-select');
+    
+    if (select) {
+        select.addEventListener('change', function() {
+            // Kunin ang mismong pangalan ng empleyado (alisin ang position kung sakaling kasama)
+            let selectedVal = this.value;
+            
+            // Kung kasama ang parenthesis (hal. "Ronie Jayme (TECHNICIAN)"), kunin lang ang pangalan sa unahan
+            if (selectedVal.includes('(')) {
+                selectedVal = selectedVal.split('(')[0].trim();
+            }
+
+            const dailyRateInput = document.getElementById('payroll-daily-rate'); // Siguraduhing ito ang ID ng input mo
+
+            if (!dailyRateInput) return;
+
+            if (!selectedVal) {
+                dailyRateInput.value = '';
+                if (typeof checkEmployeeCashAdvance === 'function') checkEmployeeCashAdvance('');
+                return;
+            }
+
+            // Hanapin ang tamang rate mula sa window.companyEmployees array na meron na tayo
+            if (window.companyEmployees && window.companyEmployees.length > 0) {
+                const foundEmp = window.companyEmployees.find(emp => emp.name.toLowerCase() === selectedVal.toLowerCase());
+                
+                if (foundEmp && foundEmp.daily_rate) {
+                    dailyRateInput.value = foundEmp.daily_rate; // I-set ang eksaktong rate ng empleyado na ito!
+                } else {
+                    dailyRateInput.value = ''; // Kung walang nahanap
+                }
+            }
+
+            // Tawagin pa rin ang function para sa Cash Advance kung mayroon man
+            if (typeof checkEmployeeCashAdvance === 'function') {
+                checkEmployeeCashAdvance(selectedVal);
+            }
+        });
+    }
+});
 
 function onPayrollEmpChange() {
     const empName = document.getElementById('payroll-emp-select').value;
@@ -6731,37 +6774,47 @@ async function checkEmployeeCashAdvance(empId) {
         document.getElementById('display-total-advance').innerText = '₱0.00';
         document.getElementById('display-remaining-balance').innerText = '₱0.00';
         document.getElementById('display-cutoff-deduction').innerText = '₱0.00';
-        calculatePayrollNet();
+        if (typeof calculatePayrollNet === 'function') calculatePayrollNet();
         return;
+    }
+
+    // Alisin ang position sa pangalan (hal: "Jepoy Jayme (TECHNICIAN)" -> "Jepoy Jayme")
+    const cleanEmpId = empId.includes('(') ? empId.split('(')[0].trim() : empId.trim();
+
+    // Prioritize natin ang na-fetch nang local array para mabilis at walang delay
+    let foundRate = 0;
+    if (window.companyEmployees && window.companyEmployees.length > 0) {
+        const localEmp = window.companyEmployees.find(e => e.name.toLowerCase() === cleanEmpId.toLowerCase());
+        if (localEmp && localEmp.daily_rate) {
+            foundRate = parseFloat(localEmp.daily_rate);
+        }
     }
 
     try {
         const sb = typeof getSupabase === 'function' ? getSupabase() : (window.supabaseClient || null);
         if (sb) {
-            // 1. Kunin ang tamang Daily Rate at profile ng empleyado galing sa Supabase table
-            const { data: empData, error } = await sb
-                .from('employees') // Palitan ng tamang table name kung iba (hal: 'manage_employees' o 'staff')
+            // 1. Kunin ang profile sa Supabase gamit ang linis na pangalan
+            const { data: empData } = await sb
+                .from('company_employees')
                 .select('*')
-                .or(`id.eq.${empId},name.ilike.%${empId}%,full_name.ilike.%${empId}%`)
+                .ilike('name', `%${cleanEmpId}%`)
                 .maybeSingle();
 
             if (empData) {
-                // Kunin ang daily rate mula sa database, kung wala ay mag-fallback sa 0 para ma-input manually
-                const actualRate = parseFloat(empData.daily_rate || empData.rate || empData.salary_rate || 650);
-                document.getElementById('payroll-daily-rate').value = actualRate;
-                
-                document.getElementById('ca-emp-name').innerText = empData.name || empData.full_name || empId;
+                foundRate = parseFloat(empData.daily_rate || empData.rate || foundRate);
+                document.getElementById('ca-emp-name').innerText = empData.name || cleanEmpId;
             } else {
-                // Fallback kung pangalan lang ang nakuha sa select value
-                document.getElementById('payroll-daily-rate').value = 650;
-                document.getElementById('ca-emp-name').innerText = empId;
+                document.getElementById('ca-emp-name').innerText = cleanEmpId;
             }
 
-            // 2. Kunin din ang Cash Advance status kung mayroon man
+            // I-set ang eksaktong rate sa input box (walang 600 fallback!)
+            document.getElementById('payroll-daily-rate').value = foundRate > 0 ? foundRate : '';
+
+            // 2. Kunin ang Cash Advance data
             const { data: caData } = await sb
                 .from('employee_advances')
                 .select('*')
-                .ilike('employee_name', `%${empId}%`)
+                .ilike('employee_name', `%${cleanEmpId}%`)
                 .maybeSingle();
 
             if (caData) {
@@ -6776,11 +6829,14 @@ async function checkEmployeeCashAdvance(empId) {
                 document.getElementById('display-remaining-balance').innerText = '₱0.00';
                 document.getElementById('display-cutoff-deduction').innerText = '₱0.00';
             }
+
+            if (typeof calculatePayrollNet === 'function') calculatePayrollNet();
         }
     } catch (e) {
         console.error("Error fetching employee details:", e);
-        // Safe fallback sakaling magka-issue sa connection
-        document.getElementById('payroll-daily-rate').value = 650;
+        if (foundRate > 0) {
+            document.getElementById('payroll-daily-rate').value = foundRate;
+        }
     }
 
     // I-recalculate agad ang net salary pagka-lipat ng rate
