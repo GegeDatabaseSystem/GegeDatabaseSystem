@@ -4148,26 +4148,48 @@ function exportCollectionListNotepad() {
     }
 }
 
-        function toggleComplainStatus(index) {
-            if(!customerComplaints[index]) return;
+       async function toggleComplainStatus(index) {
+    if (!customerComplaints[index]) return;
 
-            const currentStatus = customerComplaints[index].status;
-            const today = new Date().toISOString().split('T')[0];
+    const target = customerComplaints[index];
+    const currentStatus = target.status;
+    const today = new Date().toISOString().split('T')[0];
 
-            if(currentStatus === 'PENDING') {
-                customerComplaints[index].status = 'RESOLVED';
-                customerComplaints[index].resolvedDate = today;
-                alert(`✅ Na-mark as Resolved na!`);
-            } else {
-                customerComplaints[index].status = 'PENDING';
-                customerComplaints[index].resolvedDate = null;
-                alert(`🔄 Naibalik sa Active Repair Queue!`);
-            }
+    let newStatus = 'PENDING';
+    let newResolvedDate = null;
 
-            localStorage.setItem('tacsfiber_complaints', JSON.stringify(customerComplaints));
-            renderCustomersComplainView();
-            renderTechnicianAnalytics();
+    if (currentStatus === 'PENDING') {
+        newStatus = 'RESOLVED';
+        newResolvedDate = today;
+    }
+
+    // Local state update
+    customerComplaints[index].status = newStatus;
+    customerComplaints[index].resolvedDate = newResolvedDate;
+    localStorage.setItem('tacsfiber_complaints', JSON.stringify(customerComplaints));
+
+    // Supabase update
+    try {
+        const sb = typeof getSupabase === 'function' ? getSupabase() : (window.supabaseClient || null);
+        if (sb && target.id) {
+            await sb.from('customer_complaints').update({
+                status: newStatus,
+                repair_date: newResolvedDate
+            }).or(`id.eq.${target.id},account_no.eq.${target.id}`);
         }
+    } catch(e) {
+        console.error("Error updating status to Supabase:", e);
+    }
+
+    if (newStatus === 'RESOLVED') {
+        alert(`✅ Na-mark as Resolved na!`);
+    } else {
+        alert(`🔄 Naibalik sa Active Repair Queue!`);
+    }
+
+    renderCustomersComplainView();
+    if (typeof renderTechnicianAnalytics === 'function') renderTechnicianAnalytics();
+}
 
         function sendResolvedSMS(custName, contact) {
             const msg = `Hi Sir/Ma'am ${custName}, naayos na po ng aming technician ang inyong internet connection issue ngayong araw. Maraming salamat sa inyong pasensya! - TacsFiber Management`;
@@ -4329,43 +4351,47 @@ function exportCollectionListNotepad() {
             if (dashTbody) dashTbody.innerHTML = tableRowsHTML;
         }
 
-        async function deleteCustomerComplaint(complaintId) {
-    // 1. Kumpirmahin muna kung sigurado kang gusto i-delete
-    if (!confirm("Sigurado ka bang gusto mong burahin ang reklamong ito?")) {
+        async function deleteComplain(index) {
+    if (index < 0 || index >= customerComplaints.length) return;
+
+    const target = customerComplaints[index];
+    if (!target) return;
+
+    if (!confirm(`Sigurado ka bang gusto mong burahin ang reklamo ni ${target.name || target.customer_name}?`)) {
         return;
     }
 
     try {
         const sb = typeof getSupabase === 'function' ? getSupabase() : (window.supabaseClient || null);
-        if (!sb) {
-            alert("Walang koneksyon sa Supabase!");
-            return;
+
+        // 1. Burahin sa Supabase Table (Inaalis pareho sa account_no at id para sigurado)
+        if (sb) {
+            let query = sb.from('customer_complaints').delete();
+            
+            if (target.id) {
+                query = query.or(`id.eq.${target.id},account_no.eq.${target.id}`);
+            } else if (target.account_no) {
+                query = query.eq('account_no', target.account_no);
+            }
+
+            const { error } = await query;
+            if (error) {
+                console.error("Error sa pag-delete sa Supabase:", error.message);
+                alert("⚠️ Hindi nabura sa Supabase: " + error.message);
+                return;
+            }
+            console.log("✅ Matagumpay na nabura sa Supabase!");
         }
 
-        // 2. Burahin ang record direkta sa Supabase table (palitan ang 'customer_complaints' kung iba ang table name mo)
-        const { error } = await sb
-            .from('customer_complaints')
-            .delete()
-            .eq('id', complaintId); // o kung ano man ang primary key column name mo (hal. id, account_no, etc.)
+        // 2. Burahin sa Local Array at LocalStorage
+        customerComplaints.splice(index, 1);
+        localStorage.setItem('tacsfiber_complaints', JSON.stringify(customerComplaints));
 
-        if (error) {
-            console.error("Error sa pag-delete sa Supabase:", error.message);
-            alert("Hindi nabura sa database: " + error.message);
-            return;
-        }
-
-        // 3. Kung naging successful sa database, i-refresh ang UI o alisin ang element sa listahan
-        console.label("Tagumpay na nabura sa Supabase!");
-        
-        // I-reload ang listahan ng mga complaints para mag-update ang UI
-        if (typeof loadCustomerComplaints === 'function') {
-            loadCustomerComplaints(); 
-        } else {
-            location.reload(); // Fallback para i-refresh ang pahina
-        }
+        // 3. Re-render ang UI
+        renderCustomersComplainView();
 
     } catch (err) {
-        console.error("May error sa pag-delete:", err);
+        console.error("Error sa deleteComplain function:", err);
     }
 }
 
