@@ -1115,50 +1115,60 @@
             </div>
 
            <!-- VIEW: PAYMENT HISTORY -->
-            <div id="view-payment-history" class="hidden space-y-6">
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-6">
-                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4">
-                        <div>
-                            <h3 class="text-base font-bold text-slate-800 flex items-center space-x-2">
-                                <i class="fa-solid fa-receipt text-cyan-600"></i><span>Payment History Records (Supabase)</span>
-                            </h3>
-                            <p class="text-xs text-slate-500">Bilang Admin, maaari mong i-edit o i-delete ang mga tala ng bayad.</p>
-                        </div>
-                        
-                        <!-- Search Bar at Date Filter Group -->
-                        <div class="flex flex-wrap items-center gap-2.5">
-                            <!-- Modern Search Bar -->
-                            <div class="relative flex items-center">
-                                <i class="fa-solid fa-magnifying-glass absolute left-3 text-slate-400 text-xs"></i>
-                                <input type="text" id="paymentSearchInput" oninput="renderPaymentHistoryTable()" placeholder="Maghanap ng pangalan, account, encoder..." class="border border-slate-300 rounded-xl pl-9 pr-4 py-1.5 text-xs text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500 transition shadow-sm w-64">
-                            </div>
+<div id="view-payment-history" class="hidden space-y-6">
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-6">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4">
+            <div>
+                <h3 class="text-base font-bold text-slate-800 flex items-center space-x-2">
+                    <i class="fa-solid fa-receipt text-cyan-600"></i><span>Payment History Records (Supabase)</span>
+                </h3>
+                <p class="text-xs text-slate-500">Bilang Admin, maaari mong i-edit o i-delete ang mga tala ng bayad.</p>
+            </div>
+            
+            <!-- Search Bar at Date Filter Group -->
+            <div class="flex flex-wrap items-center gap-2.5">
+                <!-- Modern Search Bar -->
+                <div class="relative flex items-center">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 text-slate-400 text-xs"></i>
+                    <input type="text" id="paymentSearchInput" oninput="renderPaymentHistoryTable()" placeholder="Maghanap ng pangalan, account, encoder..." class="border border-slate-300 rounded-xl pl-9 pr-4 py-1.5 text-xs text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500 transition shadow-sm w-64">
+                </div>
 
-                            <!-- Date Paid Filter & Show All -->
-                            <div class="flex items-center space-x-1 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200">
-                                <label class="text-xs font-bold text-slate-700"><i class="fa-solid fa-calendar-day text-cyan-600 mr-1"></i>Date Paid:</label>
-                                <input type="date" id="payment-history-date-filter" onchange="renderPaymentHistoryTable()" class="border border-slate-300 rounded-lg px-2 py-1 text-xs font-bold text-slate-800 bg-white focus:outline-none">
-                                <button onclick="resetPaymentHistoryDate()" class="text-[10px] font-bold text-cyan-700 hover:underline ml-1">Show All</button>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="overflow-x-auto max-h-[65vh] border border-slate-200 rounded-xl">
-                        <table class="w-full text-left border-collapse text-xs">
-                            <thead class="bg-slate-100 text-slate-700 uppercase font-bold">
-                                <tr>
-                                    <th class="py-3 px-3">Date Paid</th>
-                                    <th class="py-3 px-3">Subscriber Name</th>
-                                    <th class="py-3 px-3">Billing Month</th>
-                                    <th class="py-3 px-3">Method</th>
-                                    <th class="py-3 px-3">Amount</th>
-                                    <th class="py-3 px-3">Encoder</th>
-                                    <th class="py-3 px-3 text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="payment-history-table-body" class="divide-y divide-slate-100 bg-white"></tbody>
-                        </table>
-                    </div>
+                <!-- Date Paid Filter & Show All -->
+                <div class="flex items-center space-x-1 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200">
+                    <label class="text-xs font-bold text-slate-700"><i class="fa-solid fa-calendar-day text-cyan-600 mr-1"></i>Date Paid:</label>
+                    <input type="date" id="payment-history-date-filter" onchange="renderPaymentHistoryTable()" class="border border-slate-300 rounded-lg px-2 py-1 text-xs font-bold text-slate-800 bg-white focus:outline-none">
+                    <button onclick="resetPaymentHistoryDate()" class="text-[10px] font-bold text-cyan-700 hover:underline ml-1">Show All</button>
                 </div>
             </div>
+        </div>
+
+        <!-- ⭐ TOTAL COLLECTED SUMMARY BOX PARA SA AUDITING ⭐ -->
+        <div class="bg-cyan-50 border border-cyan-200 p-3.5 rounded-xl flex items-center justify-between text-xs font-bold text-cyan-900 shadow-sm">
+            <div class="flex items-center space-x-2">
+                <i class="fa-solid fa-calculator text-cyan-600 text-base"></i>
+                <span>Total Collected (Filtered): <strong id="display-filtered-total-amount" class="text-sm font-black text-cyan-700">₱0.00</strong></span>
+                <span id="display-filtered-date-label" class="text-slate-500 font-normal">(Lahat ng Tala)</span>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto max-h-[65vh] border border-slate-200 rounded-xl">
+            <table class="w-full text-left border-collapse text-xs">
+                <thead class="bg-slate-100 text-slate-700 uppercase font-bold">
+                    <tr>
+                        <th class="py-3 px-3">Date Paid</th>
+                        <th class="py-3 px-3">Subscriber Name</th>
+                        <th class="py-3 px-3">Billing Month</th>
+                        <th class="py-3 px-3">Method</th>
+                        <th class="py-3 px-3">Amount</th>
+                        <th class="py-3 px-3">Encoder</th>
+                        <th class="py-3 px-3 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="payment-history-table-body" class="divide-y divide-slate-100 bg-white"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
 
             <!-- VIEW: COLLECTION LIST -->
 <div id="view-collection-list" class="hidden space-y-6">
@@ -3548,7 +3558,7 @@ TacsFiber Team and Management`;
         filteredLogs = filteredLogs.filter(p => p.date === dateFilter);
     }
 
-    // 2. Filter ayon sa isinulat sa Search Bar (Subscriber Name, Encoder, Method, etc.)
+    // 2. Filter ayon sa isinulat sa Search Bar
     if(searchVal) {
         filteredLogs = filteredLogs.filter(p => {
             const name = (p.subscriberName || '').toLowerCase();
@@ -3563,6 +3573,24 @@ TacsFiber Team and Management`;
                    months.includes(searchVal) || 
                    dateStr.includes(searchVal);
         });
+    }
+
+    // ⭐ 3. COMPUTATION NG TOTAL AMOUNT NG MGA NAKA-FILTER ⭐
+    let totalCollected = 0;
+    filteredLogs.forEach(p => {
+        const amt = parseFloat(p.amountPaid || 0);
+        totalCollected += isNaN(amt) ? 0 : amt;
+    });
+
+    // I-display ang calculated total sa UI element (gagawin natin sa HTML)
+    const totalDisplayEl = document.getElementById('display-filtered-total-amount');
+    const dateLabelEl = document.getElementById('display-filtered-date-label');
+
+    if (totalDisplayEl) {
+        totalDisplayEl.innerText = `₱${totalCollected.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+    if (dateLabelEl) {
+        dateLabelEl.innerText = dateFilter ? `(Petsa: ${dateFilter})` : `(Lahat ng Tala / Sum)`;
     }
 
     if(filteredLogs.length === 0) {
@@ -3758,6 +3786,27 @@ function exportCollectionListNotepad() {
         console.error("Error in exportCollectionListNotepad:", err);
         alert("May error sa pag-export: " + err.message);
     }
+}
+
+function filterCollectionAlerts() {
+    const searchInput = document.getElementById('collectionAlertSearchInput');
+    const filterVal = searchInput ? searchInput.value.toLowerCase().trim() : '';
+    
+    // Hanapin ang active table sa Collection Alert view
+    const activeTable = document.querySelector('#view-collection-alert table') || document.querySelector('table:not([style*="display: none"])');
+    if (!activeTable) return;
+
+    const rows = Array.from(activeTable.querySelectorAll('tbody tr'));
+
+    rows.forEach(row => {
+        const textContent = row.innerText.toLowerCase();
+        // Kung nagtutugma ang isinulat sa kahit anong text sa row (Pangalan, Account, Barangay)
+        if (textContent.includes(filterVal)) {
+            row.style.display = ''; // Ipakita
+        } else {
+            row.style.display = 'none'; // Itago
+        }
+    });
 }
         // ================= USERS MANAGEMENT =================
         function renderUsersTable() {
@@ -4764,73 +4813,87 @@ async function handleCustomerComplain(customerAccountNo, customerName, customerC
             }
         }
 
-        function renderCollectionAlertTables() {
-            const role = getActiveRole();
-            if(role === 'COLLECTOR' || role === 'TECHNICIAN') return;
+       function renderCollectionAlertTables() {
+    const role = getActiveRole();
+    if(role === 'COLLECTOR' || role === 'TECHNICIAN') return;
 
-            const currentDay = getTodayDayOfMonth();
-            const brgyFilter = document.getElementById('alertBrgyFilter') ? document.getElementById('alertBrgyFilter').value : 'ALL';
-            const dueDayFilter = document.getElementById('alertDueFilter') ? document.getElementById('alertDueFilter').value : 'ALL';
-            
-            // Kunin ang kasalukuyang buwan at taon ngayon (hal. "November 2026") para masuri sa payment logs
-            const currentMonthTag = new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' });
+    const currentDay = getTodayDayOfMonth();
+    const brgyFilter = document.getElementById('alertBrgyFilter') ? document.getElementById('alertBrgyFilter').value : 'ALL';
+    const dueDayFilter = document.getElementById('alertDueFilter') ? document.getElementById('alertDueFilter').value : 'ALL';
+    
+    // ⭐ KUNIN ANG VALUE MULA SA COLLECTION ALERT SEARCH INPUT ⭐
+    const searchInput = document.getElementById('alertSearchInput');
+    const searchVal = searchInput ? searchInput.value.toLowerCase().trim() : '';
+    
+    // Kunin ang kasalukuyang buwan at taon ngayon (hal. "November 2026") para masuri sa payment logs
+    const currentMonthTag = new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' });
 
-            // 1. Salain muna ang mga DISCONNECTED na kustomer (huwag kailanman isama)
-            let list = subscribers.filter(s => (s.status || 'ACTIVE') !== 'DISCONNECTED');
+    // 1. Salain muna ang mga DISCONNECTED na kustomer (huwag kailanman isama)
+    let list = subscribers.filter(s => (s.status || 'ACTIVE') !== 'DISCONNECTED');
 
-            if(brgyFilter !== 'ALL') list = list.filter(s => (s.barangay || 'Poblacion') === brgyFilter);
-            if(dueDayFilter !== 'ALL') list = list.filter(s => String(s.dueDay || 19) === String(dueDayFilter));
+    if(brgyFilter !== 'ALL') list = list.filter(s => (s.barangay || 'Poblacion') === brgyFilter);
+    if(dueDayFilter !== 'ALL') list = list.filter(s => String(s.dueDay || 19) === String(dueDayFilter));
 
-            // 2. FILTER NA MAY PAYMENT HISTORY CHECK:
-            // Suriin kung ang kustomer ay nakapagbayad na ba para sa kasalukuyang buwan
-            list = list.filter(s => {
-                if ((s.balance || 0) <= 0) return false;
+    // ⭐ SALAIN DIN AYON SA SEARCH INPUT (Pangalan, Account ID, o Barangay) ⭐
+    if(searchVal) {
+        list = list.filter(s => {
+            const name = (s.name || s.customerName || '').toLowerCase();
+            const accountId = (s.id || s.accountNo || '').toLowerCase();
+            const barangay = (s.barangay || '').toLowerCase();
+            return name.includes(searchVal) || accountId.includes(searchVal) || barangay.includes(searchVal);
+        });
+    }
 
-                const hasPaidThisMonth = paymentLogs.some(p => 
-                    p.subscriberId === s.id && 
-                    p.monthsPaid && 
-                    p.monthsPaid.toLowerCase().includes(currentMonthTag.toLowerCase())
-                );
+    // 2. FILTER NA MAY PAYMENT HISTORY CHECK:
+    // Suriin kung ang kustomer ay nakapagbayad na ba para sa kasalukuyang buwan
+    list = list.filter(s => {
+        if ((s.balance || 0) <= 0) return false;
 
-                // Kung nakapagbayad na ngayong buwan, huwag na silang isama sa alert lists
-                if (hasPaidThisMonth) {
-                    return false;
-                }
+        const hasPaidThisMonth = paymentLogs.some(p => 
+            p.subscriberId === s.id && 
+            p.monthsPaid && 
+            p.monthsPaid.toLowerCase().includes(currentMonthTag.toLowerCase())
+        );
 
-                return true;
-            });
-
-            // 3. I-filter ang Overdue, Due Today, at Coming Due
-            const overdueList = list.filter(s => {
-                const due = parseInt(s.dueDay || 19, 10);
-                const bal = parseFloat(s.balance) || 0;
-                return due < currentDay && (bal > 0 || (s.monthlyPlan || 600) > 0);
-            });
-
-            const dueTodayList = list.filter(s => {
-                const due = parseInt(s.dueDay || 19, 10);
-                return due === currentDay;
-            }).map(s => {
-                let displayBalance = parseFloat(s.balance) || 0;
-                if (displayBalance <= 0) {
-                    displayBalance = parseFloat(s.monthlyPlan || s.monthly_plan) || 600;
-                }
-                return { ...s, effectiveBalance: displayBalance };
-            });
-
-            const comingDueList = list.filter(s => {
-                const due = parseInt(s.dueDay || 19, 10);
-                return due > currentDay && due <= currentDay + 3;
-            });
-
-            document.getElementById('count-overdue-badge').innerText = overdueList.length;
-            document.getElementById('count-today-badge').innerText = dueTodayList.length;
-            document.getElementById('count-coming-badge').innerText = comingDueList.length;
-
-            renderAlertTableRows('table-overdue-body', overdueList, 'Overdue');
-            renderAlertTableRows('table-today-body', dueTodayList, 'Due Today');
-            renderAlertTableRows('table-coming-body', comingDueList, 'Coming Due');
+        // Kung nakapagbayad na ngayong buwan, huwag na silang isama sa alert lists
+        if (hasPaidThisMonth) {
+            return false;
         }
+
+        return true;
+    });
+
+    // 3. I-filter ang Overdue, Due Today, at Coming Due
+    const overdueList = list.filter(s => {
+        const due = parseInt(s.dueDay || 19, 10);
+        const bal = parseFloat(s.balance) || 0;
+        return due < currentDay && (bal > 0 || (s.monthlyPlan || 600) > 0);
+    });
+
+    const dueTodayList = list.filter(s => {
+        const due = parseInt(s.dueDay || 19, 10);
+        return due === currentDay;
+    }).map(s => {
+        let displayBalance = parseFloat(s.balance) || 0;
+        if (displayBalance <= 0) {
+            displayBalance = parseFloat(s.monthlyPlan || s.monthly_plan) || 600;
+        }
+        return { ...s, effectiveBalance: displayBalance };
+    });
+
+    const comingDueList = list.filter(s => {
+        const due = parseInt(s.dueDay || 19, 10);
+        return due > currentDay && due <= currentDay + 3;
+    });
+
+    document.getElementById('count-overdue-badge').innerText = overdueList.length;
+    document.getElementById('count-today-badge').innerText = dueTodayList.length;
+    document.getElementById('count-coming-badge').innerText = comingDueList.length;
+
+    renderAlertTableRows('table-overdue-body', overdueList, 'Overdue');
+    renderAlertTableRows('table-today-body', dueTodayList, 'Due Today');
+    renderAlertTableRows('table-coming-body', comingDueList, 'Coming Due');
+}
 
         function renderAlertTableRows(tbodyId, list, category) {
             const tbody = document.getElementById(tbodyId);
@@ -7032,90 +7095,141 @@ async function saveNewCashAdvance() {
     }
 }
 
-// ⭐ TACSFIBER COMPLETE KEYBOARD SHORTCUTS MANAGER
-        window.addEventListener('keydown', (e) => {
-            // 1. UNIVERSAL CTRL + F / CMD + F: Focus sa visible search input ng kahit anong active tab
-            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
-                e.preventDefault();
-                const allInputs = Array.from(document.querySelectorAll('input[type="text"], input[type="search"]'));
-                const visibleSearchInput = allInputs.find(input => {
-                    return input.offsetParent !== null && 
-                           (input.placeholder.toLowerCase().includes('search') || 
-                            input.id.toLowerCase().includes('search') ||
-                            input.placeholder.toLowerCase().includes('name'));
-                }) || allInputs.find(input => input.offsetParent !== null);
+// ⭐ TACSFIBER COMPLETE KEYBOARD SHORTCUTS MANAGER (FIXED SCROLLBAR)
+window.addEventListener('keydown', (e) => {
+    // 1. TAB NAVIGATION: CTRL + ArrowRight / ArrowLeft para maglipat ng mga tab
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
+        e.preventDefault();
+        
+        const systemTabs = [
+            'view-dashboard',
+            'view-internet-installation',
+            'view-fiber-break',
+            'view-customers-complain',
+            'view-technician-analytics',
+            'view-customers-list',
+            'view-collection-alert',
+            'view-collection-list',
+            'view-daily-remittance',
+            'view-remittance-history',
+            'view-billing-records',
+            'view-audit-reports',
+            'view-user-management',
+            'view-batch-import'
+        ];
 
-                if (visibleSearchInput) {
-                    visibleSearchInput.focus();
-                    visibleSearchInput.select();
-                }
+        let currentIndex = -1;
+        for (let i = 0; i < systemTabs.length; i++) {
+            const tabEl = document.getElementById(systemTabs[i]);
+            if (tabEl && !tabEl.classList.contains('hidden')) {
+                currentIndex = i;
+                break;
             }
+        }
 
-            // 2. ESCAPE KEY: I-clear ang Search input at tanggalin ang table highlights
-            if (e.key === 'Escape') {
-                const activeSearch = document.activeElement;
-                if (activeSearch && (activeSearch.tagName === 'INPUT' || activeSearch.tagName === 'TEXTAREA')) {
-                    activeSearch.value = '';
-                    activeSearch.blur();
-                }
-                const highlighted = document.querySelectorAll('.bg-indigo-100, .bg-indigo-50, .bg-slate-100');
-                highlighted.forEach(el => {
-                    el.classList.remove('bg-indigo-100', 'bg-indigo-50', 'bg-slate-100');
-                    el.style.backgroundColor = '';
-                });
-            }
+        if (currentIndex === -1) return;
 
-            // 3. ARROW KEYS (Up / Down) NAVIGATION & ENTER KEY TO SELECT
-            if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter') {
-                const activeTable = document.querySelector('table:not([style*="display: none"])');
-                
-                if (activeTable) {
-                    const rows = Array.from(activeTable.querySelectorAll('tbody tr')).filter(r => r.style.display !== 'none');
-                    if (rows.length === 0) return;
+        let nextIndex = currentIndex;
+        if (e.key === 'ArrowRight') {
+            nextIndex = (currentIndex + 1) % systemTabs.length;
+        } else if (e.key === 'ArrowLeft') {
+            nextIndex = (currentIndex - 1 + systemTabs.length) % systemTabs.length;
+        }
 
-                    let currentIndex = rows.findIndex(r => r.classList.contains('bg-indigo-100') || r.classList.contains('bg-indigo-50'));
-
-                    // Kapag Enter Key ang pinindot sa naka-highlight na row
-                    if (e.key === 'Enter' && currentIndex !== -1) {
-                        e.preventDefault();
-                        const targetRow = rows[currentIndex];
-                        const actionBtn = targetRow.querySelector('button') || targetRow;
-                        actionBtn.click();
-                        return;
-                    }
-
-                    if (e.key === 'ArrowDown') {
-                        currentIndex = (currentIndex + 1) < rows.length ? currentIndex + 1 : 0;
-                    } else if (e.key === 'ArrowUp') {
-                        currentIndex = (currentIndex - 1) >= 0 ? currentIndex - 1 : rows.length - 1;
-                    }
-
-                    rows.forEach(r => {
-                        r.classList.remove('bg-indigo-100', 'bg-indigo-50');
-                        r.style.backgroundColor = '';
-                    });
-                    
-                    const targetRow = rows[currentIndex];
-                    if (targetRow && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
-                        e.preventDefault();
-                        targetRow.classList.add('bg-indigo-100');
-                        targetRow.style.backgroundColor = '#e0e7ff';
-                        targetRow.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-                    }
-                }
-            }
-
-            // 4. ALT + 1/2/3/4: Quick Profile Switcher sa Login Screen
-            if (e.altKey && ['1', '2', '3', '4'].includes(e.key)) {
-                e.preventDefault();
-                if (typeof quickFillAccount === 'function') {
-                    if (e.key === '1') quickFillAccount('Ronel Tacocong', 'ADMIN');
-                    if (e.key === '2') quickFillAccount('Asst Admin', 'ASST_ADMIN');
-                    if (e.key === '3') quickFillAccount('Collector', 'COLLECTOR');
-                    if (e.key === '4') quickFillAccount('Technician', 'TECHNICIAN');
-                }
-            }
+        systemTabs.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.classList.add('hidden');
         });
+
+        const targetTab = document.getElementById(nextTabId = systemTabs[nextIndex]);
+        if (targetTab) {
+            targetTab.classList.remove('hidden');
+        }
+        return;
+    }
+
+    // 2. UNIVERSAL CTRL + F: Focus sa visible search input
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        const allInputs = Array.from(document.querySelectorAll('input[type="text"], input[type="search"]'));
+        const visibleSearchInput = allInputs.find(input => {
+            return input.offsetParent !== null && 
+                   (input.placeholder.toLowerCase().includes('search') || 
+                    input.id.toLowerCase().includes('search') ||
+                    input.placeholder.toLowerCase().includes('name'));
+        }) || allInputs.find(input => input.offsetParent !== null);
+
+        if (visibleSearchInput) {
+            visibleSearchInput.focus();
+            visibleSearchInput.select();
+        }
+    }
+
+    // 3. ESCAPE KEY: I-clear ang Search input at highlights
+    if (e.key === 'Escape') {
+        const activeSearch = document.activeElement;
+        if (activeSearch && (activeSearch.tagName === 'INPUT' || activeSearch.tagName === 'TEXTAREA')) {
+            activeSearch.value = '';
+            activeSearch.blur();
+        }
+        const highlighted = document.querySelectorAll('.bg-indigo-100, .bg-indigo-50, .bg-slate-100');
+        highlighted.forEach(el => {
+            el.classList.remove('bg-indigo-100', 'bg-indigo-50', 'bg-slate-100');
+            el.style.backgroundColor = '';
+        });
+    }
+
+    // 4. ALT + ARROW KEYS (Up / Down) NAVIGATION & ENTER KEY SA TABLE
+    // (Ginagamit na ang ALT para mag-navigate sa rows para malayang makapag-scroll gamit ang ordinaryong Arrow keys)
+    if ((e.altKey && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) || e.key === 'Enter') {
+        const activeTable = document.querySelector('table:not([style*="display: none"])');
+        
+        if (activeTable) {
+            const rows = Array.from(activeTable.querySelectorAll('tbody tr')).filter(r => r.style.display !== 'none');
+            if (rows.length === 0) return;
+
+            let currentIndex = rows.findIndex(r => r.classList.contains('bg-indigo-100') || r.classList.contains('bg-indigo-50'));
+
+            if (e.key === 'Enter' && currentIndex !== -1) {
+                e.preventDefault();
+                const targetRow = rows[currentIndex];
+                const actionBtn = targetRow.querySelector('button') || targetRow;
+                actionBtn.click();
+                return;
+            }
+
+            if (e.key === 'ArrowDown') {
+                currentIndex = (currentIndex + 1) < rows.length ? currentIndex + 1 : 0;
+            } else if (e.key === 'ArrowUp') {
+                currentIndex = (currentIndex - 1) >= 0 ? currentIndex - 1 : rows.length - 1;
+            }
+
+            rows.forEach(r => {
+                r.classList.remove('bg-indigo-100', 'bg-indigo-50');
+                r.style.backgroundColor = '';
+            });
+            
+            const targetRow = rows[currentIndex];
+            if (targetRow && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+                e.preventDefault();
+                targetRow.classList.add('bg-indigo-100');
+                targetRow.style.backgroundColor = '#e0e7ff';
+                targetRow.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            }
+        }
+    }
+
+    // 5. ALT + 1/2/3/4: Quick Profile Switcher
+    if (e.altKey && ['1', '2', '3', '4'].includes(e.key)) {
+        e.preventDefault();
+        if (typeof quickFillAccount === 'function') {
+            if (e.key === '1') quickFillAccount('Ronel Tacocong', 'ADMIN');
+            if (e.key === '2') quickFillAccount('Asst Admin', 'ASST_ADMIN');
+            if (e.key === '3') quickFillAccount('Collector', 'COLLECTOR');
+            if (e.key === '4') quickFillAccount('Technician', 'TECHNICIAN');
+        }
+    }
+});
     </script>
 </body>
 </html>
