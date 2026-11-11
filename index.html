@@ -4895,7 +4895,7 @@ async function handleCustomerComplain(customerAccountNo, customerName, customerC
     renderAlertTableRows('table-coming-body', comingDueList, 'Coming Due');
 }
 
-        function renderAlertTableRows(tbodyId, list, category) {
+      function renderAlertTableRows(tbodyId, list, category) {
             const tbody = document.getElementById(tbodyId);
             if(!tbody) return;
             tbody.innerHTML = '';
@@ -4921,8 +4921,13 @@ async function handleCustomerComplain(customerAccountNo, customerName, customerC
                                 ${assignedCol}
                             </button>
                         </td>
-                        <td class="py-2.5 px-3 text-right">
-                            <button onclick="openNotificationModal('${s.id}', '${category}')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 py-1 rounded-lg text-xs font-bold shadow cursor-pointer">
+                        <td class="py-2.5 px-3 text-right space-x-1">
+                            <!-- ⭐ TAMA NA ANG TAWAG DITO: openPaymentModal ⭐ -->
+                            <button onclick="openPaymentModal('${s.id}')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 rounded-lg text-xs font-bold shadow cursor-pointer" title="Record Payment">
+                                <i class="fa-solid fa-peso-sign mr-1"></i>Pay
+                            </button>
+
+                            <button onclick="openNotificationModal('${s.id}', '${category}')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 py-1 rounded-lg text-xs font-bold shadow cursor-pointer" title="Send Notification">
                                 <i class="fa-solid fa-paper-plane mr-1"></i>Notify
                             </button>
                         </td>
@@ -5211,32 +5216,45 @@ function renderOutstandingBalanceOverview() {
             renderCollectionListTable();
         }
 
-function openPaymentModalBySubId(subId) {
-    const sub = subscribers.find(s => s.id === subId);
-    if (!sub) return;
+function renderAlertTableRows(tbodyId, list, category) {
+    const tbody = document.getElementById(tbodyId);
+    if(!tbody) return;
+    tbody.innerHTML = '';
 
-    // 1. I-set ang mga values sa Payment Modal inputs
-    const subIdInput = document.getElementById('pay-sub-id');
-    const custName = document.getElementById('modal-cust-name');
-    const custBalance = document.getElementById('modal-cust-balance');
-    const payDateInput = document.getElementById('pay-date'); // Input para sa Date of Payment
-
-    if (subIdInput) subIdInput.value = sub.id;
-    if (custName) custName.innerText = `Customer: ${sub.name} (${sub.id})`;
-    if (custBalance) custBalance.innerText = `Current Balance: ₱${(sub.balance || 0).toLocaleString()}`;
-
-    // 2. Kusa nitong ilalagay ang kasalukuyang petsa ngayon (YYYY-MM-DD)
-    if (payDateInput) {
-        const today = new Date().toISOString().split('T')[0];
-        payDateInput.value = today;
+    if(list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-slate-400 font-medium">Walang kustomer sa kategoryang ito.</td></tr>`;
+        return;
     }
 
-    // 3. Buksan ang payment modal (Remove hidden, add flex)
-    const modal = document.getElementById('payment-modal');
-    if (modal) {
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
-    }
+    tbody.innerHTML = list.slice(0, 100).map(s => {
+        const assignedCol = s.assignedCollector || 'Unassigned';
+        const currentBalance = s.effectiveBalance !== undefined ? s.effectiveBalance : (parseFloat(s.balance) || 0);
+
+        return `
+            <tr class="hover:bg-slate-50 border-b">
+                <td class="py-2.5 px-3 font-mono font-bold text-indigo-600">${s.id}</td>
+                <td class="py-2.5 px-3 font-bold text-slate-800">${s.name}</td>
+                <td class="py-2.5 px-3 text-slate-600">${s.barangay || 'Poblacion'} <span class="font-mono text-[11px] text-slate-400">(${s.contact})</span></td>
+                <td class="py-2.5 px-3 font-bold">Day ${s.dueDay || 19}</td>
+                <td class="py-2.5 px-3 font-bold text-rose-600">₱${currentBalance.toLocaleString()}</td>
+                <td class="py-2.5 px-3 text-center">
+                    <button onclick="openAssignModal('${s.id}')" class="px-2 py-1 rounded text-xs font-bold ${assignedCol !== 'Unassigned' ? 'bg-amber-500 text-white' : 'bg-slate-200 text-slate-600'} cursor-pointer">
+                        ${assignedCol}
+                    </button>
+                </td>
+                <td class="py-2.5 px-3 text-right space-x-1">
+                    <!-- ⭐ TINAWAG ANG EXISTNG FUNCTION MO NA openPaymentModalBySubId ⭐ -->
+                    <button onclick="openPaymentModalBySubId('${s.id}')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 rounded-lg text-xs font-bold shadow cursor-pointer" title="Record Payment">
+                        <i class="fa-solid fa-peso-sign mr-1"></i>Pay
+                    </button>
+
+                    <button onclick="openNotificationModal('${s.id}', '${category}')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 py-1 rounded-lg text-xs font-bold shadow cursor-pointer" title="Send Notification">
+                        <i class="fa-solid fa-paper-plane mr-1"></i>Notify
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
 }
 
         function renderCollectionListTable() {
