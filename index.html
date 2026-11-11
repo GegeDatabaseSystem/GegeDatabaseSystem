@@ -4329,15 +4329,45 @@ function exportCollectionListNotepad() {
             if (dashTbody) dashTbody.innerHTML = tableRowsHTML;
         }
 
-        function deleteComplain(index) {
-            if(getActiveRole() !== 'ADMIN' && getActiveRole() !== 'ASSISTANT_ADMIN') return;
-            if(confirm('Burahin ang reklamo na ito?')) {
-                customerComplaints.splice(index, 1);
-                localStorage.setItem('tacsfiber_complaints', JSON.stringify(customerComplaints));
-                renderCustomersComplainView();
-                renderTechnicianAnalytics();
-            }
+        async function deleteCustomerComplaint(complaintId) {
+    // 1. Kumpirmahin muna kung sigurado kang gusto i-delete
+    if (!confirm("Sigurado ka bang gusto mong burahin ang reklamong ito?")) {
+        return;
+    }
+
+    try {
+        const sb = typeof getSupabase === 'function' ? getSupabase() : (window.supabaseClient || null);
+        if (!sb) {
+            alert("Walang koneksyon sa Supabase!");
+            return;
         }
+
+        // 2. Burahin ang record direkta sa Supabase table (palitan ang 'customer_complaints' kung iba ang table name mo)
+        const { error } = await sb
+            .from('customer_complaints')
+            .delete()
+            .eq('id', complaintId); // o kung ano man ang primary key column name mo (hal. id, account_no, etc.)
+
+        if (error) {
+            console.error("Error sa pag-delete sa Supabase:", error.message);
+            alert("Hindi nabura sa database: " + error.message);
+            return;
+        }
+
+        // 3. Kung naging successful sa database, i-refresh ang UI o alisin ang element sa listahan
+        console.label("Tagumpay na nabura sa Supabase!");
+        
+        // I-reload ang listahan ng mga complaints para mag-update ang UI
+        if (typeof loadCustomerComplaints === 'function') {
+            loadCustomerComplaints(); 
+        } else {
+            location.reload(); // Fallback para i-refresh ang pahina
+        }
+
+    } catch (err) {
+        console.error("May error sa pag-delete:", err);
+    }
+}
 
         function exportSingleComplainNotepad(index) {
             const c = customerComplaints[index];
