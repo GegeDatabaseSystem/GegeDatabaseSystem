@@ -2584,24 +2584,24 @@ async function handleCollectionSubmit(paymentData) {
     }
 }
 
-// Helper para i-store sa localStorage queue
+// 1. Helper para i-store sa LocalStorage queue
 function saveToOfflineQueue(payment) {
     let queue = JSON.parse(localStorage.getItem('tacsfiber_offline_queue') || '[]');
     queue.push(payment);
     localStorage.setItem('tacsfiber_offline_queue', JSON.stringify(queue));
-    updateOfflineBadgeUI(); // ⭐ Tataas ang count at lilitaw ang badge
+    updateOfflineCounterBadge(); // Tataas ang count at lilitaw ang Pending badge
 }
 
-// Function para i-update ang UI Badge Counter gamit ang iyong tamang queue key
-function updateOfflineBadgeUI() {
-    const queue = JSON.parse(localStorage.getItem('tacsfiber_offline_queue') || '[]');
+// 2. Function para i-update ang UI Badge Counter
+function updateOfflineCounterBadge() {
+    const pendingQueue = JSON.parse(localStorage.getItem('tacsfiber_offline_queue') || '[]');
     const container = document.getElementById('offline-badge-container');
     const countSpan = document.getElementById('offline-count');
     
     if (!container || !countSpan) return;
 
-    if (queue.length > 0) {
-        countSpan.innerText = queue.length;
+    countSpan.innerText = pendingQueue.length;
+    if (pendingQueue.length > 0) {
         container.classList.remove('hidden');
         container.classList.add('flex');
     } else {
@@ -2609,20 +2609,16 @@ function updateOfflineBadgeUI() {
         container.classList.add('hidden');
     }
 }
+// Alias para hindi masira kung ang lumang payment code ay tumatawag pa rin sa updateOfflineBadgeUI()
+const updateOfflineBadgeUI = updateOfflineCounterBadge;
 
-// Isama ito sa iyong DOMContentLoaded block para mag-check agad pag-load ng app
-document.addEventListener('DOMContentLoaded', () => {
-    updateOfflineBadgeUI();
-});
-
-window.addEventListener('online', async () => {
-    console.log("🌐 Na-detect ang internet connection! Sinisimulan ang auto-sync...");
-    await syncOfflinePaymentsToCloud();
-});
-
+// 3. Pangunahing Auto-Sync Function patungong Supabase
 async function syncOfflinePaymentsToCloud() {
     const pendingQueue = JSON.parse(localStorage.getItem('tacsfiber_offline_queue') || '[]');
-    if (pendingQueue.length === 0) return;
+    if (pendingQueue.length === 0) {
+        updateOfflineCounterBadge();
+        return;
+    }
 
     const sb = typeof getSupabase === 'function' ? getSupabase() : null;
     if (!sb) return;
@@ -2634,7 +2630,10 @@ async function syncOfflinePaymentsToCloud() {
         try {
             // I-update ang balance sa cloud
             const { error: subError } = await sb.from('subscribers').update({ balance: item.newBalance || 0 }).eq('id', item.subscriberId);
-            if (subError) continue;
+            if (subError) {
+                console.error("Sub update error:", subError);
+                continue;
+            }
             
             // I-insert ang payment log sa cloud
             const { error: payError } = await sb.from('payments').insert([{
@@ -2650,24 +2649,47 @@ async function syncOfflinePaymentsToCloud() {
 
             if (!payError) {
                 syncedCount++;
-                // Tanggalin sa queue kapag tagumpay
                 remainingQueue = remainingQueue.filter(q => q.id !== item.id);
+            } else {
+                console.error("Payment insert error:", payError);
             }
         } catch (e) {
             console.error("Sync error for item:", item.id, e);
         }
     }
 
-    // I-save ang natitirang queue (kung meron man)
     localStorage.setItem('tacsfiber_offline_queue', JSON.stringify(remainingQueue));
+    updateOfflineCounterBadge();
 
     if (syncedCount > 0) {
-        console.log(`🟢 Cloud Sync Successful! Na-sync na sa Supabase ang ${syncedCount} offline payment/s.`);
+        alert(`🟢 Cloud Sync Successful!\nNa-sync na sa Supabase ang ${syncedCount} offline payment/s.`);
         if (typeof fetchSubscribersFromSupabase === 'function') {
             fetchSubscribersFromSupabase(false);
         }
     }
 }
+
+// 4. Tagapakinig sa internet connection
+window.addEventListener('online', async () => {
+    console.log("🌐 Bumalik na ang internet! Nag-a-auto sync...");
+    await syncOfflinePaymentsToCloud();
+});
+
+// 5. Manual Sync Button ("Sync Supabase")
+async function triggerManualSync() {
+    await syncOfflinePaymentsToCloud();
+    if (typeof fetchSubscribersFromSupabase === 'function') {
+        fetchSubscribersFromSupabase(true);
+    }
+}
+
+// 6. Suriin pagka-load ng pahina
+document.addEventListener("DOMContentLoaded", () => {
+    updateOfflineCounterBadge();
+    if (navigator.onLine) {
+        syncOfflinePaymentsToCloud();
+    }
+});
 
        async function fetchSubscribersFromSupabase(isManual = false) {
     const syncIcon = document.getElementById('sync-icon');
@@ -3123,7 +3145,7 @@ async function openAppDashboard() {
     renderOutstandingBalanceOverview(); 
 }
 
-        async function openAppDashboard() {
+       async function openAppDashboard() {
             // Supabase Realtime para mag-auto update ang complaints
             const sb = getSupabase();
             if (sb) {
@@ -3144,6 +3166,14 @@ async function openAppDashboard() {
             
             const currentUser = getActiveUser();
             const currentRole = getActiveRole();
+
+            // ⭐ I-save ang aktibong sesyon sa localStorage para sa persistent login tuwing magre-refresh
+            if (currentUser) {
+                localStorage.setItem('tacsfiber_active_session', JSON.stringify({
+                    user: currentUser,
+                    role: currentRole
+                }));
+            }
 
             document.getElementById('header-user-display').innerText = currentUser;
             document.getElementById('header-role-badge').innerText = currentRole.replace('_', ' ');
@@ -3175,6 +3205,12 @@ async function openAppDashboard() {
             setDefaultInstalledDate();
             generateNextAccountNo();
             refreshAllViewsUIOnly();
+        }
+
+        // ⭐ Updated Logout function para burahin ang session sa localStorage
+        function handleLogout() {
+            localStorage.removeItem('tacsfiber_active_session');
+            location.reload();
         }
 
         function saveData() {
@@ -5876,7 +5912,7 @@ function resetRemittanceHistoryFilters() {
         }
 
         // ================= UPDATED SUBMIT PAYMENT FUNCTION (OFFLINE BACKUP & TRY-CATCH) =================
-        async function submitPayment(e) {
+       async function submitPayment(e) {
     e.preventDefault();
     console.log("Submitting payment...");
 
@@ -5916,6 +5952,7 @@ function resetRemittanceHistoryFilters() {
         subscriberName: sub ? sub.name : 'Subscriber',
         monthsPaid: months,
         amountPaid: amount,
+        newBalance: newBalance, // ⭐ Idinagdag para hindi mag-0 kapag nag-offline sync
         date: payDate,
         method: method,
         encodedBy: currentUser,
@@ -5930,19 +5967,23 @@ function resetRemittanceHistoryFilters() {
     if (typeof savePaymentLogsLocal === 'function') {
         savePaymentLogsLocal();
     } else {
-        localStorage.setItem('tacsfiber_payment_logs', JSON.stringify(paymentLogs));
+        localStorage.setItem('tacsfiber_payment_logs', JSON.stringify(paymentLogs || []));
     }
 
     let isSyncedToCloud = false;
+    let cloudErrorMsg = "";
 
-    // 2. Suriin muna kung online bago mag-sync sa Supabase
+    // 2. Suriin kung online at subukang i-save sa Supabase
     if (navigator.onLine) {
         try {
             const sb = typeof getSupabase === 'function' ? getSupabase() : null;
             if (sb) {
                 console.log("Syncing to Supabase...");
                 const { error: subError } = await sb.from('subscribers').update({ balance: newBalance }).eq('id', id);
-                if (subError) console.error("Subscriber balance update error:", subError);
+                if (subError) {
+                    console.error("Subscriber balance update error:", subError);
+                    cloudErrorMsg += `Balance Error: ${subError.message}\n`;
+                }
 
                 const { error: payError } = await sb.from('payments').insert([{
                     reference_no: payLogId,
@@ -5954,16 +5995,24 @@ function resetRemittanceHistoryFilters() {
                     payment_date: payDate,
                     collected_by: currentUser
                 }]);
-                if (payError) console.error("Payments insert error:", payError);
 
-                isSyncedToCloud = true;
+                if (payError) {
+                    console.error("Payments insert error:", payError);
+                    cloudErrorMsg += `Payment Log Error: ${payError.message}`;
+                }
+
+                // Magiging TRUE lamang kung PAREHONG pumasok sa subscribers at payments table!
+                if (!subError && !payError) {
+                    isSyncedToCloud = true;
+                }
             }
         } catch (err) {
             console.error("⚠️ Supabase Exception Error:", err);
+            cloudErrorMsg = err.message;
         }
     }
 
-    // Kung hindi na-sync sa cloud (offline o nag-error), ilagay sa offline queue
+    // Kung offline O nag-error ang Supabase insert, ilagay sa offline queue para siguradong may backup
     if (!isSyncedToCloud) {
         let pendingQueue = JSON.parse(localStorage.getItem('tacsfiber_offline_queue') || '[]');
         if (!pendingQueue.some(item => item.id === localLog.id)) {
@@ -5975,8 +6024,10 @@ function resetRemittanceHistoryFilters() {
         }
     }
 
-    // I-update ang offline counter badge sa UI kung mayroon man
-    updateOfflineCounterBadge();
+    // I-update ang offline counter badge sa UI
+    if (typeof updateOfflineCounterBadge === 'function') {
+        updateOfflineCounterBadge();
+    }
 
     // 3. Isara ang modal at i-refresh ang UI
     closePaymentModal();
@@ -5993,8 +6044,10 @@ function resetRemittanceHistoryFilters() {
 
     if (isSyncedToCloud) {
         alert(`✅ Matagumpay na na-record at na-sync ang bayad na ₱${amount.toLocaleString()} para kay ${sub ? sub.name : 'Customer'}!`);
+    } else if (cloudErrorMsg) {
+        alert(`⚠️ Na-update ang balance pero nag-error ang Payment Log sa Supabase:\n${cloudErrorMsg}\n\nNaka-save muna ito sa Offline Queue.`);
     } else {
-        alert(`⚠️ LIGTAS na naka-save sa Local Storage ang bayad na ₱${amount.toLocaleString()}! (Naka-queue para sa auto-sync pagbalik ng internet).`);
+        alert(`📴 OFFLINE MODE: Ligtas na naka-save sa device ang bayad na ₱${amount.toLocaleString()}! (Naka-queue para sa auto-sync pagbalik ng internet).`);
     }
 }
 
@@ -7559,6 +7612,26 @@ if ('serviceWorker' in navigator) {
         }, 3000); // 3 seconds delay para ligtas ang Supabase login
       });
     }
+    
+// ⭐ Auto-Restore Session script para i-check at ibalik ang dashboard pagka-refresh ng app
+        document.addEventListener("DOMContentLoaded", () => {
+            const savedSession = localStorage.getItem('tacsfiber_active_session');
+            if (savedSession) {
+                try {
+                    const sessionData = JSON.parse(savedSession);
+                    if (sessionData && sessionData.user) {
+                        console.log("🔄 Na-restore ang active session para kay:", sessionData.user);
+                        if (typeof openAppDashboard === 'function') {
+                            openAppDashboard();
+                        }
+                    }
+                } catch (e) {
+                    console.error("Error restoring session:", e);
+                    localStorage.removeItem('tacsfiber_active_session');
+                }
+            }
+        });    
+    
   </script>
 </body>
 </html>
