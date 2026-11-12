@@ -5243,8 +5243,8 @@ function renderAlertTableRows(tbodyId, list, category) {
                     </button>
                 </td>
                 <td class="py-2.5 px-3 text-right space-x-1">
-                    <!-- ⭐ TINAWAG ANG EXISTNG FUNCTION MO NA openPaymentModalBySubId ⭐ -->
-                    <button onclick="openPaymentModalBySubId('${s.id}')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 rounded-lg text-xs font-bold shadow cursor-pointer" title="Record Payment">
+                    <!-- ⭐ TAMA NA ANG TAWAG DITO: openPaymentModal at TITLE NA COLLECT ⭐ -->
+                    <button onclick="openPaymentModal('${s.id}')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 rounded-lg text-xs font-bold shadow cursor-pointer" title="Collect">
                         <i class="fa-solid fa-peso-sign mr-1"></i>Pay
                     </button>
 
@@ -5685,20 +5685,28 @@ function resetRemittanceHistoryFilters() {
         // ================= UPDATED SUBMIT PAYMENT FUNCTION (OFFLINE BACKUP & TRY-CATCH) =================
         async function submitPayment(e) {
             e.preventDefault();
-            const id = document.getElementById('pay-sub-id').value;
+            console.log("Submitting payment...");
+
+            const idInput = document.getElementById('pay-sub-id');
+            if (!idInput) {
+                alert("⚠️ Error: Hindi makita ang payment subscriber ID input.");
+                return;
+            }
+
+            const id = idInput.value;
             const sub = subscribers.find(s => s.id === id);
 
-            if(sub && (sub.balance || 0) <= 0) {
+            if (sub && (sub.balance || 0) <= 0) {
                 alert(`⚠️ Zero balance na ang kustomer na ito. Hindi na pwede mag-record ng bayad.`);
                 closePaymentModal();
                 return;
             }
 
-            const payDate = document.getElementById('pay-date').value || new Date().toISOString().split('T')[0];
-            const months = document.getElementById('pay-months').value.trim();
-            const amount = parseFloat(document.getElementById('pay-amount').value) || 0;
-            const method = document.getElementById('pay-method').value;
-            const currentUser = getActiveUser();
+            const payDate = document.getElementById('pay-date')?.value || new Date().toISOString().split('T')[0];
+            const months = document.getElementById('pay-months')?.value?.trim() || 'Current Billing';
+            const amount = parseFloat(document.getElementById('pay-amount')?.value) || 0;
+            const method = document.getElementById('pay-method')?.value || 'Cash';
+            const currentUser = (typeof getActiveUser === 'function') ? getActiveUser() : 'Admin';
 
             if (amount <= 0) {
                 alert("⚠️ Mangyaring maglagay ng tamang halaga ng bayad.");
@@ -5706,7 +5714,7 @@ function resetRemittanceHistoryFilters() {
             }
 
             let newBalance = sub ? Math.max(0, (sub.balance || 0) - amount) : 0;
-            if(sub) sub.balance = newBalance;
+            if (sub) sub.balance = newBalance;
 
             const payLogId = 'PAY-' + Date.now();
             const localLog = {
@@ -5722,18 +5730,27 @@ function resetRemittanceHistoryFilters() {
                 turnedOver: false
             };
 
-            // 1. Unang i-save sa local storage para HINDI MAWALA kahit mawalan ng net
-            paymentLogs.unshift(localLog);
-            savePaymentLogsLocal();
+            // 1. I-save sa local storage
+            if (typeof paymentLogs !== 'undefined') {
+                paymentLogs.unshift(localLog);
+            }
+            if (typeof savePaymentLogsLocal === 'function') {
+                savePaymentLogsLocal();
+            } else {
+                localStorage.setItem('tacsfiber_payment_logs', JSON.stringify(paymentLogs));
+            }
 
             let isSyncedToCloud = false;
 
-            // 2. Subukang i-save sa Supabase (May try-catch fallback)
+            // 2. Supabase Sync with detailed error catching
             try {
-                const sb = getSupabase();
-                if(sb) {
-                    await sb.from('subscribers').update({ balance: newBalance }).eq('id', id);
-                    await sb.from('payments').insert([{
+                const sb = typeof getSupabase === 'function' ? getSupabase() : null;
+                if (sb) {
+                    console.log("Syncing to Supabase...");
+                    const { error: subError } = await sb.from('subscribers').update({ balance: newBalance }).eq('id', id);
+                    if (subError) console.error("Subscriber balance update error:", subError);
+
+                    const { error: payError } = await sb.from('payments').insert([{
                         reference_no: payLogId,
                         account_no: id,
                         subscriber_name: sub ? sub.name : 'Subscriber',
@@ -5743,34 +5760,35 @@ function resetRemittanceHistoryFilters() {
                         payment_date: payDate,
                         collected_by: currentUser
                     }]);
-                    await sb.from('payment_logs').insert([{
-                        reference_no: payLogId,
-                        subscriber_id: id,
-                        subscriber_name: sub ? sub.name : 'Subscriber',
-                        months_paid: months,
-                        amount_paid: amount,
-                        payment_method: method,
-                        payment_date: payDate,
-                        collected_by: currentUser,
-                        timestamp: Date.now(),
-                        turned_over: false
-                    }]);
+                    if (payError) console.error("Payments insert error:", payError);
+
                     isSyncedToCloud = true;
                 }
-            } catch(err) {
-                console.warn("⚠️ May aberya sa Supabase connection. Naka-save muna sa offline queue:", err);
-                pendingOfflineQueue.push(localLog);
-                localStorage.setItem('tacsfiber_offline_queue', JSON.stringify(pendingOfflineQueue));
+            } catch (err) {
+                console.error("⚠️ Supabase Exception Error:", err);
+                if (typeof pendingOfflineQueue !== 'undefined') {
+                    pendingOfflineQueue.push(localLog);
+                    localStorage.setItem('tacsfiber_offline_queue', JSON.stringify(pendingOfflineQueue));
+                }
             }
 
+            // 3. Isara ang modal at i-refresh ang UI
             closePaymentModal();
-            refreshAllViewsUIOnly();
-            openReceiptModal(payLogId);
 
-            if(isSyncedToCloud) {
-                alert(`✅ Matagumpay na na-record at na-sync sa Supabase ang bayad na ₱${amount.toLocaleString()} para kay ${sub ? sub.name : 'Customer'}!`);
+            if (typeof refreshAllViewsUIOnly === 'function') {
+                refreshAllViewsUIOnly();
+            } else if (typeof renderCollectionAlertTables === 'function') {
+                renderCollectionAlertTables();
+            }
+
+            if (typeof openReceiptModal === 'function') {
+                openReceiptModal(payLogId);
+            }
+
+            if (isSyncedToCloud) {
+                alert(`✅ Matagumpay na na-record at na-sync ang bayad na ₱${amount.toLocaleString()} para kay ${sub ? sub.name : 'Customer'}!`);
             } else {
-                alert(`⚠️ NOTE (Offline Mode): LIGTAS na naka-save sa Local Storage ang bayad na ₱${amount.toLocaleString()} ni ${sub ? sub.name : 'Customer'}! Mag-a-auto sync ito sa Supabase kapag bumalik na ang internet.`);
+                alert(`⚠️ LIGTAS na naka-save sa Local Storage ang bayad na ₱${amount.toLocaleString()}!`);
             }
         }
 
