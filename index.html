@@ -3130,21 +3130,6 @@ async function markComplaintAsResolved(complaintId) {
         console.error("Unexpected error:", err);
     }
 }
-
-async function openAppDashboard() {
-    // ... mga kasanayan sa loob ng openAppDashboard ...
-    if (!isDataLoaded) {
-        await fetchSubscribersFromSupabase();
-        await fetchComplaintsFromSupabase();
-    }
-    
-    renderNavigationTabs();
-    switchTab('dashboard');
-    
-    // ⭐ Idagdag mo ito rito para sigurado
-    renderOutstandingBalanceOverview(); 
-}
-
        async function openAppDashboard() {
             // Supabase Realtime para mag-auto update ang complaints
             const sb = getSupabase();
@@ -3181,8 +3166,8 @@ async function openAppDashboard() {
             if (!isDataLoaded) {
                 await fetchSubscribersFromSupabase();
                 await fetchComplaintsFromSupabase(); // ⭐ Dito natin isasabay ang pag-fetch ng complaints!
+                await fetchPaymentsFromSupabase();
             }
-
             renderNavigationTabs();
 
             if(currentRole === 'ASSISTANT_ADMIN') {
@@ -5911,8 +5896,35 @@ function resetRemittanceHistoryFilters() {
             document.getElementById('payment-modal').classList.add('hidden');
         }
 
-        // ================= UPDATED SUBMIT PAYMENT FUNCTION (OFFLINE BACKUP & TRY-CATCH) =================
-      async function submitPayment(e) {
+       // ⭐ Helper para hilahin ang pinakabagong payment logs mula sa Supabase
+async function fetchPaymentsFromSupabase() {
+    const sb = typeof getSupabase === 'function' ? getSupabase() : null;
+    if (sb && navigator.onLine) {
+        try {
+            const { data, error } = await sb.from('payments').select('*').order('created_at', { ascending: false });
+            if (!error && data) {
+                paymentLogs = data.map(p => ({
+                    id: p.reference_no,
+                    subscriberId: p.account_no,
+                    subscriberName: p.subscriber_name,
+                    monthsPaid: p.billing_id,
+                    amountPaid: p.amount_paid,
+                    method: p.payment_method,
+                    date: p.payment_date,
+                    encodedBy: p.collected_by,
+                    timestamp: new Date(p.created_at || p.payment_date).getTime(),
+                    turnedOver: false
+                }));
+                localStorage.setItem('tacsfiber_payment_logs', JSON.stringify(paymentLogs));
+                console.log("📥 Na-fetch at na-update ang payment logs mula sa Supabase:", paymentLogs.length);
+            }
+        } catch (err) {
+            console.error("Error fetching payments from Supabase:", err);
+        }
+    }
+}
+
+async function submitPayment(e) {
     e.preventDefault();
     console.log("Submitting payment...");
 
@@ -5981,8 +5993,8 @@ function resetRemittanceHistoryFilters() {
             if (sb) {
                 console.log("Syncing to Supabase payments table...");
 
-                // Direktang i-insert sa payments table at i-catch ang eksaktong error
-                const { data, error: payError } = await sb.from('payments').insert([{
+                // A. Insert muna sa payments table
+                const { error: payError } = await sb.from('payments').insert([{
                     reference_no: payLogId,
                     account_no: id,
                     subscriber_name: sub ? sub.name : 'Subscriber',
@@ -5997,7 +6009,7 @@ function resetRemittanceHistoryFilters() {
                     console.error("Supabase payments insert error details:", payError);
                     cloudErrorMsg = `Supabase Error Code: ${payError.code}\nMessage: ${payError.message}\nDetails: ${payError.details}`;
                 } else {
-                    // Kung pumasok sa payments, i-update ang subscribers balance
+                    // B. Kung pumasok sa payments, i-update ang subscribers balance
                     const { error: subError } = await sb.from('subscribers').update({ balance: newBalance }).eq('id', id);
                     if (subError) {
                         console.error("Subscriber balance update error:", subError);
@@ -6014,7 +6026,7 @@ function resetRemittanceHistoryFilters() {
     }
 
     if (!isSyncedToCloud) {
-        if (sub) sub.balance = oldBalance; // Ibalik muna ang local balance habang naka-queue
+        if (sub) sub.balance = oldBalance;
         let pendingQueue = JSON.parse(localStorage.getItem('tacsfiber_offline_queue') || '[]');
         localLog.newBalance = newBalance;
         if (!pendingQueue.some(item => item.id === localLog.id)) {
@@ -6026,6 +6038,8 @@ function resetRemittanceHistoryFilters() {
         }
     } else {
         if (sub) sub.balance = newBalance;
+        // ⭐ Hilahin agad ang pinakabagong listahan mula sa Supabase pagkatapos mag-sync
+        await fetchPaymentsFromSupabase();
     }
 
     if (typeof updateOfflineCounterBadge === 'function') {
@@ -6034,6 +6048,7 @@ function resetRemittanceHistoryFilters() {
 
     closePaymentModal();
 
+    // ⭐ I-refresh ang UI gamit ang bagong data galing sa Supabase
     if (typeof refreshAllViewsUIOnly === 'function') {
         refreshAllViewsUIOnly();
     } else if (typeof renderCollectionAlertTables === 'function') {
@@ -6046,9 +6061,10 @@ function resetRemittanceHistoryFilters() {
 
     if (isSyncedToCloud) {
         alert(`✅ Matagumpay na na-record at na-sync sa Supabase ang bayad na ₱${amount.toLocaleString()}!`);
-    } else {
-        // ⭐ Ipapakita nito sa alert ang eksaktong reklamo ng Supabase database!
+    } else if (cloudErrorMsg) {
         alert(`⚠️ HINDI NA-SYNC SA SUPABASE (Naka-queue offline):\n\n${cloudErrorMsg}`);
+    } else {
+        alert(`📴 OFFLINE MODE: Ligtas na naka-save sa device ang bayad na ₱${amount.toLocaleString()}! (Naka-queue para sa auto-sync pagbalik ng internet).`);
     }
 }
 
