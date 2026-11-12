@@ -1,11 +1,18 @@
 <!DOCTYPE html>
 <html lang="en" class="h-full bg-slate-950">
 <head>
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#dc2626">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TacsFiber - Subscriber Billing & Collection System</title>
+
+    <!-- PWA Manifest & Mobile App Meta Tags -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#dc2626">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="icon.png">
+
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
@@ -26,6 +33,10 @@
         }
     </script>
     <style>
+        /* Mobile overscroll behavior */
+        html, body {
+            overscroll-behavior-y: contain;
+        }
         .login-emblem-watermark {
             position: absolute;
             top: 50%;
