@@ -7644,7 +7644,12 @@ if ('serviceWorker' in navigator) {
                 }
             }
         });    
-    
+// ⭐ Alias para sa syncOfflinePayments kung sakaling tawagin ng lumang event listener
+        function syncOfflinePayments() {
+            if (typeof syncOfflinePaymentsToCloud === 'function') {
+                return syncOfflinePaymentsToCloud();
+            }
+        }
   </script>
 </body>
 </html>
