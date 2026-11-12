@@ -5849,21 +5849,29 @@ function resetRemittanceHistoryFilters() {
             document.getElementById('receipt-modal').classList.add('hidden');
         }
 
-        function viewCustomerPaymentHistoryPopup(subId) {
+       async function viewCustomerPaymentHistoryPopup(subId) {
             const sub = subscribers.find(s => s.id === subId);
             if(!sub) return;
+
+            // ⭐ Siguraduhing hihilahin muna ang pinakabagong logs mula sa Supabase bago buksan ang modal
+            if (typeof fetchPaymentsFromSupabase === 'function' && navigator.onLine) {
+                await fetchPaymentsFromSupabase();
+            }
+
             document.getElementById('modal-cust-history-name').innerText = `${sub.name} (${sub.id})`;
             const modalBody = document.getElementById('cust-history-modal-body');
-            const logs = paymentLogs.filter(p => p.subscriberId === subId);
             
-            modalBody.innerHTML = logs.length === 0 ? `<tr><td colspan="6" class="text-center py-4">Walang bayad.</td></tr>` : logs.map(p => `
-                <tr>
-                    <td class="p-2 font-mono">${p.date}</td>
-                    <td class="p-2 font-bold">${p.monthsPaid}</td>
-                    <td class="p-2">${p.method}</td>
-                    <td class="p-2 font-bold text-emerald-600">₱${p.amountPaid.toLocaleString()}</td>
-                    <td class="p-2">${p.encodedBy}</td>
-                    <td class="p-2 text-right"><button onclick="openReceiptModal('${p.id}')" class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded text-xs font-bold">Print</button></td>
+            // ⭐ Ginawa nating flexible (pwede ang subscriberId o account_no) para hindi maligaw
+            const logs = (paymentLogs || []).filter(p => (p.subscriberId === subId) || (p.account_no === subId) || (p.subscriberId === String(subId)));
+            
+            modalBody.innerHTML = logs.length === 0 ? `<tr><td colspan="6" class="text-center py-4 text-slate-400">Walang bayad.</td></tr>` : logs.map(p => `
+                <tr class="border-b hover:bg-slate-50">
+                    <td class="p-2 font-mono text-xs">${p.date || ''}</td>
+                    <td class="p-2 font-bold text-xs">${p.monthsPaid || p.billing_id || 'Current'}</td>
+                    <td class="p-2 text-xs">${p.method || p.payment_method || 'Cash'}</td>
+                    <td class="p-2 font-bold text-emerald-600 text-xs">₱${(p.amountPaid || p.amount_paid || 0).toLocaleString()}</td>
+                    <td class="p-2 text-xs">${p.encodedBy || p.collected_by || 'Admin'}</td>
+                    <td class="p-2 text-right"><button onclick="openReceiptModal('${p.id || p.reference_no}')" class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded text-xs font-bold">Print</button></td>
                 </tr>
             `).join('');
 
