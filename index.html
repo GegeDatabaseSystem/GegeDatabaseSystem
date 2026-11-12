@@ -3750,7 +3750,12 @@ TacsFiber Team and Management`;
             renderPaymentHistoryTable();
         }
 
-        function renderPaymentHistoryTable() {
+       async function renderPaymentHistoryTable() {
+    // ⭐ Hilahin muna ang pinakabagong tala mula sa Supabase bago i-render kung online
+    if (typeof fetchPaymentsFromSupabase === 'function' && navigator.onLine) {
+        await fetchPaymentsFromSupabase();
+    }
+
     const tbody = document.getElementById('payment-history-table-body');
     const dateFilter = document.getElementById('payment-history-date-filter') ? document.getElementById('payment-history-date-filter').value : '';
     const searchInput = document.getElementById('paymentSearchInput');
@@ -3759,7 +3764,7 @@ TacsFiber Team and Management`;
     const role = getActiveRole();
     if(!tbody) return;
 
-    let filteredLogs = paymentLogs;
+    let filteredLogs = paymentLogs || [];
 
     // 1. Filter ayon sa petsa kung merong pinili
     if(dateFilter) {
@@ -3790,7 +3795,7 @@ TacsFiber Team and Management`;
         totalCollected += isNaN(amt) ? 0 : amt;
     });
 
-    // I-display ang calculated total sa UI element (gagawin natin sa HTML)
+    // I-display ang calculated total sa UI element
     const totalDisplayEl = document.getElementById('display-filtered-total-amount');
     const dateLabelEl = document.getElementById('display-filtered-date-label');
 
