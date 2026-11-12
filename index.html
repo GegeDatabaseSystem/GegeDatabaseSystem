@@ -5979,6 +5979,38 @@ function resetRemittanceHistoryFilters() {
                 alert(`⚠️ LIGTAS na naka-save sa Local Storage ang bayad na ₱${amount.toLocaleString()}!`);
             }
         }
+        
+// Function para buksan ang payment modal gamit ang Subscriber ID
+function openPaymentModalBySubId(subId) {
+    const subscriber = subscribers.find(s => s.id === subId);
+    if (!subscriber) {
+        alert("Hindi makita ang detalye ng kustomer.");
+        return;
+    }
+
+    // Kung mayroon kang umiiral na modal opener function, tawagin ito:
+    if (typeof openPaymentModal === 'function') {
+        openPaymentModal(subscriber);
+    } else {
+        // Fallback kung wala pang pormal na modal function, ilagay rito ang logic mo
+        console.log("Opening payment for:", subscriber.name);
+        
+        // Halimbawa: Itakda ang value sa mga input fields ng modal kung meron man
+        const accountNoInput = document.getElementById('payment-account-no');
+        const amountInput = document.getElementById('payment-amount');
+        
+        if (accountNoInput) accountNoInput.value = subscriber.id;
+        if (amountInput) amountInput.value = subscriber.balance || subscriber.monthlyPlan || 600;
+
+        // I-display ang modal kung ang ID nito ay 'payment-modal'
+        const modal = document.getElementById('payment-modal');
+        if (modal) {
+            modal.classList.remove('hidden');
+        } else {
+            alert(`Magbabayad si: ${subscriber.name} (${subscriber.id}) - P${subscriber.balance || 600}`);
+        }
+    }
+}        
 
         function renderAuditTable() {
     const tbody = document.getElementById('audit-table-body');
