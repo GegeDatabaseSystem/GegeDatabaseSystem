@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tacsfiber-pwa-v2';
+const CACHE_NAME = 'tacsfiber-pwa-v3';
 
 // Mga pangunahing files at CDN na kailangang i-save para gumana offline
 const STATIC_ASSETS = [
@@ -17,7 +17,7 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[TacsFiber SW] Caching offline assets (v2)...');
+      console.log('[TacsFiber SW] Caching offline assets (v3)...');
       return Promise.allSettled(
         STATIC_ASSETS.map((url) =>
           cache.add(url).catch((err) => console.warn('[SW] Failed to cache:', url, err))
@@ -47,7 +47,7 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Huwag i-cache ang live API calls sa Supabase (handle ng localStorage queue)
+  // ⭐ MAHIGPIT NA RULE: Huwag na huwag pakialaman ang Supabase o POST/PUT/DELETE requests (Login, Insert, Update)
   if (url.hostname.includes('supabase.co') || event.request.method !== 'GET') {
     return;
   }
@@ -62,7 +62,6 @@ self.addEventListener('fetch', (event) => {
           return networkResponse;
         })
         .catch(async () => {
-          // ⭐ Mas matatag na offline fallback: hanapin ang mismong request, root, o index.html sa cache
           const cachedResponse = await caches.match(event.request) 
                               || await caches.match('/') 
                               || await caches.match('/index.html');
