@@ -2665,154 +2665,203 @@ if (navigator.onLine) {
 }
 
        async function fetchSubscribersFromSupabase(isManual = false) {
-            const syncIcon = document.getElementById('sync-icon');
-            const syncText = document.getElementById('sync-text');
+    const syncIcon = document.getElementById('sync-icon');
+    const syncText = document.getElementById('sync-text');
 
-            if (isManual) {
-                if(syncIcon) syncIcon.className = "fa-solid fa-arrows-rotate animate-spin";
-                if(syncText) syncText.innerText = "Syncing...";
-            }
+    if (isManual) {
+        if(syncIcon) syncIcon.className = "fa-solid fa-arrows-rotate animate-spin";
+        if(syncText) syncText.innerText = "Syncing...";
+    }
 
-            try {
-                const sb = getSupabase();
-                if(!sb) throw new Error("Supabase Client is not initialized.");
+    try {
+        const sb = getSupabase();
+        if(!sb) throw new Error("Supabase Client is not initialized.");
 
-                // ⭐ AUTOMATIC BILLING CYCLE TRIGGER: 
-                // Patakbuhin muna ang auto billing procedure sa Supabase para sa mga nag-due ngayong araw
-                try {
-                    await sb.rpc('process_automatic_daily_billing');
-                } catch(e) {
-                    console.warn("Auto billing RPC check failed or already executed:", e);
-                }
+        // ⭐ AUTOMATIC BILLING CYCLE TRIGGER: 
+        // Patakbuhin muna ang auto billing procedure sa Supabase para sa mga nag-due ngayong araw
+        try {
+            await sb.rpc('process_automatic_daily_billing');
+        } catch(e) {
+            console.warn("Auto billing RPC check failed or already executed:", e);
+        }
 
-                let allData = [];
-                let pageSize = 1000;
-                let page = 0;
-                let fetchMore = true;
+        let allData = [];
+        let pageSize = 1000;
+        let page = 0;
+        let fetchMore = true;
 
-                while (fetchMore) {
-                    let { data, error } = await sb
-                        .from('subscribers')
-                        .select('*')
-                        .range(page * pageSize, (page + 1) * pageSize - 1);
+        while (fetchMore) {
+            let { data, error } = await sb
+                .from('subscribers')
+                .select('*')
+                .range(page * pageSize, (page + 1) * pageSize - 1);
 
-                    if (error) throw error;
+            if (error) throw error;
 
-                    if (data && data.length > 0) {
-                        allData = allData.concat(data);
-                        if (data.length < pageSize) fetchMore = false;
-                        else page++;
-                    } else {
-                        fetchMore = false;
-                    }
-                }
-
-                subscribers = allData.map(s => ({
-                    id: s.id,
-                    name: s.name,
-                    barangay: s.barangay || 'Poblacion',
-                    address: s.address || 'N/A',
-                    contact: String(s.contact || 'N/A').padStart(11, '0'),
-                    monthlyPlan: parseFloat(s.monthly_plan) || 600,
-                    dueDay: parseInt(s.due_day) || 19,
-                    dateInstalled: s.date_installed || new Date().toISOString().split('T')[0],
-                    balance: parseFloat(s.balance) || 0,
-                    status: s.status || 'ACTIVE',
-                    assignedCollector: s.assigned_collector || 'Unassigned',
-                    lastBilledMonth: s.last_billed_month || 'October 2026',
-                    dateDisconnected: s.date_disconnected || null
-                }));
-
-                try {
-                    let { data: plansData } = await sb.from('plans').select('*').order('id', { ascending: true });
-                    if (plansData) {
-                        monthlyPlans = plansData.map(p => ({
-                            id: p.id,
-                            name: p.plan_name || 'Plan',
-                            price: parseFloat(p.price) || 0,
-                            speed: p.speed || 'N/A'
-                        }));
-                    }
-                } catch(e) { console.log(e); }
-
-                try {
-                    let { data: payData } = await sb.from('payments').select('*');
-                    let { data: logData } = await sb.from('payment_logs').select('*');
-                    
-                    let combinedLogs = logData && logData.length > 0 ? logData : payData;
-                    let savedTurnovers = JSON.parse(localStorage.getItem('tacsfiber_turned_over_ids') || '[]');
-
-                    if (combinedLogs) {
-                        combinedLogs.forEach(p => {
-                            const subId = p.account_no || p.subscriber_id || 'N/A';
-                            const matchedSub = subscribers.find(s => s.id === subId);
-                            const rawDate = p.payment_date || p.date || p.timestamp || new Date().toISOString().split('T')[0];
-                            const logId = p.reference_no || p.id || 'PAY-' + Date.now();
-                            
-                            const formattedLog = {
-                                id: logId,
-                                subscriberId: subId,
-                                subscriberName: matchedSub ? matchedSub.name : (p.subscriber_name || 'Subscriber'),
-                                monthsPaid: p.billing_id || p.months_paid || 'October 2026',
-                                amountPaid: parseFloat(p.amount_paid || p.amount || 0),
-                                date: typeof rawDate === 'string' ? rawDate.split('T')[0] : new Date(rawDate).toISOString().split('T')[0],
-                                method: p.payment_method || p.method || 'Cash',
-                                encodedBy: p.collected_by || p.encoded_by || 'System',
-                                timestamp: p.timestamp ? Number(p.timestamp) : Date.now(),
-                                turnedOver: p.turned_over || p.turnedOver || savedTurnovers.includes(logId),
-                                batchId: p.batch_id || p.batchId || null
-                            };
-
-                            if (!paymentLogs.some(existing => existing.id === formattedLog.id)) {
-                                paymentLogs.unshift(formattedLog);
-                            }
-                        });
-                    }
-                } catch(e) { console.log(e); }
-                loadPaymentLogsLocal();
-
-                try {
-                    let { data: usersData } = await sb.from('system_users').select('*');
-                    if (usersData && usersData.length > 0) {
-                        systemUsers = usersData.map(u => ({ id: u.id, username: u.username, pass: u.pass, role: u.role || 'COLLECTOR' }));
-                    } else {
-                        systemUsers = [
-                            { username: 'Ronel Tacocong', pass: 'Gege@635185', role: 'ADMIN' },
-                            { username: 'Rolando Tacocong', pass: '12345', role: 'ASSISTANT_ADMIN' },
-                            { username: 'Thomas Charles Roble', pass: '12345', role: 'COLLECTOR' },
-                            { username: 'Merson', pass: '12345', role: 'TECHNICIAN' },
-                            { username: 'Ronnie', pass: '12345', role: 'TECHNICIAN' }
-                        ];
-                    }
-                } catch(e) {
-                    systemUsers = [
-                        { username: 'Ronel Tacocong', pass: 'Gege@635185', role: 'ADMIN' },
-                        { username: 'Rolando Tacocong', pass: '12345', role: 'ASSISTANT_ADMIN' },
-                        { username: 'Thomas Charles Roble', pass: '12345', role: 'COLLECTOR' },
-                        { username: 'Merson', pass: '12345', role: 'TECHNICIAN' },
-                        { username: 'Ronnie', pass: '12345', role: 'TECHNICIAN' }
-                    ];
-                }
-
-                isDataLoaded = true;
-                filtersInitialized = false;
-                renderOutstandingBalanceOverview(); // ⭐ Idagdag mo ito rito bossing!
-
-                if (isManual) {
-                    alert(`🟢 Sync Successful!\nNa-update ang data mula sa Supabase Cloud.`);
-                }
-            } catch(err) {
-                console.error("Supabase fetch error:", err);
-                if (isManual) {
-                    alert("🔴 Error sa pag-sync sa Supabase:\n" + err.message);
-                }
-            } finally {
-                if (isManual) {
-                    if(syncIcon) syncIcon.className = "fa-solid fa-cloud-arrow-down";
-                    if(syncText) syncText.innerText = "Sync Supabase";
-                }
+            if (data && data.length > 0) {
+                allData = allData.concat(data);
+                if (data.length < pageSize) fetchMore = false;
+                else page++;
+            } else {
+                fetchMore = false;
             }
         }
+
+        // ⭐ I-save agad ang raw subscribers data sa localStorage para magamit offline
+        if (allData.length > 0) {
+            localStorage.setItem('tacsfiber_cached_subscribers', JSON.stringify(allData));
+        }
+
+        subscribers = allData.map(s => ({
+            id: s.id,
+            name: s.name,
+            barangay: s.barangay || 'Poblacion',
+            address: s.address || 'N/A',
+            contact: String(s.contact || 'N/A').padStart(11, '0'),
+            monthlyPlan: parseFloat(s.monthly_plan) || 600,
+            dueDay: parseInt(s.due_day) || 19,
+            dateInstalled: s.date_installed || new Date().toISOString().split('T')[0],
+            balance: parseFloat(s.balance) || 0,
+            status: s.status || 'ACTIVE',
+            assignedCollector: s.assigned_collector || 'Unassigned',
+            lastBilledMonth: s.last_billed_month || 'October 2026',
+            dateDisconnected: s.date_disconnected || null
+        }));
+
+        try {
+            let { data: plansData } = await sb.from('plans').select('*').order('id', { ascending: true });
+            if (plansData) {
+                localStorage.setItem('tacsfiber_cached_plans', JSON.stringify(plansData)); // Cache plans din
+                monthlyPlans = plansData.map(p => ({
+                    id: p.id,
+                    name: p.plan_name || 'Plan',
+                    price: parseFloat(p.price) || 0,
+                    speed: p.speed || 'N/A'
+                }));
+            }
+        } catch(e) { console.log(e); }
+
+        try {
+            let { data: payData } = await sb.from('payments').select('*');
+            let { data: logData } = await sb.from('payment_logs').select('*');
+            
+            let combinedLogs = logData && logData.length > 0 ? logData : payData;
+            let savedTurnovers = JSON.parse(localStorage.getItem('tacsfiber_turned_over_ids') || '[]');
+
+            if (combinedLogs) {
+                localStorage.setItem('tacsfiber_cached_logs', JSON.stringify(combinedLogs)); // Cache logs
+                combinedLogs.forEach(p => {
+                    const subId = p.account_no || p.subscriber_id || 'N/A';
+                    const matchedSub = subscribers.find(s => s.id === subId);
+                    const rawDate = p.payment_date || p.date || p.timestamp || new Date().toISOString().split('T')[0];
+                    const logId = p.reference_no || p.id || 'PAY-' + Date.now();
+                    
+                    const formattedLog = {
+                        id: logId,
+                        subscriberId: subId,
+                        subscriberName: matchedSub ? matchedSub.name : (p.subscriber_name || 'Subscriber'),
+                        monthsPaid: p.billing_id || p.months_paid || 'October 2026',
+                        amountPaid: parseFloat(p.amount_paid || p.amount || 0),
+                        date: typeof rawDate === 'string' ? rawDate.split('T')[0] : new Date(rawDate).toISOString().split('T')[0],
+                        method: p.payment_method || p.method || 'Cash',
+                        encodedBy: p.collected_by || p.encoded_by || 'System',
+                        timestamp: p.timestamp ? Number(p.timestamp) : Date.now(),
+                        turnedOver: p.turned_over || p.turnedOver || savedTurnovers.includes(logId),
+                        batchId: p.batch_id || p.batchId || null
+                    };
+
+                    if (!paymentLogs.some(existing => existing.id === formattedLog.id)) {
+                        paymentLogs.unshift(formattedLog);
+                    }
+                });
+            }
+        } catch(e) { console.log(e); }
+        loadPaymentLogsLocal();
+
+        try {
+            let { data: usersData } = await sb.from('system_users').select('*');
+            if (usersData && usersData.length > 0) {
+                localStorage.setItem('tacsfiber_cached_users', JSON.stringify(usersData));
+                systemUsers = usersData.map(u => ({ id: u.id, username: u.username, pass: u.pass, role: u.role || 'COLLECTOR' }));
+            } else {
+                systemUsers = getDefaultUsers();
+            }
+        } catch(e) {
+            systemUsers = getDefaultUsers();
+        }
+
+        isDataLoaded = true;
+        filtersInitialized = false;
+        renderOutstandingBalanceOverview();
+
+        if (isManual) {
+            alert(`🟢 Sync Successful!\nNa-update ang data mula sa Supabase Cloud.`);
+        }
+    } catch(err) {
+        console.warn("Supabase fetch failed (Maaaring offline ka). Nagloload mula sa Local Cache...", err);
+        
+        // ⭐ OFFLINE FALLBACK: Basahin mula sa localStorage kung offline o pumalya ang fetch
+        const cachedSubscribers = localStorage.getItem('tacsfiber_cached_subscribers');
+        if (cachedSubscribers) {
+            const allData = JSON.parse(cachedSubscribers);
+            subscribers = allData.map(s => ({
+                id: s.id,
+                name: s.name,
+                barangay: s.barangay || 'Poblacion',
+                address: s.address || 'N/A',
+                contact: String(s.contact || 'N/A').padStart(11, '0'),
+                monthlyPlan: parseFloat(s.monthly_plan) || 600,
+                dueDay: parseInt(s.due_day) || 19,
+                dateInstalled: s.date_installed || new Date().toISOString().split('T')[0],
+                balance: parseFloat(s.balance) || 0,
+                status: s.status || 'ACTIVE',
+                assignedCollector: s.assigned_collector || 'Unassigned',
+                lastBilledMonth: s.last_billed_month || 'October 2026',
+                dateDisconnected: s.date_disconnected || null
+            }));
+
+            // I-load din ang cached plans kung meron
+            const cachedPlans = localStorage.getItem('tacsfiber_cached_plans');
+            if (cachedPlans) {
+                monthlyPlans = JSON.parse(cachedPlans).map(p => ({
+                    id: p.id,
+                    name: p.plan_name || 'Plan',
+                    price: parseFloat(p.price) || 0,
+                    speed: p.speed || 'N/A'
+                }));
+            }
+
+            isDataLoaded = true;
+            filtersInitialized = false;
+            renderOutstandingBalanceOverview();
+
+            if (isManual) {
+                alert("🟡 Offline Mode: Nakuha ang namelist mula sa iyong Local Storage cache.");
+            }
+        } else {
+            console.error("Walang cached data sa Local Storage.");
+            if (isManual) {
+                alert("🔴 Offline ka at walang nakitang naka-save na namelist sa device na ito.");
+            }
+        }
+    } finally {
+        if (isManual) {
+            if(syncIcon) syncIcon.className = "fa-solid fa-cloud-arrow-down";
+            if(syncText) syncText.innerText = "Sync Supabase";
+        }
+    }
+}
+
+// Helper para sa default users para hindi paulit-ulit
+function getDefaultUsers() {
+    return [
+        { username: 'Ronel Tacocong', pass: 'Gege@635185', role: 'ADMIN' },
+        { username: 'Rolando Tacocong', pass: '12345', role: 'ASSISTANT_ADMIN' },
+        { username: 'Thomas Charles Roble', pass: '12345', role: 'COLLECTOR' },
+        { username: 'Merson', pass: '12345', role: 'TECHNICIAN' },
+        { username: 'Ronnie', pass: '12345', role: 'TECHNICIAN' }
+    ];
+}
 
         function triggerManualSync() {
             fetchSubscribersFromSupabase(true).then(() => {
