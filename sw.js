@@ -27,7 +27,7 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// 2. ACTIVATE: Linisin ang lumang cache (v1) kapag nag-update ka ng version
+// 2. ACTIVATE: Linisin ang lumang cache kapag nag-update ka ng version
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -52,18 +52,29 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Para sa navigation (pag-open o pag-refresh ng index.html)
+  // Para sa navigation (pag-open o pag-refresh ng app)
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request)
         .then((networkResponse) => {
           const responseClone = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', responseClone));
+          caches.open(CACHE_NAME).then((cache) => cache.put('/', responseClone));
           return networkResponse;
         })
-        .catch(() => {
-          // Kapag OFFLINE at ni-refresh: ibigay ang naka-save na index.html!
-          return caches.match('/index.html');
+        .catch(async () => {
+          // ⭐ Mas matatag na offline fallback: hanapin ang mismong request, root, o index.html sa cache
+          const cachedResponse = await caches.match(event.request) 
+                              || await caches.match('/') 
+                              || await caches.match('/index.html');
+          
+          if (cachedResponse) {
+            return cachedResponse;
+          }
+          
+          return new Response('Offline ka at hindi pa naka-cache ang pahinang ito.', {
+            status: 503,
+            headers: { 'Content-Type': 'text/plain; charset=utf-8' }
+          });
         })
     );
     return;
@@ -84,7 +95,6 @@ self.addEventListener('fetch', (event) => {
           return networkResponse;
         })
         .catch(() => {
-          // Tahimik na fallback kung offline at wala sa cache ang secondary asset
           return new Response('', { status: 408, statusText: 'Offline' });
         });
     })
