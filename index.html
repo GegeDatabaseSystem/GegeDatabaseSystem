@@ -2589,10 +2589,10 @@ function saveToOfflineQueue(payment) {
     let queue = JSON.parse(localStorage.getItem('tacsfiber_offline_queue') || '[]');
     queue.push(payment);
     localStorage.setItem('tacsfiber_offline_queue', JSON.stringify(queue));
-    updateOfflineCounterBadge(); // 🌟 Tataas ang count at lilitaw ang badge
+    updateOfflineCounterBadge(); // Tataas ang count at lilitaw ang Pending badge
 }
 
-// 2. Isang solong Function para i-update ang UI Badge Counter (Gamit ang tamang ID)
+// 2. Function para i-update ang UI Badge Counter
 function updateOfflineCounterBadge() {
     const pendingQueue = JSON.parse(localStorage.getItem('tacsfiber_offline_queue') || '[]');
     const container = document.getElementById('offline-badge-container');
@@ -2609,6 +2609,8 @@ function updateOfflineCounterBadge() {
         container.classList.add('hidden');
     }
 }
+// Alias para hindi masira kung ang lumang payment code ay tumatawag pa rin sa updateOfflineBadgeUI()
+const updateOfflineBadgeUI = updateOfflineCounterBadge;
 
 // 3. Pangunahing Auto-Sync Function patungong Supabase
 async function syncOfflinePaymentsToCloud() {
@@ -2628,7 +2630,10 @@ async function syncOfflinePaymentsToCloud() {
         try {
             // I-update ang balance sa cloud
             const { error: subError } = await sb.from('subscribers').update({ balance: item.newBalance || 0 }).eq('id', item.subscriberId);
-            if (subError) continue;
+            if (subError) {
+                console.error("Sub update error:", subError);
+                continue;
+            }
             
             // I-insert ang payment log sa cloud
             const { error: payError } = await sb.from('payments').insert([{
@@ -2644,43 +2649,38 @@ async function syncOfflinePaymentsToCloud() {
 
             if (!payError) {
                 syncedCount++;
-                // Tanggalin sa queue kapag tagumpay
                 remainingQueue = remainingQueue.filter(q => q.id !== item.id);
+            } else {
+                console.error("Payment insert error:", payError);
             }
         } catch (e) {
             console.error("Sync error for item:", item.id, e);
         }
     }
 
-    // I-save ang natitirang queue
     localStorage.setItem('tacsfiber_offline_queue', JSON.stringify(remainingQueue));
-    
-    // I-update agad ang badge counter sa screen
     updateOfflineCounterBadge();
 
     if (syncedCount > 0) {
-        console.log(`🟢 Cloud Sync Successful! Na-sync na sa Supabase ang ${syncedCount} offline payment/s.`);
+        alert(`🟢 Cloud Sync Successful!\nNa-sync na sa Supabase ang ${syncedCount} offline payment/s.`);
         if (typeof fetchSubscribersFromSupabase === 'function') {
             fetchSubscribersFromSupabase(false);
         }
     }
 }
 
-// 4. Tagapakinig sa internet connection (Isang beses na lang para iwas double trigger)
+// 4. Tagapakinig sa internet connection
 window.addEventListener('online', async () => {
-    console.log("🌐 Na-detect ang internet connection! Sinisimulan ang auto-sync...");
+    console.log("🌐 Bumalik na ang internet! Nag-a-auto sync...");
     await syncOfflinePaymentsToCloud();
 });
 
-// 5. I-hook sa manual sync button ("Sync Supabase")
+// 5. Manual Sync Button ("Sync Supabase")
 async function triggerManualSync() {
     await syncOfflinePaymentsToCloud();
-    
     if (typeof fetchSubscribersFromSupabase === 'function') {
         fetchSubscribersFromSupabase(true);
     }
-    
-    alert("🔄 Sinusuri ang Supabase cloud at offline queue...");
 }
 
 // 6. Suriin pagka-load ng pahina
