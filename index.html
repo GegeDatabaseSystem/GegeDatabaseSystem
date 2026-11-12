@@ -5943,8 +5943,6 @@ function resetRemittanceHistoryFilters() {
     }
 
     let newBalance = sub ? Math.max(0, (sub.balance || 0) - amount) : 0;
-    
-    // Pansamantalang huwag munang galawin ang local sub.balance hangga't hindi sigurado sa cloud sync o queue
     const oldBalance = sub ? (sub.balance || 0) : 0;
     if (sub) sub.balance = newBalance;
 
@@ -5955,7 +5953,7 @@ function resetRemittanceHistoryFilters() {
         subscriberName: sub ? sub.name : 'Subscriber',
         monthsPaid: months,
         amountPaid: amount,
-        newBalance: newBalance, // ⭐ Mahalaga para sa offline queue sync
+        newBalance: newBalance,
         date: payDate,
         method: method,
         encodedBy: currentUser,
@@ -5981,10 +5979,10 @@ function resetRemittanceHistoryFilters() {
         try {
             const sb = typeof getSupabase === 'function' ? getSupabase() : null;
             if (sb) {
-                console.log("Syncing to Supabase...");
+                console.log("Syncing to Supabase payments table...");
 
-                // A. Subukang i-insert muna sa payments table
-                const { error: payError } = await sb.from('payments').insert([{
+                // Direktang i-insert sa payments table at i-catch ang eksaktong error
+                const { data, error: payError } = await sb.from('payments').insert([{
                     reference_no: payLogId,
                     account_no: id,
                     subscriber_name: sub ? sub.name : 'Subscriber',
@@ -5996,16 +5994,15 @@ function resetRemittanceHistoryFilters() {
                 }]);
 
                 if (payError) {
-                    console.error("Payments insert error:", payError);
-                    cloudErrorMsg += `Payment Log Error: ${payError.message}`;
+                    console.error("Supabase payments insert error details:", payError);
+                    cloudErrorMsg = `Supabase Error Code: ${payError.code}\nMessage: ${payError.message}\nDetails: ${payError.details}`;
                 } else {
-                    // B. Kung pumasok ang payments, saka i-update ang subscribers balance
+                    // Kung pumasok sa payments, i-update ang subscribers balance
                     const { error: subError } = await sb.from('subscribers').update({ balance: newBalance }).eq('id', id);
                     if (subError) {
                         console.error("Subscriber balance update error:", subError);
-                        cloudErrorMsg += `Balance Error: ${subError.message}\n`;
+                        cloudErrorMsg += `\nSubscriber Update Error: ${subError.message}`;
                     } else {
-                        // Tagumpay pareho!
                         isSyncedToCloud = true;
                     }
                 }
@@ -6016,15 +6013,10 @@ function resetRemittanceHistoryFilters() {
         }
     }
 
-    // Kung hindi nag-sync sa cloud (offline O nag-error sa gitna), ibalik muna ang local balance kung kailangan at ilagay sa offline queue
     if (!isSyncedToCloud) {
-        // Ibalik muna ang lumang balance sa local object para patas ang view habang naka-queue
-        if (sub) sub.balance = oldBalance; 
-
+        if (sub) sub.balance = oldBalance; // Ibalik muna ang local balance habang naka-queue
         let pendingQueue = JSON.parse(localStorage.getItem('tacsfiber_offline_queue') || '[]');
-        // Ilagay ang bagong balance sa queue item para tama ang ma-sync mamaya
-        localLog.newBalance = newBalance; 
-        
+        localLog.newBalance = newBalance;
         if (!pendingQueue.some(item => item.id === localLog.id)) {
             pendingQueue.push(localLog);
             localStorage.setItem('tacsfiber_offline_queue', JSON.stringify(pendingQueue));
@@ -6033,16 +6025,13 @@ function resetRemittanceHistoryFilters() {
             pendingOfflineQueue = pendingQueue;
         }
     } else {
-        // Kung na-sync successfully, i-set na natin ang bagong balance sa local subscriber object
         if (sub) sub.balance = newBalance;
     }
 
-    // I-update ang offline counter badge sa UI
     if (typeof updateOfflineCounterBadge === 'function') {
         updateOfflineCounterBadge();
     }
 
-    // 3. Isara ang modal at i-refresh ang UI
     closePaymentModal();
 
     if (typeof refreshAllViewsUIOnly === 'function') {
@@ -6056,11 +6045,10 @@ function resetRemittanceHistoryFilters() {
     }
 
     if (isSyncedToCloud) {
-        alert(`✅ Matagumpay na na-record at na-sync ang bayad na ₱${amount.toLocaleString()} para kay ${sub ? sub.name : 'Customer'}!`);
-    } else if (cloudErrorMsg) {
-        alert(`⚠️ Nagka-problema sa Supabase Cloud:\n${cloudErrorMsg}\n\nLigtas itong inilagay sa Offline Queue para hindi mawala.`);
+        alert(`✅ Matagumpay na na-record at na-sync sa Supabase ang bayad na ₱${amount.toLocaleString()}!`);
     } else {
-        alert(`📴 OFFLINE MODE: Ligtas na naka-save sa device ang bayad na ₱${amount.toLocaleString()}! (Naka-queue para sa auto-sync pagbalik ng internet).`);
+        // ⭐ Ipapakita nito sa alert ang eksaktong reklamo ng Supabase database!
+        alert(`⚠️ HINDI NA-SYNC SA SUPABASE (Naka-queue offline):\n\n${cloudErrorMsg}`);
     }
 }
 
@@ -7644,12 +7632,6 @@ if ('serviceWorker' in navigator) {
                 }
             }
         });    
-// ⭐ Alias para sa syncOfflinePayments kung sakaling tawagin ng lumang event listener
-        function syncOfflinePayments() {
-            if (typeof syncOfflinePaymentsToCloud === 'function') {
-                return syncOfflinePaymentsToCloud();
-            }
-        }
   </script>
 </body>
 </html>
