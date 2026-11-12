@@ -257,6 +257,12 @@
                 </div>
 
                 <div class="flex items-center space-x-3">
+                    <!-- ⭐ PENDING OFFLINE PAYMENTS BADGE -->
+                    <div id="offline-badge-container" class="hidden items-center space-x-1.5 bg-amber-950/80 border border-amber-500/40 text-amber-300 px-3 py-1 rounded-full text-xs font-bold shadow-sm">
+                        <i class="fa-solid fa-cloud-arrow-up animate-pulse text-amber-400"></i>
+                        <span>Pending: <strong id="offline-count" class="text-white">0</strong></span>
+                    </div>
+
                     <button onclick="toggleMaximizeAppWindow()" title="Toggle Full Screen Window" class="px-3 py-1.5 rounded-full text-xs font-bold bg-neutral-800 hover:bg-neutral-700 text-slate-200 border border-neutral-700 transition cursor-pointer flex items-center space-x-1.5 shadow">
                         <i id="window-max-icon" class="fa-solid fa-expand text-xs"></i>
                         <span id="window-max-text" class="hidden md:inline">Full Screen</span>
@@ -2516,13 +2522,19 @@ async function submitAdminForceReset() {
             }
         }
 
-        document.addEventListener('DOMContentLoaded', () => {
-            updateOnlineStatus();
-            loadPaymentLogsLocal();
-            if(localStorage.getItem('tacsfiber_auth') === 'true') {
-                openAppDashboard();
-            }
-        });
+       document.addEventListener('DOMContentLoaded', () => {
+    updateOnlineStatus();
+    loadPaymentLogsLocal();
+    
+    // ⭐ Idagdag ito para awtomatikong mag-sync pagbukas ng app kung online
+    if (navigator.onLine) {
+        syncOfflinePayments();
+    }
+
+    if(localStorage.getItem('tacsfiber_auth') === 'true') {
+        openAppDashboard();
+    }
+});
 
         function savePaymentLogsLocal() {
             localStorage.setItem('tacsfiber_payment_logs_backup', JSON.stringify(paymentLogs));
@@ -2541,6 +2553,115 @@ async function submitAdminForceReset() {
                 } catch(e) { console.error(e); }
             }
         }
+
+// Ilagay ito kahit saan sa global scope (malinis na pwesto sa labas ng ibang function)
+
+async function handleCollectionSubmit(paymentData) {
+    // Idagdag ang timestamp para malaman kailan ginawa ang transaksyon
+    paymentData.created_at = new Date().toISOString();
+    paymentData.synced = false;
+
+    if (navigator.onLine) {
+        try {
+            // Kung online, direktang isulat sa Supabase
+            const { data, error } = await supabase
+                .from('payments')
+                .insert([paymentData]);
+
+            if (error) throw error;
+            
+            alert('Tagumpay! Nai-save na ang bayad sa Supabase.');
+            loadCollectionsList(); // I-refresh ang UI
+        } catch (err) {
+            console.error('Nagka-error sa online save, inilalagay sa queue:', err);
+            saveToOfflineQueue(paymentData);
+        }
+    } else {
+        // Kung offline, i-save muna sa local queue
+        saveToOfflineQueue(paymentData);
+        alert('Naka-OFFLINE ka. Ang bayad ay nai-save sa local queue at awtomatikong mag-i-sync mamaya.');
+    }
+}
+
+// Helper para i-store sa localStorage queue
+function saveToOfflineQueue(payment) {
+    let queue = JSON.parse(localStorage.getItem('tacsfiber_offline_queue') || '[]');
+    queue.push(payment);
+    localStorage.setItem('tacsfiber_offline_queue', JSON.stringify(queue));
+    updateOfflineBadgeUI(); // ⭐ Tataas ang count at lilitaw ang badge
+}
+
+// Function para i-update ang UI Badge Counter gamit ang iyong tamang queue key
+function updateOfflineBadgeUI() {
+    const queue = JSON.parse(localStorage.getItem('tacsfiber_offline_queue') || '[]');
+    const container = document.getElementById('offline-badge-container');
+    const countSpan = document.getElementById('offline-count');
+    
+    if (!container || !countSpan) return;
+
+    if (queue.length > 0) {
+        countSpan.innerText = queue.length;
+        container.classList.remove('hidden');
+        container.classList.add('flex');
+    } else {
+        container.classList.remove('flex');
+        container.classList.add('hidden');
+    }
+}
+
+// Isama ito sa iyong DOMContentLoaded block para mag-check agad pag-load ng app
+document.addEventListener('DOMContentLoaded', () => {
+    updateOfflineBadgeUI();
+});
+
+async function syncOfflinePayments() {
+    // ⭐ Ginamit na natin ang tamang key na 'tacsfiber_offline_queue'
+    let queue = JSON.parse(localStorage.getItem('tacsfiber_offline_queue') || '[]');
+    
+    if (queue.length === 0 || !navigator.onLine) return;
+
+    console.log(`May ${queue.length} offline na bayad na nagsi-sync sa Supabase...`);
+
+    // Kunin ang unang item sa queue
+    const paymentToSync = queue[0];
+
+    try {
+        const { error } = await supabase
+            .from('payments')
+            .insert([ {
+                subscriber_id: paymentToSync.subscriber_id,
+                amount: paymentToSync.amount,
+                created_at: paymentToSync.created_at,
+                // iba pang fields...
+            } ]);
+
+        if (error) throw error;
+
+        // Kung sakaling matagumpay, alisin na ito sa queue
+        queue.shift();
+        localStorage.setItem('tacsfiber_offline_queue', JSON.stringify(queue));
+        
+        // ⭐ Dito natin isinama ang pag-update ng badge para bumaba ang count o mawala
+        updateOfflineBadgeUI(); 
+        
+        // Ulitin hanggang maubos ang naka-queue
+        syncOfflinePayments();
+
+    } catch (err) {
+        console.error('Nabigo ang pag-sync ng item:', err);
+    }
+}
+
+// Makinig kung kailan nagbabalik ang internet
+window.addEventListener('online', () => {
+    console.log('Nagbalik ang internet! Sinisimulan ang sync...');
+    syncOfflinePayments();
+});
+
+// Patakbuhin din pagka-open ng app kung sakaling online na agad
+if (navigator.onLine) {
+    syncOfflinePayments();
+}
 
        async function fetchSubscribersFromSupabase(isManual = false) {
             const syncIcon = document.getElementById('sync-icon');
