@@ -5981,34 +5981,53 @@ function resetRemittanceHistoryFilters() {
         }
         
 // Function para buksan ang payment modal gamit ang Subscriber ID
+// Function para buksan at punuan ang Payment Modal gamit ang Subscriber ID
 function openPaymentModalBySubId(subId) {
+    // Hanapin ang kustomer sa cached subscribers list
     const subscriber = subscribers.find(s => s.id === subId);
     if (!subscriber) {
         alert("Hindi makita ang detalye ng kustomer.");
         return;
     }
 
-    // Kung mayroon kang umiiral na modal opener function, tawagin ito:
-    if (typeof openPaymentModal === 'function') {
-        openPaymentModal(subscriber);
-    } else {
-        // Fallback kung wala pang pormal na modal function, ilagay rito ang logic mo
-        console.log("Opening payment for:", subscriber.name);
-        
-        // Halimbawa: Itakda ang value sa mga input fields ng modal kung meron man
-        const accountNoInput = document.getElementById('payment-account-no');
-        const amountInput = document.getElementById('payment-amount');
-        
-        if (accountNoInput) accountNoInput.value = subscriber.id;
-        if (amountInput) amountInput.value = subscriber.balance || subscriber.monthlyPlan || 600;
+    // 1. I-populate ang hidden ID at mga text fields sa modal
+    const subIdInput = document.getElementById('pay-sub-id');
+    const nameEl = document.getElementById('modal-cust-name');
+    const breakdownEl = document.getElementById('modal-cust-breakdown');
+    const balanceEl = document.getElementById('modal-cust-balance');
+    const dateInput = document.getElementById('pay-date');
+    const amountInput = document.getElementById('pay-amount');
 
-        // I-display ang modal kung ang ID nito ay 'payment-modal'
-        const modal = document.getElementById('payment-modal');
-        if (modal) {
-            modal.classList.remove('hidden');
-        } else {
-            alert(`Magbabayad si: ${subscriber.name} (${subscriber.id}) - P${subscriber.balance || 600}`);
-        }
+    if (subIdInput) subIdInput.value = subscriber.id;
+    if (nameEl) nameEl.innerText = `${subscriber.name} (${subscriber.id}) - Brgy. ${subscriber.barangay}`;
+    
+    if (breakdownEl) {
+        breakdownEl.innerHTML = `
+            <div>Plan: ₱${subscriber.monthlyPlan || 600} / mo</div>
+            <div>Due Day: Day ${subscriber.dueDay || 19}</div>
+            <div>Contact: ${subscriber.contact || 'N/A'}</div>
+        `;
+    }
+
+    const currentBalance = subscriber.balance !== undefined ? subscriber.balance : (subscriber.monthlyPlan || 600);
+    if (balanceEl) balanceEl.innerText = `Outstanding Balance: ₱${Number(currentBalance).toLocaleString()}`;
+
+    // Itakda ang auto system date ngayon sa date input
+    if (dateInput) {
+        const today = new Date().toISOString().split('T')[0];
+        dateInput.value = today;
+    }
+
+    // I-default ang amount paid sa kasalukuyang balanse o buwanang plan
+    if (amountInput) {
+        amountInput.value = currentBalance;
+    }
+
+    // 2. Alisin ang 'hidden' class at ipakita ang modal gamit ang flex layout
+    const modal = document.getElementById('payment-modal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
     }
 }        
 
