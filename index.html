@@ -962,18 +962,18 @@
 </div>
 
             <!-- VIEW: CUSTOMERS LIST -->
-            <div id="view-customers-list" class="hidden space-y-6">
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-6">
-                    <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-                        <div>
-                            <h3 class="text-base font-bold text-slate-800 flex items-center space-x-2">
-                                <i class="fa-solid fa-address-book text-emerald-600"></i><span>Master Customers List (Supabase)</span>
-                            </h3>
-                            <p class="text-xs text-slate-500">Complete database of subscribers synchronized directly from Supabase cloud.</p>
-                        </div>
-                        
-                        <div class="flex flex-wrap items-center gap-3 w-full lg:w-auto">
-                            <!-- BARANGAY FILTER -->
+<div id="view-customers-list" class="hidden space-y-6">
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-6">
+        <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+            <div>
+                <h3 class="text-base font-bold text-slate-800 flex items-center space-x-2">
+                    <i class="fa-solid fa-address-book text-emerald-600"></i><span>Master Customers List (Supabase)</span>
+                </h3>
+                <p class="text-xs text-slate-500">Complete database of subscribers synchronized directly from Supabase cloud.</p>
+            </div>
+            
+            <div class="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+                <!-- BARANGAY FILTER -->
                 <div class="flex items-center space-x-2 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200">
                     <label class="text-xs font-bold text-slate-700"><i class="fa-solid fa-filter text-emerald-600 mr-1"></i>Barangay:</label>
                     <select id="masterBrgyFilter" onchange="renderCustomersListTable()" class="border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-800 bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none cursor-pointer">
@@ -1020,33 +1020,41 @@
                     </select>
                 </div>
 
-                            <input type="text" id="cust-list-search" oninput="renderCustomersListTable()" placeholder="Search name..." class="border border-slate-300 rounded-xl px-3.5 py-2 text-xs w-full sm:w-48 shadow-sm">
-                        </div>
-                    </div>
-
-                    <div class="overflow-x-auto max-h-[65vh] relative border border-slate-200 rounded-xl">
-                        <table class="w-full text-left border-collapse table-auto min-w-[1500px]">
-                            <thead class="sticky top-0 z-20 bg-slate-100 text-slate-700 text-xs uppercase font-bold">
-                                <tr>
-                                    <th class="py-3 px-3 sticky-col-1 bg-slate-100">ACCOUNT NO.</th>
-                                    <th class="py-3 px-3 sticky-col-2 bg-slate-100">CUSTOMER NAME</th>
-                                    <th class="py-3 px-3">BARANGAY</th>
-                                    <th class="py-3 px-3">ADDRESS</th>
-                                    <th class="py-3 px-3">CONTACT</th>
-                                    <th class="py-3 px-3">MONTHLY PLAN</th>
-                                    <th class="py-3 px-3">DUE DATE</th>
-                                    <th class="py-3 px-3">DATE INSTALLED</th>
-                                    <th class="py-3 px-3">LINE STATUS</th>
-                                    <th class="py-3 px-3">BALANCE</th>
-                                    <th class="py-3 px-3 text-center">ASSIGNED COLLECTOR</th>
-                                    <th class="py-3 px-3 text-right">ACTIONS</th>
-                                </tr>
-                            </thead>
-                            <tbody id="customers-list-table-body" class="divide-y divide-slate-100 text-xs bg-white"></tbody>
-                        </table>
-                    </div>
-                </div>
+                <input type="text" id="cust-list-search" oninput="renderCustomersListTable()" placeholder="Search name..." class="border border-slate-300 rounded-xl px-3.5 py-2 text-xs w-full sm:w-48 shadow-sm">
             </div>
+        </div>
+
+        <!-- ⭐ DUAL CONTAINER: MOBILE CARDS & DESKTOP TABLE ⭐ -->
+        
+        <!-- 1. MOBILE CARDS CONTAINER (Makikita lang sa Phone: block md:hidden) -->
+        <div id="customers-mobile-cards-container" class="block md:hidden space-y-3">
+            <!-- Dito i-rerender ang cards -->
+        </div>
+
+        <!-- 2. DESKTOP TABLE CONTAINER (Makikita lang sa PC/Laptop: hidden md:block) -->
+        <div class="hidden md:block overflow-x-auto max-h-[65vh] relative border border-slate-200 rounded-xl">
+            <table class="w-full text-left border-collapse table-auto min-w-[1500px]">
+                <thead class="sticky top-0 z-20 bg-slate-100 text-slate-700 text-xs uppercase font-bold">
+                    <tr>
+                        <th class="py-3 px-3 sticky-col-1 bg-slate-100">ACCOUNT NO.</th>
+                        <th class="py-3 px-3 sticky-col-2 bg-slate-100">CUSTOMER NAME</th>
+                        <th class="py-3 px-3">BARANGAY</th>
+                        <th class="py-3 px-3">ADDRESS</th>
+                        <th class="py-3 px-3">CONTACT</th>
+                        <th class="py-3 px-3">MONTHLY PLAN</th>
+                        <th class="py-3 px-3">DUE DATE</th>
+                        <th class="py-3 px-3">DATE INSTALLED</th>
+                        <th class="py-3 px-3">LINE STATUS</th>
+                        <th class="py-3 px-3">BALANCE</th>
+                        <th class="py-3 px-3 text-center">ASSIGNED COLLECTOR</th>
+                        <th class="py-3 px-3 text-right">ACTIONS</th>
+                    </tr>
+                </thead>
+                <tbody id="customers-list-table-body" class="divide-y divide-slate-100 text-xs bg-white"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
 
             <!-- VIEW: ADD CUSTOMER -->
             <div id="view-add-customer" class="hidden space-y-6 max-w-2xl mx-auto">
