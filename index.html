@@ -5824,7 +5824,7 @@ function renderAlertTableRows(tbodyId, list, category) {
             `).join('');
         }
 
- async function turnoverRemittanceToAdmin() {
+async function turnoverRemittanceToAdmin() {
     const activeCollector = getActiveUser();
     const currentRole = getActiveRole();
     const today = new Date().toISOString().split('T')[0];
@@ -5850,16 +5850,15 @@ function renderAlertTableRows(tbodyId, list, category) {
         
         if (sb) {
             for (let log of unsubmittedLogs) {
-                // ⭐ I-update ang turned_over at batch_id sa 'payment_logs' table gamit ang reference_no
+                // ⭐ Direktang i-update ang 'payment_logs' gamit ang reference_no
                 let { error } = await sb.from('payment_logs')
                     .update({ turned_over: true, batch_id: batchId })
                     .eq('reference_no', log.id);
 
-                // Kung sakaling 'id' ang gamit sa ibang log, i-try din natin
                 if (error) {
-                    await sb.from('payment_logs')
-                        .update({ turned_over: true, batch_id: batchId })
-                        .eq('id', log.id);
+                    console.error("Supabase payment_logs update error:", error);
+                } else {
+                    console.log(`Matagumpay na na-update ang reference_no: ${log.id}`);
                 }
             }
         }
