@@ -294,7 +294,7 @@
 
         <main id="main-content-window" class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 overflow-y-auto transition-all duration-300">
 
-<!-- VIEW: DAILY ATTENDANCE -->
+<!-- 1. VIEW: DAILY ATTENDANCE -->
 <div id="view-attendance" class="hidden space-y-6 max-w-5xl mx-auto">
     <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-6">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4">
@@ -310,7 +310,7 @@
                 <span>Scan QR Code Attendance</span>
             </button>
         </div>
-
+        
         <!-- Attendance Table Section -->
         <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse">
@@ -318,17 +318,48 @@
                     <tr class="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-600 uppercase">
                         <th class="px-4 py-3">Employee ID</th>
                         <th class="px-4 py-3">Name</th>
-                        <th class="px-4 py-3">Log Type</th>
-                        <th class="px-4 py-3">Time</th>
                         <th class="px-4 py-3">Date</th>
+                        <th class="px-4 py-3">Time-In</th>
+                        <th class="px-4 py-3">Time-Out</th>
+                        <th class="px-4 py-3">Overtime (OT)</th>
                     </tr>
                 </thead>
                 <tbody id="attendance-table-body" class="divide-y divide-slate-100 text-xs">
                     <tr>
-                        <td colspan="5" class="text-center py-4 text-slate-400">Naglo-load ng mga tala...</td>
+                        <td colspan="6" class="text-center py-4 text-slate-400">Naglo-load ng mga tala...</td>
                     </tr>
                 </tbody>
             </table>
+        </div>
+    </div>
+</div>
+
+<!-- 2. VIEW: EMPLOYEE QR CARDS & PRINTING (Hiwalay na container na ngayon) -->
+<div id="view-qr-cards" class="hidden space-y-6 max-w-6xl mx-auto">
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-6">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4">
+            <div>
+                <h3 class="text-base font-bold text-slate-800 flex items-center space-x-2">
+                    <i class="fa-solid fa-id-card text-blue-600"></i>
+                    <span>Employee QR Code Badges & Printing</span>
+                </h3>
+                <p class="text-xs text-slate-500 mt-1">I-print ang mga QR code badge ng mga empleyado para sa madaling Daily Attendance scanning.</p>
+            </div>
+            <div class="flex items-center gap-2 print:hidden">
+                <button type="button" onclick="loadEmployeeQRCards()" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl flex items-center space-x-1.5 transition-colors" title="Refresh QR list">
+                    <i class="fa-solid fa-rotate"></i>
+                    <span>I-refresh</span>
+                </button>
+                <button type="button" onclick="printQRCards()" class="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-xl flex items-center space-x-2 transition-colors">
+                    <i class="fa-solid fa-print"></i>
+                    <span>Print All QR Badges</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- QR Cards Grid Container -->
+        <div id="qr-cards-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div class="col-span-full text-center py-8 text-slate-400 text-xs">Naglo-load ng mga empleyado...</div>
         </div>
     </div>
 </div>
@@ -433,6 +464,10 @@
                         <button onclick="switchTab('attendance')" class="p-4 rounded-xl border border-blue-100 bg-blue-50/50 hover:bg-blue-100 transition-all text-left group">
                             <div class="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm group-hover:scale-110 transition-transform mb-2">📅</div>
                             <span class="text-xs font-bold text-slate-700">Daily Attendance</span>
+                        </button>
+                        <button onclick="switchTab('qr-cards')" class="p-4 rounded-xl border border-blue-100 bg-blue-50/50 hover:bg-blue-100 transition-all text-left group">
+                            <div class="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm group-hover:scale-110 transition-transform mb-2">🪪</div>
+                            <span class="text-xs font-bold text-slate-700">QR ID Badges</span>
                         </button>
                         <button onclick="switchTab('add-customer')" class="p-4 rounded-xl border border-indigo-100 bg-indigo-50/50 hover:bg-indigo-100/70 text-indigo-900 transition flex flex-col items-center text-center space-y-2 group shadow-sm cursor-pointer">
                             <div class="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center text-sm group-hover:scale-110 transition"><i class="fa-solid fa-user-plus"></i></div>
@@ -3386,53 +3421,55 @@ async function markComplaintAsResolved(complaintId) {
             renderRemittanceHistoryTable();
         }
 
-        function switchTab(tabId) {
-            const role = getActiveRole();
-            if(role === 'COLLECTOR' && tabId !== 'collection-list' && tabId !== 'remittance') {
-                tabId = 'collection-list';
-            }
-            if(role === 'TECHNICIAN' && tabId !== 'internet-installation' && tabId !== 'customers-complain') {
-                tabId = 'internet-installation';
-            }
-            if(role === 'ASSISTANT_ADMIN' && tabId === 'users') {
-                tabId = 'dashboard';
-            }
+      function switchTab(tabId) {
+    const role = getActiveRole();
+    if(role === 'COLLECTOR' && tabId !== 'collection-list' && tabId !== 'remittance') {
+        tabId = 'collection-list';
+    }
+    if(role === 'TECHNICIAN' && tabId !== 'internet-installation' && tabId !== 'customers-complain') {
+        tabId = 'internet-installation';
+    }
+    if(role === 'ASSISTANT_ADMIN' && tabId === 'users') {
+        tabId = 'dashboard';
+    }
 
-            ['dashboard', 'internet-installation', 'fiber-break-notice', 'customers-complain', 'technician-analytics', 'customers-list', 'collection-alert', 'collection-list', 'remittance', 'remittance-history', 'add-customer', 'plan-management', 'billing-records', 'payment-history', 'disconnected-list', 'audit-reports', 'users', 'backup'].forEach(t => {
-                const view = document.getElementById('view-' + t);
-                const tab = document.getElementById('tab-' + t);
-                if(view) view.classList.add('hidden');
-                if(tab) {
-                    tab.classList.remove('border-red-600', 'text-white');
-                    tab.classList.add('border-transparent', 'text-neutral-400');
-                }
-            });
-
-            const activeView = document.getElementById('view-' + tabId);
-            const activeTab = document.getElementById('tab-' + tabId);
-            if(activeView) activeView.classList.remove('hidden');
-            if(activeTab) {
-                activeTab.classList.remove('border-transparent', 'text-neutral-400');
-                activeTab.classList.add('border-red-600', 'text-white');
-            }
-
-            if(tabId === 'dashboard') updateDashboardStats();
-            else if(tabId === 'internet-installation') renderInternetInstallationView();
-            else if(tabId === 'fiber-break-notice') { renderFiberBreakBarangayCheckboxes(); generateAdvisoryLetter(); }
-            else if(tabId === 'customers-complain') renderCustomersComplainView();
-            else if(tabId === 'technician-analytics') renderTechnicianAnalytics();
-            else if(tabId === 'customers-list') renderCustomersListTable();
-            else if(tabId === 'collection-alert') renderCollectionAlertTables();
-            else if(tabId === 'collection-list') renderCollectionListTable();
-            else if(tabId === 'remittance') renderRemittanceTable();
-            else if(tabId === 'remittance-history') renderRemittanceHistoryTable();
-            else if(tabId === 'plan-management') renderPlansTable();
-            else if(tabId === 'billing-records') renderBillingRecordsTable();
-            else if(tabId === 'payment-history') renderPaymentHistoryTable();
-            else if(tabId === 'disconnected-list') renderDisconnectedList();
-            else if(tabId === 'audit-reports') renderAuditTable();
-            else if(tabId === 'users') renderUsersTable();
+    // Idinagdag ang 'attendance' at 'qr-cards' dito para awtomatiko silang matago kapag lumilipat ng tab
+    ['dashboard', 'internet-installation', 'fiber-break-notice', 'customers-complain', 'technician-analytics', 'customers-list', 'collection-alert', 'collection-list', 'remittance', 'remittance-history', 'add-customer', 'plan-management', 'billing-records', 'payment-history', 'disconnected-list', 'audit-reports', 'users', 'backup', 'qr-cards', 'attendance'].forEach(t => {
+        const view = document.getElementById('view-' + t);
+        const tab = document.getElementById('tab-' + t);
+        if(view) view.classList.add('hidden');
+        if(tab) {
+            tab.classList.remove('border-red-600', 'text-white');
+            tab.classList.add('border-transparent', 'text-neutral-400');
         }
+    });
+
+    const activeView = document.getElementById('view-' + tabId);
+    const activeTab = document.getElementById('tab-' + tabId);
+    if(activeView) activeView.classList.remove('hidden');
+    if(activeTab) {
+        activeTab.classList.remove('border-transparent', 'text-neutral-400');
+        activeTab.classList.add('border-red-600', 'text-white');
+    }
+
+    if(tabId === 'dashboard') updateDashboardStats();
+    else if(tabId === 'internet-installation') renderInternetInstallationView();
+    else if(tabId === 'fiber-break-notice') { renderFiberBreakBarangayCheckboxes(); generateAdvisoryLetter(); }
+    else if(tabId === 'customers-complain') renderCustomersComplainView();
+    else if(tabId === 'technician-analytics') renderTechnicianAnalytics();
+    else if(tabId === 'customers-list') renderCustomersListTable();
+    else if(tabId === 'collection-alert') renderCollectionAlertTables();
+    else if(tabId === 'collection-list') renderCollectionListTable();
+    else if(tabId === 'remittance') renderRemittanceTable();
+    else if(tabId === 'remittance-history') renderRemittanceHistoryTable();
+    else if(tabId === 'plan-management') renderPlansTable();
+    else if(tabId === 'billing-records') renderBillingRecordsTable();
+    else if(tabId === 'payment-history') renderPaymentHistoryTable();
+    else if(tabId === 'disconnected-list') renderDisconnectedList();
+    else if(tabId === 'audit-reports') renderAuditTable();
+    else if(tabId === 'users') renderUsersTable();
+    else if(tabId === 'qr-cards') loadEmployeeQRCards();
+}
 
         // ================= INTERNET INSTALLATION LOGIC =================
         function switchInstallationSubTab(subTab) {
@@ -8036,56 +8073,92 @@ async function onScanSuccess(decodedText, decodedResult) {
     const msg = document.getElementById('scan-result-msg');
     if (msg) msg.innerHTML = `<span class="text-blue-600 font-bold">Naka-scan na! Sinusuri ang ID: ${decodedText}...</span>`;
 
-    // Kunin ang detalye ng empleyado kung available sa systemUsers
+    // Kunin ang pangalan ng empleyado kung available sa memory/users list
     const employee = (typeof systemUsers !== 'undefined' ? systemUsers.find(u => u.id === decodedText || u.username === decodedText) : null) 
-                     || { id: decodedText, username: "Employee " + decodedText };
+                     || { id: decodedText, name: "Employee " + decodedText };
 
-    const empId = employee.id;
-    const empName = employee.username || employee.name || decodedText;
-    const today = new Date().toISOString().split('T')[0];
-    const currentUser = (typeof getActiveUser === 'function') ? getActiveUser() : 'Admin';
+    const empId = decodedText;
+    const empName = employee.name || employee.username || ("Employee " + decodedText);
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const nowTime = new Date().toTimeString().split(' ')[0]; // HH:MM:SS
 
-    let logType = 'TIME_IN';
     const sb = typeof getSupabase === 'function' ? getSupabase() : (window.supabaseClient || null);
 
     if (sb) {
         try {
-            // Suriin kung may record na ngayong araw para sa Time-In o Time-Out
-            const { data: existingLogs, error } = await sb
-                .from('attendance_logs')
+            // Suriin kung mayroon nang record ang empleyado ngayong araw sa employee_attendance table
+            const { data: existingRecord, error: fetchError } = await sb
+                .from('employee_attendance')
                 .select('*')
                 .eq('employee_id', empId)
-                .eq('log_date', today);
+                .eq('date', today)
+                .maybeSingle();
 
-            if (!error && existingLogs) {
-                const hasTimeIn = existingLogs.some(l => l.log_type === 'TIME_IN');
-                const hasTimeOut = existingLogs.some(l => l.log_type === 'TIME_OUT');
-
-                if (hasTimeIn && !hasTimeOut) {
-                    logType = 'TIME_OUT';
-                } else if (hasTimeIn && hasTimeOut) {
-                    alert(`⚠️ Ang empleyadong si ${empName} ay nakapag-Time-In at Time-Out na ngayong araw.`);
-                    closeScannerModal();
-                    return;
-                }
+            if (fetchError) {
+                console.error("Error fetching attendance:", fetchError);
+                alert(`❌ May error sa pagkuha ng attendance record.`);
+                closeScannerModal();
+                return;
             }
 
-            const logRefId = 'ATT-' + Date.now();
-            const { error: insertError } = await sb.from('attendance_logs').insert([{
-                reference_no: logRefId,
-                employee_id: empId,
-                employee_name: empName,
-                log_type: logType,
-                log_date: today,
-                recorded_by: currentUser
-            }]);
+            if (!existingRecord) {
+                // --- UNANG SCAN: TIME-IN ---
+                const { error: insertError } = await sb.from('employee_attendance').insert([{
+                    employee_id: empId,
+                    name: empName,
+                    date: today,
+                    time_in: nowTime,
+                    time_out: null,
+                    overtime_hours: '-'
+                }]);
 
-            if (insertError) {
-                console.error("Error saving attendance:", insertError);
-                alert(`❌ Nabigo sa pag-save ng attendance: ${insertError.message}`);
+                if (insertError) {
+                    console.error("Error saving Time-In:", insertError);
+                    alert(`❌ Nabigo sa pag-save ng Time-In: ${insertError.message}`);
+                } else {
+                    alert(`✅ TIME-IN Matagumpay para kay ${empName} (${nowTime})!`);
+                    if (typeof loadAttendanceTable === 'function') loadAttendanceTable();
+                }
+
+            } else if (!existingRecord.time_out) {
+                // --- PANGALAWANG SCAN: TIME-OUT AT OVERTIME COMPUTATION ---
+                const timeInObj = new Date(`${today}T${existingRecord.time_in}`);
+                const timeOutObj = new Date(`${today}T${nowTime}`);
+                
+                const diffMs = timeOutObj - timeInObj;
+                const totalMinutesWorked = Math.floor(diffMs / 60000);
+                
+                // Regular duty hours = 8 hours (480 minutes)
+                const regularMinutes = 480; 
+                let overtimeMinutes = 0;
+
+                const excessMinutes = totalMinutesWorked - regularMinutes;
+                
+                // Rule: Kung nag-exceed ng 30 minutes and up, i-konsiderang Overtime
+                if (excessMinutes >= 30) {
+                    overtimeMinutes = excessMinutes;
+                }
+
+                const otHoursText = overtimeMinutes > 0 ? formatHoursAndMinutes(overtimeMinutes) : '-';
+
+                const { error: updateError } = await sb.from('employee_attendance')
+                    .update({
+                        time_out: nowTime,
+                        overtime_hours: otHoursText
+                    })
+                    .eq('id', existingRecord.id);
+
+                if (updateError) {
+                    console.error("Error saving Time-Out:", updateError);
+                    alert(`❌ Nabigo sa pag-save ng Time-Out: ${updateError.message}`);
+                } else {
+                    alert(`✅ TIME-OUT Matagumpay para kay ${empName}!\nOras ng Uwi: ${nowTime}\nOvertime: ${otHoursText}`);
+                    if (typeof loadAttendanceTable === 'function') loadAttendanceTable();
+                }
+
             } else {
-                alert(`✅ Matagumpay na naitala ang ${logType} para kay ${empName}!`);
-                if (typeof fetchAttendanceLogs === 'function') fetchAttendanceLogs();
+                // --- KUMPLETO NA ANG SCANS NGAYONG ARAW ---
+                alert(`⚠️ Ang empleyadong si ${empName} ay nakapag-Time-In at Time-Out na ngayong araw.`);
             }
 
         } catch (err) {
@@ -8099,41 +8172,72 @@ async function onScanSuccess(decodedText, decodedResult) {
     closeScannerModal();
 }
 
+// Helper function para sa Overtime format
+function formatHoursAndMinutes(totalMinutes) {
+    const hrs = Math.floor(totalMinutes / 60);
+    const mins = totalMinutes % 60;
+    if (hrs === 0) return `${mins} mins`;
+    return mins > 0 ? `${hrs} hr ${mins} mins` : `${hrs} hrs`;
+}
+
 function onScanFailure(error) {
     // Patuloy na naghahanap ng QR code ang camera nang walang sagabal sa console
 }
 
-async function fetchAttendanceLogs() {
-    const sb = typeof getSupabase === 'function' ? getSupabase() : (window.supabaseClient || null);
-    if (!sb) return;
-
-    const { data, error } = await sb.from('attendance_logs').select('*').order('log_time', { ascending: false });
-    if (error) {
-        console.error("Error fetching attendance:", error);
-        return;
-    }
-
+async function loadAttendanceTable() {
     const tbody = document.getElementById('attendance-table-body');
     if (!tbody) return;
 
-    if (!data || data.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-gray-400">Wala pang record ng attendance ngayong araw.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-slate-400">Naglo-load ng mga tala...</td></tr>`;
+
+    const sb = typeof getSupabase === 'function' ? getSupabase() : (window.supabaseClient || null);
+    if (!sb) {
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-rose-500">Walang Supabase client na nakita.</td></tr>`;
         return;
     }
 
-    tbody.innerHTML = data.map(log => `
-        <tr>
-            <td class="px-4 py-3 text-gray-700 font-medium">${log.employee_id}</td>
-            <td class="px-4 py-3 text-gray-900 font-semibold">${log.employee_name}</td>
-            <td class="px-4 py-3">
-                <span class="px-2.5 py-1 text-xs font-bold rounded-full ${log.log_type === 'TIME_IN' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}">
-                    ${log.log_type}
-                </span>
-            </td>
-            <td class="px-4 py-3 text-gray-600">${new Date(log.log_time || Date.now()).toLocaleTimeString()}</td>
-            <td class="px-4 py-3 text-gray-600">${log.log_date}</td>
-        </tr>
-    `).join('');
+    // Kumukuha direkta mula sa bagong employee_attendance table
+    const { data, error } = await sb
+        .from('employee_attendance')
+        .select('*')
+        .order('date', { ascending: false })
+        .order('time_in', { ascending: false });
+
+    if (error) {
+        console.error('Error sa pag-load ng attendance:', error);
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-rose-500">May error sa pagkuha ng tala: ${error.message}</td></tr>`;
+        return;
+    }
+
+    if (!data || data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-slate-400">Wala pang record ng attendance ngayon.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = '';
+    data.forEach(row => {
+        // Formatted display para sa Time-Out kung wala pa
+        const timeOutDisplay = row.time_out 
+            ? row.time_out 
+            : '<span class="text-amber-500 font-medium italic">Nag-aabang ng Time-Out...</span>';
+
+        // Formatted display para sa Overtime
+        const otDisplay = row.overtime_hours && row.overtime_hours !== '-' 
+            ? `<span class="text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-md">${row.overtime_hours}</span>` 
+            : '-';
+
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-50 transition-colors border-b border-slate-100';
+        tr.innerHTML = `
+            <td class="px-4 py-3 font-semibold text-slate-700">${row.employee_id}</td>
+            <td class="px-4 py-3 text-slate-800 font-medium">${row.name}</td>
+            <td class="px-4 py-3 text-slate-600">${row.date}</td>
+            <td class="px-4 py-3 text-slate-600">${row.time_in}</td>
+            <td class="px-4 py-3 text-slate-600">${timeOutDisplay}</td>
+            <td class="px-4 py-3">${otDisplay}</td>
+        `;
+        tbody.appendChild(tr);
+    });
 }
 
 // I-load ang logs tuwing magbubukas o mag-re-refresh ang pahina
@@ -8142,7 +8246,77 @@ document.addEventListener('DOMContentLoaded', () => {
         if (typeof fetchAttendanceLogs === 'function') fetchAttendanceLogs();
     }, 1000);
 });
+
+async function loadEmployeeQRCards() {
+    const grid = document.getElementById('qr-cards-grid');
+    if (!grid) return;
+
+    // Kunin ang listahan ng empleyado mula sa Supabase o local array kung meron
+    let employees = [];
+    const sb = typeof getSupabase === 'function' ? getSupabase() : (window.supabaseClient || null);
+
+    if (sb) {
+        try {
+            // Palitan ang 'profiles' o 'users' kung ano ang pangalan ng table ng mga empleyado sa Supabase mo
+            const { data, error } = await sb.from('users').select('*');
+            if (!error && data && data.length > 0) {
+                employees = data;
+            }
+        } catch (e) {
+            console.log("Error fetching users from Supabase, using fallback:", e);
+        }
+    }
+
+    // Fallback kung walang makuha sa database o para sa testing
+    if (employees.length === 0 && typeof systemUsers !== 'undefined') {
+        employees = systemUsers;
+    }
+
+    // Kung wala pa talagang nakarehistro, gumawa ng sample data para makita agad
+    if (employees.length === 0) {
+        employees = [
+            { id: 'TF-001', username: 'Ronel Tacocong', role: 'System Admin' },
+            { id: 'TF-002', username: 'Technician 1', role: 'Field Tech' }
+        ];
+    }
+
+    // Render ng mga QR cards
+    grid.innerHTML = employees.map(emp => {
+        const empId = emp.id || emp.employee_id || 'TF-EMP';
+        const empName = emp.username || emp.name || 'Employee';
+        const empRole = emp.role || emp.position || 'Staff';
         
+        // Gamitin ang open-source QR API para i-generate ang code base sa Employee ID
+        const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(empId)}`;
+
+        return `
+            <div class="bg-white border border-slate-200 rounded-xl p-4 flex flex-col items-center text-center shadow-sm space-y-3 relative print:border-slate-400 print:shadow-none">
+                <div class="absolute top-2 right-2 text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">${empId}</div>
+                <div class="w-12 h-12 rounded-full bg-blue-100 text-blue-600 font-bold flex items-center justify-center text-sm mt-2">
+                    ${empName.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                    <h4 class="text-xs font-bold text-slate-800">${empName}</h4>
+                    <p class="text-[10px] text-slate-500">${empRole}</p>
+                </div>
+                <div class="bg-white p-2 border border-slate-100 rounded-lg">
+                    <img src="${qrApiUrl}" alt="QR-${empId}" class="w-28 h-28 object-contain mx-auto">
+                </div>
+                <span class="text-[10px] font-mono text-slate-400 tracking-wider">${empId}</span>
+            </div>
+        `;
+    }).join('');
+}
+
+function printQRCards() {
+    window.print();
+}
+
+// I-load ang mga QR cards kapag binuksan ang tab o nag-load ang page
+document.addEventListener('DOMContentLoaded', () => {
+    loadEmployeeQRCards();
+});
+
   </script>
 </body>
 </html>
