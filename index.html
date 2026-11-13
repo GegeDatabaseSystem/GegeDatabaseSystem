@@ -2986,23 +2986,25 @@ function getDefaultUsers() {
         
 async function fetchInstallationsFromSupabase() {
     try {
-        const sb = getSupabase();
+        const sb = typeof getSupabase === 'function' ? getSupabase() : null;
         if (!sb) return;
 
+        // Tinanggal muna ang .order('created_at') para hindi mag-error kung walang created_at column
         const { data, error } = await sb
             .from('internet_installations')
-            .select('*')
-            .order('created_at', { ascending: false });
+            .select('*');
 
         if (error) {
-            console.error("Error fetching installations:", error.message);
+            console.error("❌ Error fetching installations:", error.message);
             return;
         }
 
-        if (data && data.length > 0) {
+        console.log("📦 RAW INSTALLATIONS GALING SA SUPABASE:", data);
+
+        if (data) {
             internetInstallations = data.map(item => ({
                 id: item.id,
-                date: item.date || item.created_at?.split('T')[0],
+                date: item.date || (item.created_at ? item.created_at.split('T')[0] : ''),
                 name: item.customer_name,
                 contact: item.contact || 'N/A',
                 address: item.address || 'N/A',
@@ -3010,16 +3012,22 @@ async function fetchInstallationsFromSupabase() {
                 note: item.note || '',
                 technician: item.technician || 'Unassigned',
                 status: item.status ? item.status.toUpperCase() : 'PENDING',
-                completedDate: item.completed_date || null
+                completedDate: item.completed_date || null,
+                timestamp: new Date(item.created_at || item.date || Date.now()).getTime()
             }));
 
+            // I-sort sa JS mismo (pinakabago muna)
+            internetInstallations.sort((a, b) => b.timestamp - a.timestamp);
+
             localStorage.setItem('tacsfiber_installations', JSON.stringify(internetInstallations));
+            
             if (typeof renderInternetInstallationView === 'function') {
                 renderInternetInstallationView();
             }
+            console.log("📥 Na-render ang installations:", internetInstallations.length);
         }
     } catch (err) {
-        console.error("Supabase installation fetch error:", err);
+        console.error("⚠️ Supabase installation fetch error:", err);
     }
 }
 
@@ -3461,69 +3469,74 @@ async function markComplaintAsResolved(complaintId) {
             document.getElementById('inst-cancel-btn').classList.add('hidden');
         }
 
-        function renderInternetInstallationView() {
-            const container = document.getElementById('installation-tasks-container');
-            const role = getActiveRole();
-            if(!container) return;
+        async function renderInternetInstallationView() {
+    // ⭐ Hilahin muna ang pinakabagong installation tasks mula sa Supabase kung online
+    if (typeof fetchInstallationsFromSupabase === 'function' && navigator.onLine) {
+        await fetchInstallationsFromSupabase();
+    }
 
-            const pendingList = internetInstallations.filter(i => i.status === 'PENDING');
-            const historyList = internetInstallations.filter(i => i.status === 'COMPLETED');
+    const container = document.getElementById('installation-tasks-container');
+    const role = getActiveRole();
+    if(!container) return;
 
-            const badgePending = document.getElementById('badge-inst-pending');
-            const badgeHistory = document.getElementById('badge-inst-history');
-            if(badgePending) badgePending.innerText = pendingList.length;
-            if(badgeHistory) badgeHistory.innerText = historyList.length;
+    const pendingList = (internetInstallations || []).filter(i => i.status === 'PENDING');
+    const historyList = (internetInstallations || []).filter(i => i.status === 'COMPLETED');
 
-            let filtered = currentInstallationSubTab === 'PENDING' ? pendingList : historyList;
+    const badgePending = document.getElementById('badge-inst-pending');
+    const badgeHistory = document.getElementById('badge-inst-history');
+    if(badgePending) badgePending.innerText = pendingList.length;
+    if(badgeHistory) badgeHistory.innerText = historyList.length;
 
-            if(filtered.length === 0) {
-                container.innerHTML = `<div class="p-6 text-center text-slate-400 text-xs border rounded-xl bg-slate-50">${currentInstallationSubTab === 'PENDING' ? 'Walang active installation tasks.' : 'Walang naitalang Installed History.'}</div>`;
-                return;
-            }
+    let filtered = currentInstallationSubTab === 'PENDING' ? pendingList : historyList;
 
-            container.innerHTML = filtered.map((item) => `
-                <div class="p-4 rounded-xl border ${item.status === 'COMPLETED' ? 'bg-emerald-50/50 border-emerald-200' : 'bg-white border-slate-200'} shadow-sm space-y-3">
-                    <div class="flex justify-between items-start">
-                        <div class="text-xs font-bold text-slate-700 flex items-center space-x-2">
-                            <span>ID: <strong class="font-mono text-blue-600">${item.id}</strong></span>
-                            <span>|</span>
-                            <span class="text-slate-500">Date: ${item.date}</span>
-                            ${item.status === 'COMPLETED' ? `<span>|</span><span class="text-emerald-700 font-bold"><i class="fa-solid fa-user-gear mr-1"></i>Installed by: ${item.technician || 'Technician'} (${item.completedDate || ''})</span>` : ''}
-                        </div>
-                        <div class="flex items-center space-x-2">
-                            <span class="px-2.5 py-0.5 rounded text-[10px] font-extrabold ${item.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'}">
-                                ${item.status}
-                            </span>
-                            ${(role === 'ADMIN' || role === 'ASSISTANT_ADMIN') ? `
-                                <button onclick="editInstallationTask('${item.id}')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 py-1 rounded text-xs font-bold cursor-pointer" title="Edit Details"><i class="fa-solid fa-pen-to-square"></i></button>
-                                <button onclick="deleteInstallationTask('${item.id}')" class="bg-rose-600 hover:bg-rose-700 text-white px-2 py-1 rounded text-xs font-bold cursor-pointer" title="Delete Task"><i class="fa-solid fa-trash"></i></button>
-                            ` : ''}
-                        </div>
+    if(filtered.length === 0) {
+        container.innerHTML = `<div class="p-6 text-center text-slate-400 text-xs border rounded-xl bg-slate-50">${currentInstallationSubTab === 'PENDING' ? 'Walang active installation tasks.' : 'Walang naitalang Installed History.'}</div>`;
+        return;
+    }
+
+    container.innerHTML = filtered.map((item) => `
+        <div class="p-4 rounded-xl border ${item.status === 'COMPLETED' ? 'bg-emerald-50/50 border-emerald-200' : 'bg-white border-slate-200'} shadow-sm space-y-3">
+            <div class="flex justify-between items-start">
+                <div class="text-xs font-bold text-slate-700 flex items-center space-x-2">
+                    <span>ID: <strong class="font-mono text-blue-600">${item.id}</strong></span>
+                    <span>|</span>
+                    <span class="text-slate-500">Date: ${item.date}</span>
+                    ${item.status === 'COMPLETED' ? `<span>|</span><span class="text-emerald-700 font-bold"><i class="fa-solid fa-user-gear mr-1"></i>Installed by: ${item.technician || 'Technician'} (${item.completedDate || ''})</span>` : ''}
+                </div>
+                <div class="flex items-center space-x-2">
+                    <span class="px-2.5 py-0.5 rounded text-[10px] font-extrabold ${item.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'}">
+                        ${item.status}
+                    </span>
+                    ${(role === 'ADMIN' || role === 'ASSISTANT_ADMIN') ? `
+                        <button onclick="editInstallationTask('${item.id}')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 py-1 rounded text-xs font-bold cursor-pointer" title="Edit Details"><i class="fa-solid fa-pen-to-square"></i></button>
+                        <button onclick="deleteInstallationTask('${item.id}')" class="bg-rose-600 hover:bg-rose-700 text-white px-2 py-1 rounded text-xs font-bold cursor-pointer" title="Delete Task"><i class="fa-solid fa-trash"></i></button>
+                    ` : ''}
+                </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                <div><strong>Customer Name:</strong> ${item.name}</div>
+                <div><strong>Contact Number:</strong> <span class="font-mono font-bold">${item.contact}</span></div>
+                <div><strong>Address:</strong> ${item.address}</div>
+                <div><strong>Monthly Plan:</strong> ₱${(item.monthlyPlan||600).toLocaleString()}</div>
+                <div class="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-700 mb-1">Note (Fi-fill up ng Technician):</label>
+                        <input type="text" value="${item.note || ''}" onchange="updateInstallationNote('${item.id}', this.value)" placeholder="Isulat ang detalye ng kabit dito..." class="w-full bg-white border border-slate-300 rounded px-2.5 py-1 text-xs">
                     </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                        <div><strong>Customer Name:</strong> ${item.name}</div>
-                        <div><strong>Contact Number:</strong> <span class="font-mono font-bold">${item.contact}</span></div>
-                        <div><strong>Address:</strong> ${item.address}</div>
-                        <div><strong>Monthly Plan:</strong> ₱${(item.monthlyPlan||600).toLocaleString()}</div>
-                        <div class="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-50 p-3 rounded-lg border border-slate-200">
-                            <div>
-                                <label class="block text-[11px] font-bold text-slate-700 mb-1">Note (Fi-fill up ng Technician):</label>
-                                <input type="text" value="${item.note || ''}" onchange="updateInstallationNote('${item.id}', this.value)" placeholder="Isulat ang detalye ng kabit dito..." class="w-full bg-white border border-slate-300 rounded px-2.5 py-1 text-xs">
-                            </div>
-                            <div>
-                                <label class="block text-[11px] font-bold text-slate-700 mb-1">Technician Name (Fi-fill up ng Technician):</label>
-                                <input type="text" value="${item.technician || ''}" onchange="updateInstallationTechnician('${item.id}', this.value)" placeholder="Pangalan ng Technician..." class="w-full bg-white border border-slate-300 rounded px-2.5 py-1 text-xs font-bold text-purple-700">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="flex justify-end pt-2 border-t space-x-2">
-                        <button onclick="toggleInstallationStatus('${item.id}')" class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition shadow cursor-pointer ${item.status === 'COMPLETED' ? 'bg-amber-100 text-amber-800 hover:bg-amber-200' : 'bg-emerald-600 text-white hover:bg-emerald-700'}">
-                            ${item.status === 'COMPLETED' ? 'Reopen / Mark as Pending' : 'Mark as Installed (Complete)'}
-                        </button>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-700 mb-1">Technician Name (Fi-fill up ng Technician):</label>
+                        <input type="text" value="${item.technician || ''}" onchange="updateInstallationTechnician('${item.id}', this.value)" placeholder="Pangalan ng Technician..." class="w-full bg-white border border-slate-300 rounded px-2.5 py-1 text-xs font-bold text-purple-700">
                     </div>
                 </div>
-            `).join('');
-        }
+            </div>
+            <div class="flex justify-end pt-2 border-t space-x-2">
+                <button onclick="toggleInstallationStatus('${item.id}')" class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition shadow cursor-pointer ${item.status === 'COMPLETED' ? 'bg-amber-100 text-amber-800 hover:bg-amber-200' : 'bg-emerald-600 text-white hover:bg-emerald-700'}">
+                    ${item.status === 'COMPLETED' ? 'Reopen / Mark as Pending' : 'Mark as Installed (Complete)'}
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
 
         function exportBulkInstallationNotepad() {
             const today = new Date().toISOString().split('T')[0];
