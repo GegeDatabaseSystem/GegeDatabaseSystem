@@ -8086,26 +8086,30 @@ async function onScanSuccess(decodedText, decodedResult) {
     }
 
     try {
-        let empData = null;
-
-        // 1. Subukang hanapin sa company_employees kung ID ba ito (Number o Text)
-        const { data: byId } = await sb
+        // 1. Kunin ang LAHAT ng empleyado sa company_employees para masigurong mahanap natin sa JS
+        const { data: allEmployees, error: empListError } = await sb
             .from('company_employees')
-            .select('*')
-            .eq('id', isNaN(scannedVal) ? scannedVal : Number(scannedVal))
-            .maybeSingle();
+            .select('*');
 
-        if (byId) {
-            empData = byId;
-        } else {
-            // 2. Kung hindi nahanap sa ID, subukang hanapin kung MISMONG PANGALAN ang na-scan (Case-insensitive)
-            const { data: byName } = await sb
-                .from('company_employees')
-                .select('*')
-                .ilike('name', `%${scannedVal}%`)
-                .maybeSingle();
-            empData = byName;
+        if (empListError || !allEmployees) {
+            console.error("Error fetching company_employees:", empListError);
+            alert(`❌ Hindi ma-access ang listahan ng mga empleyado sa database.`);
+            closeScannerModal();
+            return;
         }
+
+        // 2. Hanapin ang tugmang empleyado (ID man o Pangalan)
+        const empData = allEmployees.find(emp => {
+            const empIdStr = String(emp.id || '').trim();
+            const empCustomIdStr = String(emp.employee_id || '').trim();
+            const empNameStr = String(emp.name || emp.employee_name || '').trim().toLowerCase();
+            const searchStr = scannedVal.toLowerCase();
+
+            return empIdStr === scannedVal || 
+                   empCustomIdStr === scannedVal || 
+                   empNameStr.includes(searchStr) ||
+                   searchStr.includes(empNameStr);
+        });
 
         if (!empData) {
             alert(`⚠️ Ang na-scan na "${scannedVal}" ay walang katumbas na empleyado sa 'company_employees' table.`);
@@ -8114,7 +8118,7 @@ async function onScanSuccess(decodedText, decodedResult) {
         }
 
         const empId = empData.id;
-        const empName = empData.name; // Ang totoong pangalan mula sa database (hal. Ronel Tacocong, Andres Capul, etc.)[cite: 8]
+        const empName = empData.name || empData.employee_name;
 
         // 3. Suriin kung mayroon nang attendance record ang empleyado ngayong araw
         const { data: existingRecord, error: fetchError } = await sb
@@ -8135,7 +8139,7 @@ async function onScanSuccess(decodedText, decodedResult) {
             // --- UNANG SCAN: TIME-IN ---
             const { error: insertError } = await sb.from('employee_attendance').insert([{
                 employee_id: String(empId),
-                name: empName, // Direktor na isasave ang tamang pangalan
+                name: empName,
                 date: today,
                 time_in: nowTime,
                 time_out: null,
@@ -8195,7 +8199,6 @@ async function onScanSuccess(decodedText, decodedResult) {
     closeScannerModal();
 }
 
-// Helper function para sa Overtime format
 function formatHoursAndMinutes(totalMinutes) {
     const hrs = Math.floor(totalMinutes / 60);
     const mins = totalMinutes % 60;
