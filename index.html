@@ -5814,26 +5814,36 @@ function renderAlertTableRows(tbodyId, list, category) {
 
     try {
         const batchId = 'BATCH-' + Date.now();
-        const logIds = unsubmittedLogs.map(p => p.id);
         const sb = getSupabase();
         
         if (sb) {
-            // ⭐ Subukan munang i-update gamit ang 'id' column
-            let { error } = await sb.from('payment_logs').update({ turned_over: true, batch_id: batchId }).in('id', logIds);
-            
-            // Kung sakaling 'reference_no' ang column sa database, i-try din natin
-            if (error) {
-                await sb.from('payment_logs').update({ turned_over: true, batch_id: batchId }).in('reference_no', logIds);
+            // ⭐ I-update isa-isa o sabay-sabay sa Supabase gamit ang tamang ID match
+            for (let log of unsubmittedLogs) {
+                // Subukan munang hanapin gamit ang 'reference_no' o 'id'
+                let { error } = await sb.from('payment_logs')
+                    .update({ turned_over: true, batch_id: batchId })
+                    .eq('id', log.id);
+
+                if (error) {
+                    // Kung nag-error, subukan naman ang 'reference_no'
+                    await sb.from('payment_logs')
+                        .update({ turned_over: true, batch_id: batchId })
+                        .eq('reference_no', log.id);
+                }
             }
         }
 
+        const logIds = unsubmittedLogs.map(p => p.id);
         paymentLogs.forEach(p => {
             if (logIds.includes(p.id)) {
                 p.turnedOver = true;
                 p.batchId = batchId;
             }
         });
+        
+        // I-save agad sa localStorage para hindi mawala kapag nag-refresh
         savePaymentLogsLocal();
+        localStorage.setItem('tacsfiber_cached_logs', JSON.stringify(paymentLogs));
 
         let savedTurnovers = JSON.parse(localStorage.getItem('tacsfiber_turned_over_ids') || '[]');
         localStorage.setItem('tacsfiber_turned_over_ids', JSON.stringify([...new Set([...savedTurnovers, ...logIds])]));
@@ -5842,6 +5852,7 @@ function renderAlertTableRows(tbodyId, list, category) {
         renderRemittanceTable();
         renderRemittanceHistoryTable();
     } catch (err) {
+        console.error("Turnover error details:", err);
         alert("❌ Error sa turnover: " + err.message);
     }
 }
