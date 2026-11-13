@@ -8071,9 +8071,9 @@ async function onScanSuccess(decodedText, decodedResult) {
     }
 
     const msg = document.getElementById('scan-result-msg');
-    if (msg) msg.innerHTML = `<span class="text-blue-600 font-bold">Naka-scan na! Sinusuri ang ID/Pangalan: ${decodedText}...</span>`;
+    if (msg) msg.innerHTML = `<span class="text-blue-600 font-bold">Naka-scan na! Sinusuri ang ID/Badge: ${decodedText}...</span>`;
 
-    const scannedVal = decodedText.trim();
+    const scannedInput = decodedText.trim();
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
     const nowTime = new Date().toTimeString().split(' ')[0]; // HH:MM:SS
 
@@ -8086,45 +8086,47 @@ async function onScanSuccess(decodedText, decodedResult) {
     }
 
     try {
-        // 1. Kunin ang LAHAT ng empleyado sa company_employees para masigurong mahanap natin sa JS
+        // 1. Kunin ang LAHAT ng empleyado mula sa company_employees naka-order by ID
         const { data: allEmployees, error: empListError } = await sb
             .from('company_employees')
-            .select('*');
+            .select('*')
+            .order('id', { ascending: true });
 
-        if (empListError || !allEmployees) {
+        if (empListError || !allEmployees || allEmployees.length === 0) {
             console.error("Error fetching company_employees:", empListError);
-            alert(`❌ Hindi ma-access ang listahan ng mga empleyado sa database.`);
+            alert(`❌ Walang makitang empleyado sa 'company_employees' table.`);
             closeScannerModal();
             return;
         }
 
-        // 2. Hanapin ang tugmang empleyado (ID man o Pangalan)
-        const empData = allEmployees.find(emp => {
-            const empIdStr = String(emp.id || '').trim();
-            const empCustomIdStr = String(emp.employee_id || '').trim();
-            const empNameStr = String(emp.name || emp.employee_name || '').trim().toLowerCase();
-            const searchStr = scannedVal.toLowerCase();
+        // 2. SMART MATCHER: Suriin kung tugma sa Database ID, Badge Sequence Number (1, 2, 3...), o Pangalan
+        let empData = null;
 
-            return empIdStr === scannedVal || 
-                   empCustomIdStr === scannedVal || 
-                   empNameStr.includes(searchStr) ||
-                   searchStr.includes(empNameStr);
+        allEmployees.forEach((emp, index) => {
+            const dbIdStr = String(emp.id).trim(); // Halimbawa: "10", "11"...
+            const badgeSeqStr = String(index + 1); // Halimbawa: "1", "2", "3"... (Badge order)
+            const empName = (emp.name || '').trim().toLowerCase();
+            const searchVal = scannedInput.toLowerCase();
+
+            if (dbIdStr === scannedInput || badgeSeqStr === scannedInput || empName.includes(searchVal) || searchVal.includes(empName)) {
+                empData = emp;
+            }
         });
 
         if (!empData) {
-            alert(`⚠️ Ang na-scan na "${scannedVal}" ay walang katumbas na empleyado sa 'company_employees' table.`);
+            alert(`⚠️ Ang na-scan na "${scannedInput}" ay walang katumbas na empleyado.`);
             closeScannerModal();
             return;
         }
 
-        const empId = empData.id;
-        const empName = empData.name || empData.employee_name;
+        const empId = String(empData.id); // Ang totoong ID sa database (10, 11, etc.)
+        const empName = empData.name; // Ang totoong pangalan (Ronel Tacocong, Merson Morante, etc.)
 
         // 3. Suriin kung mayroon nang attendance record ang empleyado ngayong araw
         const { data: existingRecord, error: fetchError } = await sb
             .from('employee_attendance')
             .select('*')
-            .eq('employee_id', String(empId))
+            .eq('employee_id', empId)
             .eq('date', today)
             .maybeSingle();
 
@@ -8138,8 +8140,8 @@ async function onScanSuccess(decodedText, decodedResult) {
         if (!existingRecord) {
             // --- UNANG SCAN: TIME-IN ---
             const { error: insertError } = await sb.from('employee_attendance').insert([{
-                employee_id: String(empId),
-                name: empName,
+                employee_id: empId,
+                name: empName, // Direktor na ise-save ang tamang pangalan
                 date: today,
                 time_in: nowTime,
                 time_out: null,
@@ -8162,10 +8164,12 @@ async function onScanSuccess(decodedText, decodedResult) {
             const diffMs = timeOutObj - timeInObj;
             const totalMinutesWorked = Math.floor(diffMs / 60000);
             
-            const regularMinutes = 480; // 8 hours
+            const regularMinutes = 480; // 8 hours (480 mins)
             let overtimeMinutes = 0;
 
             const excessMinutes = totalMinutesWorked - regularMinutes;
+            
+            // Rule: 30 minutes and up threshold para sa Overtime
             if (excessMinutes >= 30) {
                 overtimeMinutes = excessMinutes;
             }
@@ -8199,6 +8203,7 @@ async function onScanSuccess(decodedText, decodedResult) {
     closeScannerModal();
 }
 
+// Helper function para sa Overtime format
 function formatHoursAndMinutes(totalMinutes) {
     const hrs = Math.floor(totalMinutes / 60);
     const mins = totalMinutes % 60;
