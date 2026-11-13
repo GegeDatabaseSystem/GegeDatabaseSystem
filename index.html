@@ -5792,7 +5792,7 @@ function renderAlertTableRows(tbodyId, list, category) {
             `).join('');
         }
 
-  async function turnoverRemittanceToAdmin() {
+ async function turnoverRemittanceToAdmin() {
     const activeCollector = getActiveUser();
     const currentRole = getActiveRole();
     const today = new Date().toISOString().split('T')[0];
@@ -5818,10 +5818,14 @@ function renderAlertTableRows(tbodyId, list, category) {
         
         if (sb) {
             for (let log of unsubmittedLogs) {
-                // Subukan nating i-update sa Supabase nang hindi nagbabato ng error kung sakaling sakto ang schema
-                await sb.from('payments')
+                // ⭐ I-update ang turned_over at batch_id sa 'payments' table gamit ang reference_no
+                let { error } = await sb.from('payments')
                     .update({ turned_over: true, batch_id: batchId })
                     .eq('reference_no', log.id);
+
+                if (error) {
+                    console.error("Supabase payment turnover update error:", error);
+                }
             }
         }
 
@@ -5833,14 +5837,13 @@ function renderAlertTableRows(tbodyId, list, category) {
             }
         });
         
-        // I-save nang ligtas sa Local Storage para hindi mawala pag-refresh
         savePaymentLogsLocal();
         localStorage.setItem('tacsfiber_cached_logs', JSON.stringify(paymentLogs));
 
         let savedTurnovers = JSON.parse(localStorage.getItem('tacsfiber_turned_over_ids') || '[]');
         localStorage.setItem('tacsfiber_turned_over_ids', JSON.stringify([...new Set([...savedTurnovers, ...logIds])]));
 
-        alert("🟢 Matagumpay na na-turnover ang koleksyon!");
+        alert("🟢 Matagumpay na na-turnover ang koleksyon at na-save sa Supabase!");
         renderRemittanceTable();
         renderRemittanceHistoryTable();
     } catch (err) {
