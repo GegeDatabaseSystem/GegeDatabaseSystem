@@ -5792,7 +5792,7 @@ function renderAlertTableRows(tbodyId, list, category) {
             `).join('');
         }
 
-    async function turnoverRemittanceToAdmin() {
+   async function turnoverRemittanceToAdmin() {
     const activeCollector = getActiveUser();
     const currentRole = getActiveRole();
     const today = new Date().toISOString().split('T')[0];
@@ -5818,22 +5818,23 @@ function renderAlertTableRows(tbodyId, list, category) {
         
         if (sb) {
             for (let log of unsubmittedLogs) {
-                // ⭐ 1. I-update ang mismong 'payments' table kung saan humihila ang app!
-                let { error: errPayments } = await sb.from('payments')
+                console.log("I-update ang log object na ito:", log);
+                
+                // Subukan muna gamit ang 'id'
+                let { error } = await sb.from('payments')
                     .update({ turned_over: true, batch_id: batchId })
-                    .eq('reference_no', log.id);
+                    .eq('id', log.id);
 
-                // Kung sakaling 'id' ang column sa 'payments' table
-                if (errPayments) {
-                    await sb.from('payments')
+                // Kung nag-error, subukan ang 'reference_no' o 'payment_id'
+                if (error) {
+                    let res2 = await sb.from('payments')
                         .update({ turned_over: true, batch_id: batchId })
-                        .eq('id', log.id);
+                        .eq('reference_no', log.id);
+                        
+                    if (res2.error) {
+                        console.error("Supabase payments update failed completely:", res2.error);
+                    }
                 }
-
-                // ⭐ 2. I-update din ang 'payment_logs' table para synchronized pareho
-                await sb.from('payment_logs')
-                    .update({ turned_over: true, batch_id: batchId })
-                    .eq('reference_no', log.id);
             }
         }
 
@@ -5851,7 +5852,7 @@ function renderAlertTableRows(tbodyId, list, category) {
         let savedTurnovers = JSON.parse(localStorage.getItem('tacsfiber_turned_over_ids') || '[]');
         localStorage.setItem('tacsfiber_turned_over_ids', JSON.stringify([...new Set([...savedTurnovers, ...logIds])]));
 
-        alert("🟢 Matagumpay na na-turnover ang koleksyon at na-save sa Supabase!");
+        alert("🟢 Matagumpay na na-turnover ang koleksyon!");
         renderRemittanceTable();
         renderRemittanceHistoryTable();
     } catch (err) {
