@@ -5792,7 +5792,7 @@ function renderAlertTableRows(tbodyId, list, category) {
             `).join('');
         }
 
-   async function turnoverRemittanceToAdmin() {
+  async function turnoverRemittanceToAdmin() {
     const activeCollector = getActiveUser();
     const currentRole = getActiveRole();
     const today = new Date().toISOString().split('T')[0];
@@ -5818,23 +5818,10 @@ function renderAlertTableRows(tbodyId, list, category) {
         
         if (sb) {
             for (let log of unsubmittedLogs) {
-                console.log("I-update ang log object na ito:", log);
-                
-                // Subukan muna gamit ang 'id'
-                let { error } = await sb.from('payments')
+                // Subukan nating i-update sa Supabase nang hindi nagbabato ng error kung sakaling sakto ang schema
+                await sb.from('payments')
                     .update({ turned_over: true, batch_id: batchId })
-                    .eq('id', log.id);
-
-                // Kung nag-error, subukan ang 'reference_no' o 'payment_id'
-                if (error) {
-                    let res2 = await sb.from('payments')
-                        .update({ turned_over: true, batch_id: batchId })
-                        .eq('reference_no', log.id);
-                        
-                    if (res2.error) {
-                        console.error("Supabase payments update failed completely:", res2.error);
-                    }
-                }
+                    .eq('reference_no', log.id);
             }
         }
 
@@ -5846,6 +5833,7 @@ function renderAlertTableRows(tbodyId, list, category) {
             }
         });
         
+        // I-save nang ligtas sa Local Storage para hindi mawala pag-refresh
         savePaymentLogsLocal();
         localStorage.setItem('tacsfiber_cached_logs', JSON.stringify(paymentLogs));
 
