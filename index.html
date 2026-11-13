@@ -8282,58 +8282,54 @@ async function loadEmployeeQRCards() {
     const grid = document.getElementById('qr-cards-grid');
     if (!grid) return;
 
-    // Kunin ang listahan ng empleyado mula sa Supabase o local array kung meron
+    grid.innerHTML = `<div class="text-center py-4 text-slate-400 col-span-full">Kumukuha ng mga empleyado mula sa Supabase...</div>`;
+
     let employees = [];
     const sb = typeof getSupabase === 'function' ? getSupabase() : (window.supabaseClient || null);
 
     if (sb) {
         try {
-            // Palitan ang 'profiles' o 'users' kung ano ang pangalan ng table ng mga empleyado sa Supabase mo
-            const { data, error } = await sb.from('users').select('*');
+            // Direktang humuhugot sa company_employees table na may saktong ID at pangalan
+            const { data, error } = await sb.from('company_employees').select('*').order('id', { ascending: true });
             if (!error && data && data.length > 0) {
                 employees = data;
             }
         } catch (e) {
-            console.log("Error fetching users from Supabase, using fallback:", e);
+            console.log("Error fetching employees from Supabase:", e);
         }
     }
 
-    // Fallback kung walang makuha sa database o para sa testing
-    if (employees.length === 0 && typeof systemUsers !== 'undefined') {
-        employees = systemUsers;
-    }
-
-    // Kung wala pa talagang nakarehistro, gumawa ng sample data para makita agad
+    // Fallback kung sakaling walang makuha sa database
     if (employees.length === 0) {
         employees = [
-            { id: 'TF-001', username: 'Ronel Tacocong', role: 'System Admin' },
-            { id: 'TF-002', username: 'Technician 1', role: 'Field Tech' }
+            { id: 10, name: 'Ronel Tacocong', role: 'STAFF' },
+            { id: 11, name: 'Merson Morante', role: 'TECHNICIAN' }
         ];
     }
 
-    // Render ng mga QR cards
+    // Render ng mga QR cards base sa data ng company_employees
     grid.innerHTML = employees.map(emp => {
-        const empId = emp.id || emp.employee_id || 'TF-EMP';
-        const empName = emp.username || emp.name || 'Employee';
-        const empRole = emp.role || emp.position || 'Staff';
+        const empId = emp.id; // Halimbawa: 10, 11, 12...
+        const empName = emp.name || 'Employee'; // Halimbawa: Ronel Tacocong, Merson Morante...
+        const empRole = emp.role || 'STAFF'; // Halimbawa: TECHNICIAN, COLLECTOR...
         
-        // Gamitin ang open-source QR API para i-generate ang code base sa Employee ID
+        // Ang QR code ay naglalaman ng eksaktong ID para sakto sa attendance scanner
         const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(empId)}`;
 
         return `
             <div class="bg-white border border-slate-200 rounded-xl p-4 flex flex-col items-center text-center shadow-sm space-y-3 relative print:border-slate-400 print:shadow-none">
-                <div class="absolute top-2 right-2 text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">${empId}</div>
+                <div class="absolute top-2 right-2 text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">ID: ${empId}</div>
                 <div class="w-12 h-12 rounded-full bg-blue-100 text-blue-600 font-bold flex items-center justify-center text-sm mt-2">
                     ${empName.charAt(0).toUpperCase()}
                 </div>
                 <div>
                     <h4 class="text-xs font-bold text-slate-800">${empName}</h4>
-                    <p class="text-[10px] text-slate-500">${empRole}</p>
+                    <p class="text-[10px] text-slate-500 uppercase">${empRole}</p>
                 </div>
                 <div class="bg-white p-2 border border-slate-100 rounded-lg">
                     <img src="${qrApiUrl}" alt="QR-${empId}" class="w-28 h-28 object-contain mx-auto">
                 </div>
-                <span class="text-[10px] font-mono text-slate-400 tracking-wider">${empId}</span>
+                <span class="text-[10px] font-mono text-slate-400 tracking-wider">ID: ${empId}</span>
             </div>
         `;
     }).join('');
@@ -8342,6 +8338,11 @@ async function loadEmployeeQRCards() {
 function printQRCards() {
     window.print();
 }
+
+// I-load ang mga QR cards kapag binuksan ang tab o nag-load ang page
+document.addEventListener('DOMContentLoaded', () => {
+    loadEmployeeQRCards();
+});
 
 // I-load ang mga QR cards kapag binuksan ang tab o nag-load ang page
 document.addEventListener('DOMContentLoaded', () => {
