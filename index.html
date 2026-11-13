@@ -5792,7 +5792,7 @@ function renderAlertTableRows(tbodyId, list, category) {
             `).join('');
         }
 
-     async function turnoverRemittanceToAdmin() {
+    async function turnoverRemittanceToAdmin() {
     const activeCollector = getActiveUser();
     const currentRole = getActiveRole();
     const today = new Date().toISOString().split('T')[0];
@@ -5817,15 +5817,23 @@ function renderAlertTableRows(tbodyId, list, category) {
         const sb = getSupabase();
         
         if (sb) {
-            // ⭐ Gamitin ang tamang column na 'reference_no' base sa Supabase error log mo
             for (let log of unsubmittedLogs) {
-                let { error } = await sb.from('payment_logs')
+                // ⭐ 1. I-update ang mismong 'payments' table kung saan humihila ang app!
+                let { error: errPayments } = await sb.from('payments')
                     .update({ turned_over: true, batch_id: batchId })
                     .eq('reference_no', log.id);
 
-                if (error) {
-                    console.error("Supabase Update Error for ID:", log.id, error);
+                // Kung sakaling 'id' ang column sa 'payments' table
+                if (errPayments) {
+                    await sb.from('payments')
+                        .update({ turned_over: true, batch_id: batchId })
+                        .eq('id', log.id);
                 }
+
+                // ⭐ 2. I-update din ang 'payment_logs' table para synchronized pareho
+                await sb.from('payment_logs')
+                    .update({ turned_over: true, batch_id: batchId })
+                    .eq('reference_no', log.id);
             }
         }
 
