@@ -2712,8 +2712,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const sb = getSupabase();
         if(!sb) throw new Error("Supabase Client is not initialized.");
 
-        // ⭐ AUTOMATIC BILLING CYCLE TRIGGER: 
-        // Patakbuhin muna ang auto billing procedure sa Supabase para sa mga nag-due ngayong araw
         try {
             await sb.rpc('process_automatic_daily_billing');
         } catch(e) {
@@ -2742,7 +2740,6 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
 
-        // ⭐ I-save agad ang raw subscribers data sa localStorage para magamit offline
         if (allData.length > 0) {
             localStorage.setItem('tacsfiber_cached_subscribers', JSON.stringify(allData));
         }
@@ -2766,7 +2763,7 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             let { data: plansData } = await sb.from('plans').select('*').order('id', { ascending: true });
             if (plansData) {
-                localStorage.setItem('tacsfiber_cached_plans', JSON.stringify(plansData)); // Cache plans din
+                localStorage.setItem('tacsfiber_cached_plans', JSON.stringify(plansData));
                 monthlyPlans = plansData.map(p => ({
                     id: p.id,
                     name: p.plan_name || 'Plan',
@@ -2784,7 +2781,7 @@ document.addEventListener("DOMContentLoaded", () => {
             let savedTurnovers = JSON.parse(localStorage.getItem('tacsfiber_turned_over_ids') || '[]');
 
             if (combinedLogs) {
-                localStorage.setItem('tacsfiber_cached_logs', JSON.stringify(combinedLogs)); // Cache logs
+                localStorage.setItem('tacsfiber_cached_logs', JSON.stringify(combinedLogs));
                 combinedLogs.forEach(p => {
                     const subId = p.account_no || p.subscriber_id || 'N/A';
                     const matchedSub = subscribers.find(s => s.id === subId);
@@ -2829,13 +2826,17 @@ document.addEventListener("DOMContentLoaded", () => {
         filtersInitialized = false;
         renderOutstandingBalanceOverview();
 
+        // ⭐ IDINAGDAG: I-render agad ang Customers List pagka-fetch galing cloud
+        if (typeof renderCustomersListTable === 'function') {
+            renderCustomersListTable();
+        }
+
         if (isManual) {
             alert(`🟢 Sync Successful!\nNa-update ang data mula sa Supabase Cloud.`);
         }
     } catch(err) {
         console.warn("Supabase fetch failed (Maaaring offline ka). Nagloload mula sa Local Cache...", err);
         
-        // ⭐ OFFLINE FALLBACK: Basahin mula sa localStorage kung offline o pumalya ang fetch
         const cachedSubscribers = localStorage.getItem('tacsfiber_cached_subscribers');
         if (cachedSubscribers) {
             const allData = JSON.parse(cachedSubscribers);
@@ -2855,7 +2856,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 dateDisconnected: s.date_disconnected || null
             }));
 
-            // I-load din ang cached plans kung meron
             const cachedPlans = localStorage.getItem('tacsfiber_cached_plans');
             if (cachedPlans) {
                 monthlyPlans = JSON.parse(cachedPlans).map(p => ({
@@ -2869,6 +2869,11 @@ document.addEventListener("DOMContentLoaded", () => {
             isDataLoaded = true;
             filtersInitialized = false;
             renderOutstandingBalanceOverview();
+
+            // ⭐ IDINAGDAG: I-render din ang Customers List mula sa offline cache
+            if (typeof renderCustomersListTable === 'function') {
+                renderCustomersListTable();
+            }
 
             if (isManual) {
                 alert("🟡 Offline Mode: Nakuha ang namelist mula sa iyong Local Storage cache.");
