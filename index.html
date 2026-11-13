@@ -5846,9 +5846,14 @@ function renderAlertTableRows(tbodyId, list, category) {
     }
 }
 
-        function renderRemittanceHistoryTable() {
+        async function renderRemittanceHistoryTable() {
     const tbody = document.getElementById('remittance-history-tbody');
     if (!tbody) return;
+
+    // ⭐ Siguraduhing hihilahin muna ang pinakabagong logs mula sa Supabase kung online
+    if ((!paymentLogs || paymentLogs.length === 0) && typeof fetchSubscribersFromSupabase === 'function' && navigator.onLine) {
+        await fetchSubscribersFromSupabase();
+    }
 
     const dateFilter = document.getElementById('history-date-filter') ? document.getElementById('history-date-filter').value : '';
     const collectorFilter = document.getElementById('history-collector-select') ? document.getElementById('history-collector-select').value : 'ALL';
