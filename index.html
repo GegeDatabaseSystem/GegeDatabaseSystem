@@ -8071,102 +8071,125 @@ async function onScanSuccess(decodedText, decodedResult) {
     }
 
     const msg = document.getElementById('scan-result-msg');
-    if (msg) msg.innerHTML = `<span class="text-blue-600 font-bold">Naka-scan na! Sinusuri ang ID: ${decodedText}...</span>`;
+    if (msg) msg.innerHTML = `<span class="text-blue-600 font-bold">Naka-scan na! Sinusuri ang ID/Pangalan: ${decodedText}...</span>`;
 
-    // Kunin ang pangalan ng empleyado kung available sa memory/users list
-    const employee = (typeof systemUsers !== 'undefined' ? systemUsers.find(u => u.id === decodedText || u.username === decodedText) : null) 
-                     || { id: decodedText, name: "Employee " + decodedText };
-
-    const empId = decodedText;
-    const empName = employee.name || employee.username || ("Employee " + decodedText);
+    const scannedVal = decodedText.trim();
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
     const nowTime = new Date().toTimeString().split(' ')[0]; // HH:MM:SS
 
     const sb = typeof getSupabase === 'function' ? getSupabase() : (window.supabaseClient || null);
 
-    if (sb) {
-        try {
-            // Suriin kung mayroon nang record ang empleyado ngayong araw sa employee_attendance table
-            const { data: existingRecord, error: fetchError } = await sb
-                .from('employee_attendance')
+    if (!sb) {
+        alert('Walang Supabase client na nakita.');
+        closeScannerModal();
+        return;
+    }
+
+    try {
+        let empData = null;
+
+        // 1. Subukang hanapin sa company_employees kung ID ba ito (Number o Text)
+        const { data: byId } = await sb
+            .from('company_employees')
+            .select('*')
+            .eq('id', isNaN(scannedVal) ? scannedVal : Number(scannedVal))
+            .maybeSingle();
+
+        if (byId) {
+            empData = byId;
+        } else {
+            // 2. Kung hindi nahanap sa ID, subukang hanapin kung MISMONG PANGALAN ang na-scan (Case-insensitive)
+            const { data: byName } = await sb
+                .from('company_employees')
                 .select('*')
-                .eq('employee_id', empId)
-                .eq('date', today)
+                .ilike('name', `%${scannedVal}%`)
                 .maybeSingle();
-
-            if (fetchError) {
-                console.error("Error fetching attendance:", fetchError);
-                alert(`❌ May error sa pagkuha ng attendance record.`);
-                closeScannerModal();
-                return;
-            }
-
-            if (!existingRecord) {
-                // --- UNANG SCAN: TIME-IN ---
-                const { error: insertError } = await sb.from('employee_attendance').insert([{
-                    employee_id: empId,
-                    name: empName,
-                    date: today,
-                    time_in: nowTime,
-                    time_out: null,
-                    overtime_hours: '-'
-                }]);
-
-                if (insertError) {
-                    console.error("Error saving Time-In:", insertError);
-                    alert(`❌ Nabigo sa pag-save ng Time-In: ${insertError.message}`);
-                } else {
-                    alert(`✅ TIME-IN Matagumpay para kay ${empName} (${nowTime})!`);
-                    if (typeof loadAttendanceTable === 'function') loadAttendanceTable();
-                }
-
-            } else if (!existingRecord.time_out) {
-                // --- PANGALAWANG SCAN: TIME-OUT AT OVERTIME COMPUTATION ---
-                const timeInObj = new Date(`${today}T${existingRecord.time_in}`);
-                const timeOutObj = new Date(`${today}T${nowTime}`);
-                
-                const diffMs = timeOutObj - timeInObj;
-                const totalMinutesWorked = Math.floor(diffMs / 60000);
-                
-                // Regular duty hours = 8 hours (480 minutes)
-                const regularMinutes = 480; 
-                let overtimeMinutes = 0;
-
-                const excessMinutes = totalMinutesWorked - regularMinutes;
-                
-                // Rule: Kung nag-exceed ng 30 minutes and up, i-konsiderang Overtime
-                if (excessMinutes >= 30) {
-                    overtimeMinutes = excessMinutes;
-                }
-
-                const otHoursText = overtimeMinutes > 0 ? formatHoursAndMinutes(overtimeMinutes) : '-';
-
-                const { error: updateError } = await sb.from('employee_attendance')
-                    .update({
-                        time_out: nowTime,
-                        overtime_hours: otHoursText
-                    })
-                    .eq('id', existingRecord.id);
-
-                if (updateError) {
-                    console.error("Error saving Time-Out:", updateError);
-                    alert(`❌ Nabigo sa pag-save ng Time-Out: ${updateError.message}`);
-                } else {
-                    alert(`✅ TIME-OUT Matagumpay para kay ${empName}!\nOras ng Uwi: ${nowTime}\nOvertime: ${otHoursText}`);
-                    if (typeof loadAttendanceTable === 'function') loadAttendanceTable();
-                }
-
-            } else {
-                // --- KUMPLETO NA ANG SCANS NGAYONG ARAW ---
-                alert(`⚠️ Ang empleyadong si ${empName} ay nakapag-Time-In at Time-Out na ngayong araw.`);
-            }
-
-        } catch (err) {
-            console.error("Attendance exception:", err);
-            alert("❌ May error sa pag-connect sa database.");
+            empData = byName;
         }
-    } else {
-        alert(`✅ Naka-scan ang ID ${empId}, ngunit walang Supabase client na nakita.`);
+
+        if (!empData) {
+            alert(`⚠️ Ang na-scan na "${scannedVal}" ay walang katumbas na empleyado sa 'company_employees' table.`);
+            closeScannerModal();
+            return;
+        }
+
+        const empId = empData.id;
+        const empName = empData.name; // Ang totoong pangalan mula sa database (hal. Ronel Tacocong, Andres Capul, etc.)[cite: 8]
+
+        // 3. Suriin kung mayroon nang attendance record ang empleyado ngayong araw
+        const { data: existingRecord, error: fetchError } = await sb
+            .from('employee_attendance')
+            .select('*')
+            .eq('employee_id', String(empId))
+            .eq('date', today)
+            .maybeSingle();
+
+        if (fetchError) {
+            console.error("Error fetching attendance:", fetchError);
+            alert(`❌ May error sa pagkuha ng attendance record.`);
+            closeScannerModal();
+            return;
+        }
+
+        if (!existingRecord) {
+            // --- UNANG SCAN: TIME-IN ---
+            const { error: insertError } = await sb.from('employee_attendance').insert([{
+                employee_id: String(empId),
+                name: empName, // Direktor na isasave ang tamang pangalan
+                date: today,
+                time_in: nowTime,
+                time_out: null,
+                overtime_hours: '-'
+            }]);
+
+            if (insertError) {
+                console.error("Error saving Time-In:", insertError);
+                alert(`❌ Nabigo sa pag-save ng Time-In: ${insertError.message}`);
+            } else {
+                alert(`✅ TIME-IN Matagumpay para kay ${empName} (${nowTime})!`);
+                if (typeof loadAttendanceTable === 'function') loadAttendanceTable();
+            }
+
+        } else if (!existingRecord.time_out) {
+            // --- PANGALAWANG SCAN: TIME-OUT AT OVERTIME COMPUTATION ---
+            const timeInObj = new Date(`${today}T${existingRecord.time_in}`);
+            const timeOutObj = new Date(`${today}T${nowTime}`);
+            
+            const diffMs = timeOutObj - timeInObj;
+            const totalMinutesWorked = Math.floor(diffMs / 60000);
+            
+            const regularMinutes = 480; // 8 hours
+            let overtimeMinutes = 0;
+
+            const excessMinutes = totalMinutesWorked - regularMinutes;
+            if (excessMinutes >= 30) {
+                overtimeMinutes = excessMinutes;
+            }
+
+            const otHoursText = overtimeMinutes > 0 ? formatHoursAndMinutes(overtimeMinutes) : '-';
+
+            const { error: updateError } = await sb.from('employee_attendance')
+                .update({
+                    time_out: nowTime,
+                    overtime_hours: otHoursText
+                })
+                .eq('id', existingRecord.id);
+
+            if (updateError) {
+                console.error("Error saving Time-Out:", updateError);
+                alert(`❌ Nabigo sa pag-save ng Time-Out: ${updateError.message}`);
+            } else {
+                alert(`✅ TIME-OUT Matagumpay para kay ${empName}!\nOras ng Uwi: ${nowTime}\nOvertime: ${otHoursText}`);
+                if (typeof loadAttendanceTable === 'function') loadAttendanceTable();
+            }
+
+        } else {
+            alert(`⚠️ Ang empleyadong si ${empName} ay nakapag-Time-In at Time-Out na ngayong araw.`);
+        }
+
+    } catch (err) {
+        console.error("Attendance exception:", err);
+        alert("❌ May error sa pag-connect sa database.");
     }
 
     closeScannerModal();
