@@ -5909,30 +5909,43 @@ function resetRemittanceHistoryFilters() {
             document.getElementById('payment-modal').classList.add('hidden');
         }
 
-       // ⭐ Helper para hilahin ang pinakabagong payment logs mula sa Supabase
+      // ⭐ Helper para hilahin ang pinakabagong payment logs mula sa Supabase
 async function fetchPaymentsFromSupabase() {
     const sb = typeof getSupabase === 'function' ? getSupabase() : null;
     if (sb && navigator.onLine) {
         try {
-            const { data, error } = await sb.from('payments').select('*').order('created_at', { ascending: false });
-            if (!error && data) {
+            // Tinanggal muna natin ang .order('created_at') para hindi mag-error kung walang created_at column
+            const { data, error } = await sb.from('payments').select('*');
+            
+            if (error) {
+                console.error("❌ SUPABASE FETCH ERROR:", error);
+                return;
+            }
+
+            console.log("📦 RAW DATA GALING SA SUPABASE 'payments':", data);
+
+            if (data) {
                 paymentLogs = data.map(p => ({
-                    id: p.reference_no,
-                    subscriberId: p.account_no,
+                    id: p.reference_no || p.id,
+                    subscriberId: p.account_no || p.subscriber_id,
                     subscriberName: p.subscriber_name,
                     monthsPaid: p.billing_id,
                     amountPaid: p.amount_paid,
                     method: p.payment_method,
                     date: p.payment_date,
                     encodedBy: p.collected_by,
-                    timestamp: new Date(p.created_at || p.payment_date).getTime(),
+                    timestamp: new Date(p.created_at || p.payment_date || Date.now()).getTime(),
                     turnedOver: false
                 }));
+
+                // I-sort sa JavaScript mismo (pinakabago muna) para safe kahit walang created_at column
+                paymentLogs.sort((a, b) => b.timestamp - a.timestamp);
+
                 localStorage.setItem('tacsfiber_payment_logs', JSON.stringify(paymentLogs));
                 console.log("📥 Na-fetch at na-update ang payment logs mula sa Supabase:", paymentLogs.length);
             }
         } catch (err) {
-            console.error("Error fetching payments from Supabase:", err);
+            console.error("⚠️ Error fetching payments from Supabase:", err);
         }
     }
 }
