@@ -294,6 +294,45 @@
 
         <main id="main-content-window" class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 overflow-y-auto transition-all duration-300">
 
+<!-- VIEW: DAILY ATTENDANCE -->
+<div id="view-attendance" class="hidden space-y-6 max-w-5xl mx-auto">
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-6">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4">
+            <div>
+                <h3 class="text-base font-bold text-slate-800 flex items-center space-x-2">
+                    <i class="fa-solid fa-calendar-check text-blue-600"></i>
+                    <span>Employee Daily Attendance & Payroll Tracker</span>
+                </h3>
+                <p class="text-xs text-slate-500 mt-1">I-scan ang QR code ng empleyado para mag-record ng Time-In o Time-Out.</p>
+            </div>
+            <button type="button" onclick="openScannerModal()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl flex items-center space-x-2 transition-colors">
+                <i class="fa-solid fa-qrcode"></i>
+                <span>Scan QR Code Attendance</span>
+            </button>
+        </div>
+
+        <!-- Attendance Table Section -->
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-600 uppercase">
+                        <th class="px-4 py-3">Employee ID</th>
+                        <th class="px-4 py-3">Name</th>
+                        <th class="px-4 py-3">Log Type</th>
+                        <th class="px-4 py-3">Time</th>
+                        <th class="px-4 py-3">Date</th>
+                    </tr>
+                </thead>
+                <tbody id="attendance-table-body" class="divide-y divide-slate-100 text-xs">
+                    <tr>
+                        <td colspan="5" class="text-center py-4 text-slate-400">Naglo-load ng mga tala...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
             <!-- DASHBOARD VIEW -->
             <div id="view-dashboard" class="space-y-6 hidden">
                 <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
@@ -391,6 +430,10 @@
                         </h3>
                     </div>
                     <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                        <button onclick="switchTab('attendance')" class="p-4 rounded-xl border border-blue-100 bg-blue-50/50 hover:bg-blue-100 transition-all text-left group">
+                            <div class="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm group-hover:scale-110 transition-transform mb-2">📅</div>
+                            <span class="text-xs font-bold text-slate-700">Daily Attendance</span>
+                        </button>
                         <button onclick="switchTab('add-customer')" class="p-4 rounded-xl border border-indigo-100 bg-indigo-50/50 hover:bg-indigo-100/70 text-indigo-900 transition flex flex-col items-center text-center space-y-2 group shadow-sm cursor-pointer">
                             <div class="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center text-sm group-hover:scale-110 transition"><i class="fa-solid fa-user-plus"></i></div>
                             <span class="text-xs font-bold">Register Customer</span>
@@ -1771,6 +1814,34 @@
         </div>
     </div>
 </div>
+
+<!-- SCANNER MODAL POPUP -->
+<div id="scanner-modal" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4 relative">
+        <div class="flex justify-between items-center border-b pb-3">
+            <h3 class="text-sm font-bold text-slate-800">Scan o I-enter ang Employee ID</h3>
+            <button onclick="closeScannerModal()" class="text-slate-400 hover:text-slate-600 font-bold text-lg">&times;</button>
+        </div>
+        
+        <div id="qr-reader" class="w-full rounded-xl overflow-hidden bg-slate-100 border border-slate-200"></div>
+        <p id="scan-result-msg" class="text-xs text-center text-slate-500 font-medium">Itutok ang camera o i-type ang ID sa ibaba...</p>
+        
+        <!-- Fallback Manual Input para sa Network IP / HTTP camera restrictions -->
+        <div class="space-y-2 pt-2 border-t border-slate-100">
+            <label class="text-xs font-bold text-slate-700">Manual / Barcode Scanner Input:</label>
+            <div class="flex gap-2">
+                <input type="text" id="manual-emp-id" placeholder="I-type o i-scan ang Employee ID..." class="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <button type="button" onclick="submitManualAttendance()" class="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors">I-submit</button>
+            </div>
+        </div>
+
+        <div class="flex justify-end pt-2">
+            <button type="button" onclick="closeScannerModal()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-lg transition-colors">Isara</button>
+        </div>
+    </div>
+</div>
+<!-- I-load ang html5-qrcode library mula sa CDN -->
+<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 
 <!-- 📌 MODAL PARA SA PAG-ADD NG CASH ADVANCE -->
 <div id="cash-advance-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
@@ -7862,7 +7933,216 @@ if ('serviceWorker' in navigator) {
                     localStorage.removeItem('tacsfiber_active_session');
                 }
             }
-        });    
+        }); 
+        
+let html5QrCode = null;
+
+async function openScannerModal() {
+    const modal = document.getElementById('scanner-modal');
+    if (modal) modal.classList.remove('hidden');
+
+    const msg = document.getElementById('scan-result-msg');
+    if (msg) msg.innerText = "Binubuksan ang camera...";
+
+    if (!html5QrCode) {
+        html5QrCode = new Html5Qrcode("qr-reader");
+    }
+
+    const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+
+    try {
+        // 1. Subukang kunin ang listahan ng mga connected cameras sa device (Phone o Laptop)
+        const devices = await Html5Qrcode.getCameras();
+        
+        if (devices && devices.length > 0) {
+            // Kung phone, piliin ang hulihan (kadalasan rear/back camera). Kung laptop o isa lang, unang camera.
+            const selectedCameraId = devices.length > 1 ? devices[devices.length - 1].id : devices[0].id;
+            
+            await html5QrCode.start(
+                selectedCameraId, 
+                config, 
+                onScanSuccess, 
+                onScanFailure
+            );
+            if (msg) msg.innerText = "Itutok ang camera sa QR code ng empleyado...";
+        } else {
+            // 2. Fallback sa facingMode kung walang na-detect na listahan
+            await html5QrCode.start(
+                { facingMode: "environment" }, 
+                config, 
+                onScanSuccess, 
+                onScanFailure
+            );
+            if (msg) msg.innerText = "Itutok ang camera sa QR code ng empleyado...";
+        }
+    } catch (err) {
+        console.error("Main camera start error:", err);
+        
+        // 3. Panghuling Subok: Subukan ang front camera o default user camera kung mag-error ang back/external
+        try {
+            await html5QrCode.start(
+                { facingMode: "user" }, 
+                config, 
+                onScanSuccess, 
+                onScanFailure
+            );
+            if (msg) msg.innerText = "Itutok ang camera sa QR code ng empleyado...";
+        } catch (fallbackErr) {
+            console.error("Fallback camera error:", fallbackErr);
+            if (msg) {
+                msg.innerHTML = `⚠️ <span class="text-red-600 font-bold">Hindi ma-access ang camera.</span> Tiyaking naka-allow ang camera permission sa browser, o gumamit ng <b>localhost</b> / <b>HTTPS</b> kung network IP ang gamit.`;
+            }
+        }
+    }
+}
+function closeScannerModal() {
+    // 1. Unahing isara ang modal para instant na mawala sa screen
+    const modal = document.getElementById('scanner-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+    
+    // 2. Sunod na ihinto ang camera nang ligtas
+    if (html5QrCode) {
+        try {
+            html5QrCode.stop().then(() => {
+                html5QrCode.clear();
+            }).catch(err => {
+                console.log("Scanner stop info:", err);
+            });
+        } catch (e) {
+            console.log("Scanner exception:", e);
+        }
+    }
+
+    // 3. I-reset ang mga mensahe at input field
+    const msg = document.getElementById('scan-result-msg');
+    if (msg) msg.innerText = "Itutok ang camera sa QR code ng empleyado...";
+    
+    const manualInput = document.getElementById('manual-emp-id');
+    if (manualInput) manualInput.value = '';
+}
+
+async function onScanSuccess(decodedText, decodedResult) {
+    if (html5QrCode) {
+        try {
+            await html5QrCode.stop();
+            html5QrCode.clear();
+        } catch(e) {
+            console.error(e);
+        }
+    }
+
+    const msg = document.getElementById('scan-result-msg');
+    if (msg) msg.innerHTML = `<span class="text-blue-600 font-bold">Naka-scan na! Sinusuri ang ID: ${decodedText}...</span>`;
+
+    // Kunin ang detalye ng empleyado kung available sa systemUsers
+    const employee = (typeof systemUsers !== 'undefined' ? systemUsers.find(u => u.id === decodedText || u.username === decodedText) : null) 
+                     || { id: decodedText, username: "Employee " + decodedText };
+
+    const empId = employee.id;
+    const empName = employee.username || employee.name || decodedText;
+    const today = new Date().toISOString().split('T')[0];
+    const currentUser = (typeof getActiveUser === 'function') ? getActiveUser() : 'Admin';
+
+    let logType = 'TIME_IN';
+    const sb = typeof getSupabase === 'function' ? getSupabase() : (window.supabaseClient || null);
+
+    if (sb) {
+        try {
+            // Suriin kung may record na ngayong araw para sa Time-In o Time-Out
+            const { data: existingLogs, error } = await sb
+                .from('attendance_logs')
+                .select('*')
+                .eq('employee_id', empId)
+                .eq('log_date', today);
+
+            if (!error && existingLogs) {
+                const hasTimeIn = existingLogs.some(l => l.log_type === 'TIME_IN');
+                const hasTimeOut = existingLogs.some(l => l.log_type === 'TIME_OUT');
+
+                if (hasTimeIn && !hasTimeOut) {
+                    logType = 'TIME_OUT';
+                } else if (hasTimeIn && hasTimeOut) {
+                    alert(`⚠️ Ang empleyadong si ${empName} ay nakapag-Time-In at Time-Out na ngayong araw.`);
+                    closeScannerModal();
+                    return;
+                }
+            }
+
+            const logRefId = 'ATT-' + Date.now();
+            const { error: insertError } = await sb.from('attendance_logs').insert([{
+                reference_no: logRefId,
+                employee_id: empId,
+                employee_name: empName,
+                log_type: logType,
+                log_date: today,
+                recorded_by: currentUser
+            }]);
+
+            if (insertError) {
+                console.error("Error saving attendance:", insertError);
+                alert(`❌ Nabigo sa pag-save ng attendance: ${insertError.message}`);
+            } else {
+                alert(`✅ Matagumpay na naitala ang ${logType} para kay ${empName}!`);
+                if (typeof fetchAttendanceLogs === 'function') fetchAttendanceLogs();
+            }
+
+        } catch (err) {
+            console.error("Attendance exception:", err);
+            alert("❌ May error sa pag-connect sa database.");
+        }
+    } else {
+        alert(`✅ Naka-scan ang ID ${empId}, ngunit walang Supabase client na nakita.`);
+    }
+
+    closeScannerModal();
+}
+
+function onScanFailure(error) {
+    // Patuloy na naghahanap ng QR code ang camera nang walang sagabal sa console
+}
+
+async function fetchAttendanceLogs() {
+    const sb = typeof getSupabase === 'function' ? getSupabase() : (window.supabaseClient || null);
+    if (!sb) return;
+
+    const { data, error } = await sb.from('attendance_logs').select('*').order('log_time', { ascending: false });
+    if (error) {
+        console.error("Error fetching attendance:", error);
+        return;
+    }
+
+    const tbody = document.getElementById('attendance-table-body');
+    if (!tbody) return;
+
+    if (!data || data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-gray-400">Wala pang record ng attendance ngayong araw.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = data.map(log => `
+        <tr>
+            <td class="px-4 py-3 text-gray-700 font-medium">${log.employee_id}</td>
+            <td class="px-4 py-3 text-gray-900 font-semibold">${log.employee_name}</td>
+            <td class="px-4 py-3">
+                <span class="px-2.5 py-1 text-xs font-bold rounded-full ${log.log_type === 'TIME_IN' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}">
+                    ${log.log_type}
+                </span>
+            </td>
+            <td class="px-4 py-3 text-gray-600">${new Date(log.log_time || Date.now()).toLocaleTimeString()}</td>
+            <td class="px-4 py-3 text-gray-600">${log.log_date}</td>
+        </tr>
+    `).join('');
+}
+
+// I-load ang logs tuwing magbubukas o mag-re-refresh ang pahina
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        if (typeof fetchAttendanceLogs === 'function') fetchAttendanceLogs();
+    }, 1000);
+});
+        
   </script>
 </body>
 </html>
