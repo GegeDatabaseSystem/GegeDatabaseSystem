@@ -2551,16 +2551,37 @@ async function submitAdminForceReset() {
 
         function loadPaymentLogsLocal() {
             const saved = localStorage.getItem('tacsfiber_payment_logs_backup');
+            let savedTurnovers = JSON.parse(localStorage.getItem('tacsfiber_turned_over_ids') || '[]');
+
             if (saved) {
                 try {
                     const parsed = JSON.parse(saved);
                     parsed.forEach(localLog => {
-                        if (!paymentLogs.some(p => p.id === localLog.id)) {
+                        const existingIndex = paymentLogs.findIndex(p => p.id === localLog.id);
+                        
+                        if (existingIndex !== -1) {
+                            // ⭐ Kung nasa memory na, i-update ang turnedOver status kung turned over na sa local/backup
+                            if (localLog.turnedOver || savedTurnovers.includes(localLog.id)) {
+                                paymentLogs[existingIndex].turnedOver = true;
+                                if (localLog.batchId) paymentLogs[existingIndex].batchId = localLog.batchId;
+                            }
+                        } else {
+                            // ⭐ Kung wala pa sa current array, idagdag natin
+                            if (savedTurnovers.includes(localLog.id)) {
+                                localLog.turnedOver = true;
+                            }
                             paymentLogs.unshift(localLog);
                         }
                     });
                 } catch(e) { console.error(e); }
             }
+
+            // ⭐ I-apply din ang turned_over status mula sa savedTurnovers array para sigurado
+            paymentLogs.forEach(p => {
+                if (savedTurnovers.includes(p.id)) {
+                    p.turnedOver = true;
+                }
+            });
         }
 
 // Ilagay ito kahit saan sa global scope (malinis na pwesto sa labas ng ibang function)
@@ -5742,10 +5763,21 @@ function renderAlertTableRows(tbodyId, list, category) {
             }).join('');
         }
 
-        function refreshDailyRemittanceView() {
-            renderRemittanceTable();
-            alert("🟢 Na-refresh na ang Daily Remittance list!");
-        }
+       async function refreshDailyRemittanceView() {
+    // ⭐ 1. I-sync muna ang data mula sa Supabase kung online para makuha ang pinakabagong turned_over status
+    if (typeof fetchSubscribersFromSupabase === 'function' && navigator.onLine) {
+        await fetchSubscribersFromSupabase();
+    }
+    
+    // ⭐ 2. I-load din ang local backup at mga turned-over IDs para sigurado
+    if (typeof loadPaymentLogsLocal === 'function') {
+        loadPaymentLogsLocal();
+    }
+
+    // ⭐ 3. Saka natin i-render ang table at magpakita ng alert
+    renderRemittanceTable();
+    alert("🟢 Na-refresh na ang Daily Remittance list mula sa cloud at local storage!");
+}
 
         function renderRemittanceTable() {
             const today = new Date().toISOString().split('T')[0];
@@ -5818,13 +5850,16 @@ function renderAlertTableRows(tbodyId, list, category) {
         
         if (sb) {
             for (let log of unsubmittedLogs) {
-                // ⭐ I-update ang turned_over at batch_id sa 'payments' table gamit ang reference_no
-                let { error } = await sb.from('payments')
+                // ⭐ I-update ang turned_over at batch_id sa 'payment_logs' table gamit ang reference_no
+                let { error } = await sb.from('payment_logs')
                     .update({ turned_over: true, batch_id: batchId })
                     .eq('reference_no', log.id);
 
+                // Kung sakaling 'id' ang gamit sa ibang log, i-try din natin
                 if (error) {
-                    console.error("Supabase payment turnover update error:", error);
+                    await sb.from('payment_logs')
+                        .update({ turned_over: true, batch_id: batchId })
+                        .eq('id', log.id);
                 }
             }
         }
