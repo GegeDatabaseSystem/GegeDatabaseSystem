@@ -5002,9 +5002,15 @@ async function handleCustomerComplain(customerAccountNo, customerName, customerC
             alert(`Matagumpay na na-reconnect ang linya ni ${sub.name}!`);
         }
 
-        function renderCustomersListTable() {
+       async function renderCustomersListTable() {
     const role = getActiveRole();
     if(role === 'COLLECTOR' || role === 'TECHNICIAN') return;
+
+    // ⭐ Auto-fetch mula sa Supabase kung blangko ang subscribers array at online
+    if ((!subscribers || subscribers.length === 0) && typeof fetchSubscribersFromSupabase === 'function' && navigator.onLine) {
+        await fetchSubscribersFromSupabase();
+        return; // Ang fetchSubscribersFromSupabase na ang magre-render pagkatapos makuha ang data
+    }
 
     const search = document.getElementById('cust-list-search') ? document.getElementById('cust-list-search').value.toLowerCase().trim() : '';
     const brgyFilter = document.getElementById('masterBrgyFilter') ? document.getElementById('masterBrgyFilter').value : 'ALL';
@@ -5013,7 +5019,7 @@ async function handleCustomerComplain(customerAccountNo, customerName, customerC
     if(!tbody) return;
     tbody.innerHTML = '';
 
-    let filtered = subscribers;
+    let filtered = subscribers || [];
 
     if(brgyFilter !== 'ALL') filtered = filtered.filter(s => (s.barangay || 'Poblacion') === brgyFilter);
     if(dueDateFilter !== 'ALL') {
@@ -5123,9 +5129,9 @@ async function handleCustomerComplain(customerAccountNo, customerName, customerC
                                             <button onclick="openNotificationModal('${s.id}', 'Customers List')" class="bg-indigo-600 text-white px-2 py-1 rounded text-xs cursor-pointer hover:bg-indigo-700 transition" title="Send Notification">
                                                 <i class="fa-solid fa-paper-plane"></i>
                                             </button>
-                                            <button onclick="openEditCustomerModal('${s.id}')" class="bg-indigo-600 text-white px-2 py-1 rounded text-xs cursor-pointer" title="Edit Customer Details"><i class="fa-solid fa-pen-to-square"></i></button>
-                                            <button onclick="viewCustomerPaymentHistoryPopup('${s.id}')" class="bg-cyan-600 text-white px-2 py-1 rounded text-xs cursor-pointer" title="View History"><i class="fa-solid fa-receipt"></i></button>
-                                            ${role === 'ADMIN' ? `<button onclick="deleteCustomerRecord('${s.id}')" class="bg-rose-600 text-white px-2 py-1 rounded text-xs cursor-pointer" title="Delete"><i class="fa-solid fa-trash"></i></button>` : ''}
+                                            <button onclick="openEditCustomerModal('${s.id}')" class="bg-indigo-600 text-white px-2.5 py-1 rounded text-xs cursor-pointer" title="Edit Customer Details"><i class="fa-solid fa-pen-to-square"></i></button>
+                                            <button onclick="viewCustomerPaymentHistoryPopup('${s.id}')" class="bg-cyan-600 text-white px-2.5 py-1 rounded text-xs cursor-pointer" title="View History"><i class="fa-solid fa-receipt"></i></button>
+                                            ${role === 'ADMIN' ? `<button onclick="deleteCustomerRecord('${s.id}')" class="bg-rose-600 text-white px-2.5 py-1 rounded text-xs cursor-pointer" title="Delete"><i class="fa-solid fa-trash"></i></button>` : ''}
                                         </td>
                                     </tr>
                                 `;
