@@ -5792,7 +5792,7 @@ function renderAlertTableRows(tbodyId, list, category) {
             `).join('');
         }
 
-       async function turnoverRemittanceToAdmin() {
+      async function turnoverRemittanceToAdmin() {
     const activeCollector = getActiveUser();
     const currentRole = getActiveRole();
     const today = new Date().toISOString().split('T')[0];
@@ -5814,45 +5814,52 @@ function renderAlertTableRows(tbodyId, list, category) {
 
     try {
         const batchId = 'BATCH-' + Date.now();
+        const logIds = unsubmittedLogs.map(p => p.id);
         const sb = getSupabase();
         
         if (sb) {
-            // ⭐ I-update isa-isa o sabay-sabay sa Supabase gamit ang tamang ID match
-            for (let log of unsubmittedLogs) {
-                // Subukan munang hanapin gamit ang 'reference_no' o 'id'
-                let { error } = await sb.from('payment_logs')
-                    .update({ turned_over: true, batch_id: batchId })
-                    .eq('id', log.id);
+            console.log("Subukang i-update ang Supabase para sa mga IDs:", logIds);
+            
+            // Subukan nating i-update ang table
+            let { data, error } = await sb.from('payment_logs')
+                .update({ turned_over: true, batch_id: batchId })
+                .in('id', logIds)
+                .select();
 
-                if (error) {
-                    // Kung nag-error, subukan naman ang 'reference_no'
-                    await sb.from('payment_logs')
-                        .update({ turned_over: true, batch_id: batchId })
-                        .eq('reference_no', log.id);
+            if (error) {
+                console.warn("Error gamit ang 'id', sinusubukan ang 'reference_no'...", error);
+                let res2 = await sb.from('payment_logs')
+                    .update({ turned_over: true, batch_id: batchId })
+                    .in('reference_no', logIds)
+                    .select();
+                if (res2.error) {
+                    console.error("Supabase Update Error:", res2.error);
+                    alert("⚠️ Na-save sa local pero may error sa Supabase: " + res2.error.message);
                 }
+            } else {
+                console.log("Supabase update success:", data);
             }
         }
 
-        const logIds = unsubmittedLogs.map(p => p.id);
         paymentLogs.forEach(p => {
             if (logIds.includes(p.id)) {
                 p.turnedOver = true;
                 p.batchId = batchId;
             }
         });
-        
-        // I-save agad sa localStorage para hindi mawala kapag nag-refresh
+
+        // I-save sa localStorage para hinding-hindi mawala kahit mag-refresh
         savePaymentLogsLocal();
         localStorage.setItem('tacsfiber_cached_logs', JSON.stringify(paymentLogs));
 
         let savedTurnovers = JSON.parse(localStorage.getItem('tacsfiber_turned_over_ids') || '[]');
         localStorage.setItem('tacsfiber_turned_over_ids', JSON.stringify([...new Set([...savedTurnovers, ...logIds])]));
 
-        alert("🟢 Matagumpay na na-turnover ang koleksyon at na-save sa Supabase!");
+        alert("🟢 Matagumpay na na-turnover ang koleksyon!");
         renderRemittanceTable();
         renderRemittanceHistoryTable();
     } catch (err) {
-        console.error("Turnover error details:", err);
+        console.error("Turnover catch error:", err);
         alert("❌ Error sa turnover: " + err.message);
     }
 }
