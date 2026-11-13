@@ -3469,10 +3469,54 @@ async function markComplaintAsResolved(complaintId) {
             document.getElementById('inst-cancel-btn').classList.add('hidden');
         }
 
-        async function renderInternetInstallationView() {
-    // ⭐ Hilahin muna ang pinakabagong installation tasks mula sa Supabase kung online
-    if (typeof fetchInstallationsFromSupabase === 'function' && navigator.onLine) {
+       // 1. Updated Fetch Function (ipapasa ang `true` sa render para walang loop)
+async function fetchInstallationsFromSupabase() {
+    try {
+        const sb = typeof getSupabase === 'function' ? getSupabase() : null;
+        if (!sb) return;
+
+        const { data, error } = await sb
+            .from('internet_installations')
+            .select('*');
+
+        if (error) {
+            console.error("❌ Error fetching installations:", error.message);
+            return;
+        }
+
+        if (data) {
+            internetInstallations = data.map(item => ({
+                id: item.id,
+                date: item.date || (item.created_at ? item.created_at.split('T')[0] : ''),
+                name: item.customer_name,
+                contact: item.contact || 'N/A',
+                address: item.address || 'N/A',
+                monthlyPlan: item.monthly_plan || 600,
+                note: item.note || '',
+                technician: item.technician || 'Unassigned',
+                status: item.status ? item.status.toUpperCase() : 'PENDING',
+                completedDate: item.completed_date || null,
+                timestamp: new Date(item.created_at || item.date || Date.now()).getTime()
+            }));
+
+            internetInstallations.sort((a, b) => b.timestamp - a.timestamp);
+            localStorage.setItem('tacsfiber_installations', JSON.stringify(internetInstallations));
+
+            if (typeof renderInternetInstallationView === 'function') {
+                renderInternetInstallationView(true);
+            }
+        }
+    } catch (err) {
+        console.error("⚠️ Supabase installation fetch error:", err);
+    }
+}
+
+// 2. Updated Render Function (may skipFetch parameter)
+async function renderInternetInstallationView(skipFetch = false) {
+    // ⭐ Hilahin muna ang pinakabagong installation tasks mula sa Supabase kung online at hindi galing sa fetch
+    if (!skipFetch && typeof fetchInstallationsFromSupabase === 'function' && navigator.onLine) {
         await fetchInstallationsFromSupabase();
+        return; // Ang fetchInstallationsFromSupabase na ang bahalang mag-render pagkatapos humila
     }
 
     const container = document.getElementById('installation-tasks-container');
@@ -4951,80 +4995,140 @@ async function handleCustomerComplain(customerAccountNo, customerName, customerC
         }
 
         function renderCustomersListTable() {
-            const role = getActiveRole();
-            if(role === 'COLLECTOR' || role === 'TECHNICIAN') return;
+    const role = getActiveRole();
+    if(role === 'COLLECTOR' || role === 'TECHNICIAN') return;
 
-            const search = document.getElementById('cust-list-search') ? document.getElementById('cust-list-search').value.toLowerCase().trim() : '';
-            const brgyFilter = document.getElementById('masterBrgyFilter') ? document.getElementById('masterBrgyFilter').value : 'ALL';
-            // KUNIN ANG VALUE NG DUE DATE FILTER
-            const dueDateFilter = document.getElementById('masterDueDateFilter') ? document.getElementById('masterDueDateFilter').value : 'ALL';
-            const tbody = document.getElementById('customers-list-table-body');
-            if(!tbody) return;
-            tbody.innerHTML = '';
+    const search = document.getElementById('cust-list-search') ? document.getElementById('cust-list-search').value.toLowerCase().trim() : '';
+    const brgyFilter = document.getElementById('masterBrgyFilter') ? document.getElementById('masterBrgyFilter').value : 'ALL';
+    const dueDateFilter = document.getElementById('masterDueDateFilter') ? document.getElementById('masterDueDateFilter').value : 'ALL';
+    const tbody = document.getElementById('customers-list-table-body');
+    if(!tbody) return;
+    tbody.innerHTML = '';
 
-            let filtered = subscribers;
+    let filtered = subscribers;
 
-            if(brgyFilter !== 'ALL') filtered = filtered.filter(s => (s.barangay || 'Poblacion') === brgyFilter);
-            // FILTER SA DUE DATE (1 HANGGANG 31)
-            if(dueDateFilter !== 'ALL') {
-                filtered = filtered.filter(s => {
-                    const rawDue = (s.due_day || s.dueDay || '').toString();
-                    const subDueDay = parseInt(rawDue.replace(/\D/g, ''), 10);
-                    return subDueDay === parseInt(dueDateFilter, 10);
-                });
-            }
-            if(search) filtered = filtered.filter(s => s.name.toLowerCase().includes(search) || s.id.toLowerCase().includes(search));
+    if(brgyFilter !== 'ALL') filtered = filtered.filter(s => (s.barangay || 'Poblacion') === brgyFilter);
+    if(dueDateFilter !== 'ALL') {
+        filtered = filtered.filter(s => {
+            const rawDue = (s.due_day || s.dueDay || '').toString();
+            const subDueDay = parseInt(rawDue.replace(/\D/g, ''), 10);
+            return subDueDay === parseInt(dueDateFilter, 10);
+        });
+    }
+    if(search) filtered = filtered.filter(s => s.name.toLowerCase().includes(search) || s.id.toLowerCase().includes(search));
 
-            if(filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="12" class="text-center py-6 text-slate-400 font-medium">Walang kustomer na tumutugma sa napiling filter/search.</td></tr>`;
-                return;
-            }
+    if(filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="12" class="text-center py-6 text-slate-400 font-medium">Walang kustomer na tumutugma sa napiling filter/search.</td></tr>`;
+        return;
+    }
 
-            tbody.innerHTML = filtered.slice(0, 300).map(s => {
-                const isPaid = (s.balance || 0) <= 0;
-                const assignedCol = s.assignedCollector || 'Unassigned';
-                const status = s.status || 'ACTIVE';
+    const limitedList = filtered.slice(0, 300);
 
-                return `
-                    <tr class="hover:bg-slate-50 border-b">
-                        <td class="py-3 px-3 font-mono font-bold text-indigo-600 bg-white sticky-col-1">${s.id}</td>
-                        <td class="py-3 px-3 font-semibold text-slate-800 bg-white sticky-col-2">${s.name}</td>
-                        <td class="py-3 px-3 font-bold text-indigo-700">${s.barangay || 'Poblacion'}</td>
-                        <td class="py-3 px-3 text-slate-600">${s.address || 'N/A'}</td>
-                        <td class="py-3 px-3 font-mono">${s.contact}</td>
-                        <td class="py-3 px-3 font-bold text-indigo-700">₱${(s.monthlyPlan || 600).toLocaleString()}</td>
-                        <td class="py-3 px-3 font-bold">Day ${s.dueDay || 19}</td>
-                        <td class="py-3 px-3 text-slate-600">${s.dateInstalled || '2026-09-19'}</td>
-                        <td class="py-3 px-3">
-                            <button onclick="toggleSubscriberStatus('${s.id}')" class="px-2 py-0.5 rounded text-[11px] font-extrabold shadow-sm transition cursor-pointer ${status==='ACTIVE'?'bg-emerald-100 text-emerald-800 border border-emerald-300':'bg-rose-100 text-rose-800 border border-rose-300'}">
-                                ${status === 'ACTIVE' ? '<i class="fa-solid fa-wifi mr-1"></i>ACTIVE' : '<i class="fa-solid fa-ban mr-1"></i>DISCONNECTED'}
-                            </button>
-                        </td>
-                        <td class="py-3 px-3 font-bold ${isPaid ? 'text-emerald-600' : 'text-rose-600'}">₱${(s.balance || 0).toLocaleString()} ${isPaid ? '<span class="text-[10px] bg-emerald-100 text-emerald-800 px-1 py-0.5 rounded ml-1 font-extrabold">PAID</span>' : ''}</td>
-                        <td class="py-3 px-3 text-center">
-                            <button onclick="openAssignModal('${s.id}')" class="px-2 py-1 rounded text-xs font-bold ${assignedCol !== 'Unassigned' ? 'bg-amber-500 text-white' : 'bg-slate-200 text-slate-600'} cursor-pointer">
-                                ${assignedCol}
-                            </button>
-                        </td>
-                        <td class="py-3 px-3 text-right space-x-1">
-                            <button onclick="handleCustomerComplain('${s.id}', '${s.name}', '${s.contact || ''}', '${s.barangay || ''}')" class="bg-purple-600 text-white p-2 rounded-lg hover:bg-purple-700 transition" title="Add Complain">
-                                <i class="fa-solid fa-screwdriver-wrench"></i>
-                            </button>
-                            <button onclick="openPaymentModal('${s.id}')" class="bg-emerald-600 text-white px-2 py-1 rounded text-xs cursor-pointer" title="Collect"><i class="fa-solid fa-peso-sign"></i></button>
-                            
-                            <!-- ⭐ IDINAGDAG NA NOTIFY BUTTON DITO ⭐ -->
-                            <button onclick="openNotificationModal('${s.id}', 'Customers List')" class="bg-indigo-600 text-white px-2 py-1 rounded text-xs cursor-pointer hover:bg-indigo-700 transition" title="Send Notification">
-                                <i class="fa-solid fa-paper-plane"></i>
-                            </button>
+    // ⭐ DUAL VIEW: Table para sa Desktop, Cards para sa Mobile Phone
+    tbody.innerHTML = `
+        <tr>
+            <td colspan="12" class="p-0 border-0">
+                <!-- MOBILE CARDS VIEW (Makikita lang sa Phone: block md:hidden) -->
+                <div class="block md:hidden space-y-3 p-3 bg-slate-50">
+                    ${limitedList.map(s => {
+                        const isPaid = (s.balance || 0) <= 0;
+                        const assignedCol = s.assignedCollector || 'Unassigned';
+                        const status = s.status || 'ACTIVE';
+                        return `
+                            <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3">
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <span class="font-mono font-bold text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">${s.id}</span>
+                                        <h3 class="font-bold text-slate-800 text-sm mt-1">${s.name}</h3>
+                                        <p class="text-xs text-slate-500"><i class="fa-solid fa-location-dot mr-1 text-indigo-500"></i>${s.barangay || 'Poblacion'} - ${s.address || 'N/A'}</p>
+                                    </div>
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-extrabold ${status==='ACTIVE'?'bg-emerald-100 text-emerald-800':'bg-rose-100 text-rose-800'}">
+                                        ${status}
+                                    </span>
+                                </div>
 
-                            <button onclick="openEditCustomerModal('${s.id}')" class="bg-indigo-600 text-white px-2 py-1 rounded text-xs cursor-pointer" title="Edit Customer Details"><i class="fa-solid fa-pen-to-square"></i></button>
-                            <button onclick="viewCustomerPaymentHistoryPopup('${s.id}')" class="bg-cyan-600 text-white px-2 py-1 rounded text-xs cursor-pointer" title="View History"><i class="fa-solid fa-receipt"></i></button>
-                            ${role === 'ADMIN' ? `<button onclick="deleteCustomerRecord('${s.id}')" class="bg-rose-600 text-white px-2 py-1 rounded text-xs cursor-pointer" title="Delete"><i class="fa-solid fa-trash"></i></button>` : ''}
-                        </td>
-                    </tr>
-                `;
-            }).join('');
-        }
+                                <div class="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                                    <div>
+                                        <span class="text-slate-500 block text-[10px]">Contact:</span>
+                                        <span class="font-mono font-bold text-slate-700">${s.contact || 'N/A'}</span>
+                                    </div>
+                                    <div>
+                                        <span class="text-slate-500 block text-[10px]">Monthly Plan:</span>
+                                        <span class="font-bold text-indigo-700">₱${(s.monthlyPlan || 600).toLocaleString()} (Day ${s.dueDay || 19})</span>
+                                    </div>
+                                    <div class="col-span-2 pt-1 border-t border-slate-200 flex justify-between items-center">
+                                        <span class="text-slate-500 text-xs">Balance:</span>
+                                        <span class="font-bold text-sm ${isPaid ? 'text-emerald-600' : 'text-rose-600'}">₱${(s.balance || 0).toLocaleString()} ${isPaid ? '<span class="text-[10px] bg-emerald-100 text-emerald-800 px-1 py-0.5 rounded ml-1 font-extrabold">PAID</span>' : ''}</span>
+                                    </div>
+                                </div>
+
+                                <div class="flex flex-wrap gap-1.5 pt-1 justify-end">
+                                    <button onclick="openAssignModal('${s.id}')" class="px-2.5 py-1 rounded text-xs font-bold ${assignedCol !== 'Unassigned' ? 'bg-amber-500 text-white' : 'bg-slate-200 text-slate-600'}">
+                                        <i class="fa-solid fa-user-tag mr-1"></i>${assignedCol}
+                                    </button>
+                                    <button onclick="handleCustomerComplain('${s.id}', '${s.name}', '${s.contact || ''}', '${s.barangay || ''}')" class="bg-purple-600 text-white px-2.5 py-1 rounded text-xs" title="Add Complain"><i class="fa-solid fa-screwdriver-wrench"></i></button>
+                                    <button onclick="openPaymentModal('${s.id}')" class="bg-emerald-600 text-white px-2.5 py-1 rounded text-xs font-bold" title="Collect"><i class="fa-solid fa-peso-sign mr-1"></i>Collect</button>
+                                    <button onclick="openNotificationModal('${s.id}', 'Customers List')" class="bg-indigo-600 text-white px-2.5 py-1 rounded text-xs" title="Send Notification"><i class="fa-solid fa-paper-plane"></i></button>
+                                    <button onclick="openEditCustomerModal('${s.id}')" class="bg-indigo-600 text-white px-2.5 py-1 rounded text-xs" title="Edit"><i class="fa-solid fa-pen-to-square"></i></button>
+                                    <button onclick="viewCustomerPaymentHistoryPopup('${s.id}')" class="bg-cyan-600 text-white px-2.5 py-1 rounded text-xs" title="History"><i class="fa-solid fa-receipt"></i></button>
+                                    ${role === 'ADMIN' ? `<button onclick="deleteCustomerRecord('${s.id}')" class="bg-rose-600 text-white px-2.5 py-1 rounded text-xs" title="Delete"><i class="fa-solid fa-trash"></i></button>` : ''}
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+
+                <!-- DESKTOP TABLE VIEW (Makikita lang sa PC/Laptop: hidden md:table) -->
+                <div class="hidden md:block overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <tbody>
+                            ${limitedList.map(s => {
+                                const isPaid = (s.balance || 0) <= 0;
+                                const assignedCol = s.assignedCollector || 'Unassigned';
+                                const status = s.status || 'ACTIVE';
+                                return `
+                                    <tr class="hover:bg-slate-50 border-b">
+                                        <td class="py-3 px-3 font-mono font-bold text-indigo-600">${s.id}</td>
+                                        <td class="py-3 px-3 font-semibold text-slate-800">${s.name}</td>
+                                        <td class="py-3 px-3 font-bold text-indigo-700">${s.barangay || 'Poblacion'}</td>
+                                        <td class="py-3 px-3 text-slate-600">${s.address || 'N/A'}</td>
+                                        <td class="py-3 px-3 font-mono">${s.contact}</td>
+                                        <td class="py-3 px-3 font-bold text-indigo-700">₱${(s.monthlyPlan || 600).toLocaleString()}</td>
+                                        <td class="py-3 px-3 font-bold">Day ${s.dueDay || 19}</td>
+                                        <td class="py-3 px-3 text-slate-600">${s.dateInstalled || '2026-09-19'}</td>
+                                        <td class="py-3 px-3">
+                                            <button onclick="toggleSubscriberStatus('${s.id}')" class="px-2 py-0.5 rounded text-[11px] font-extrabold shadow-sm transition cursor-pointer ${status==='ACTIVE'?'bg-emerald-100 text-emerald-800 border border-emerald-300':'bg-rose-100 text-rose-800 border border-rose-300'}">
+                                                ${status === 'ACTIVE' ? '<i class="fa-solid fa-wifi mr-1"></i>ACTIVE' : '<i class="fa-solid fa-ban mr-1"></i>DISCONNECTED'}
+                                            </button>
+                                        </td>
+                                        <td class="py-3 px-3 font-bold ${isPaid ? 'text-emerald-600' : 'text-rose-600'}">₱${(s.balance || 0).toLocaleString()} ${isPaid ? '<span class="text-[10px] bg-emerald-100 text-emerald-800 px-1 py-0.5 rounded ml-1 font-extrabold">PAID</span>' : ''}</td>
+                                        <td class="py-3 px-3 text-center">
+                                            <button onclick="openAssignModal('${s.id}')" class="px-2 py-1 rounded text-xs font-bold ${assignedCol !== 'Unassigned' ? 'bg-amber-500 text-white' : 'bg-slate-200 text-slate-600'} cursor-pointer">
+                                                ${assignedCol}
+                                            </button>
+                                        </td>
+                                        <td class="py-3 px-3 text-right space-x-1">
+                                            <button onclick="handleCustomerComplain('${s.id}', '${s.name}', '${s.contact || ''}', '${s.barangay || ''}')" class="bg-purple-600 text-white p-2 rounded-lg hover:bg-purple-700 transition" title="Add Complain">
+                                                <i class="fa-solid fa-screwdriver-wrench"></i>
+                                            </button>
+                                            <button onclick="openPaymentModal('${s.id}')" class="bg-emerald-600 text-white px-2 py-1 rounded text-xs cursor-pointer" title="Collect"><i class="fa-solid fa-peso-sign"></i></button>
+                                            <button onclick="openNotificationModal('${s.id}', 'Customers List')" class="bg-indigo-600 text-white px-2 py-1 rounded text-xs cursor-pointer hover:bg-indigo-700 transition" title="Send Notification">
+                                                <i class="fa-solid fa-paper-plane"></i>
+                                            </button>
+                                            <button onclick="openEditCustomerModal('${s.id}')" class="bg-indigo-600 text-white px-2 py-1 rounded text-xs cursor-pointer" title="Edit Customer Details"><i class="fa-solid fa-pen-to-square"></i></button>
+                                            <button onclick="viewCustomerPaymentHistoryPopup('${s.id}')" class="bg-cyan-600 text-white px-2 py-1 rounded text-xs cursor-pointer" title="View History"><i class="fa-solid fa-receipt"></i></button>
+                                            ${role === 'ADMIN' ? `<button onclick="deleteCustomerRecord('${s.id}')" class="bg-rose-600 text-white px-2 py-1 rounded text-xs cursor-pointer" title="Delete"><i class="fa-solid fa-trash"></i></button>` : ''}
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    `;
+}
 
         async function deleteCustomerRecord(subId) {
             if(getActiveRole() !== 'ADMIN') {
