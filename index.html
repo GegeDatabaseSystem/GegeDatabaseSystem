@@ -2339,26 +2339,27 @@
         </div>
     </div>
 
-    <!-- ADD USER MODAL -->
-    <div id="add-user-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
-        <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-5 space-y-3">
-            <h3 class="font-bold text-slate-800 text-sm">Add New User to Supabase</h3>
-            <form onsubmit="handleSaveUser(event)" class="space-y-3">
-                <input type="text" id="new-user-name" required placeholder="Username" class="w-full border rounded-xl px-3 py-2 text-xs">
-                <input type="password" id="new-user-pass" name="password" autocomplete="new-password" required placeholder="Password" class="w-full border rounded-xl px-3 py-2 text-xs">
-                <select id="new-user-role" class="w-full border rounded-xl px-3 py-2 text-xs font-bold bg-white">
-                    <option value="COLLECTOR">COLLECTOR</option>
-                    <option value="TECHNICIAN">TECHNICIAN</option>
-                    <option value="ASSISTANT_ADMIN">ASSISTANT ADMIN</option>
-                    <option value="ADMIN">ADMIN</option>
-                </select>
-                <div class="flex space-x-2">
-                    <button type="button" onclick="closeAddUserModal()" class="flex-1 py-2 text-xs font-bold bg-slate-100 rounded-xl cursor-pointer">Cancel</button>
-                    <button type="submit" class="flex-1 py-2 text-xs font-bold text-white bg-indigo-600 rounded-xl cursor-pointer">Save to Supabase</button>
-                </div>
-            </form>
-        </div>
+   <!-- ADD USER MODAL -->
+<div id="add-user-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-5 space-y-3">
+        <h3 class="font-bold text-slate-800 text-sm">Add New User to Supabase</h3>
+        <form onsubmit="handleSaveUser(event)" class="space-y-3">
+            <input type="text" id="new-user-name" required placeholder="Username" class="w-full border rounded-xl px-3 py-2 text-xs">
+            <input type="password" id="new-user-pass" name="password" autocomplete="new-password" required placeholder="Password" class="w-full border rounded-xl px-3 py-2 text-xs">
+            <select id="new-user-role" class="w-full border rounded-xl px-3 py-2 text-xs font-bold bg-white">
+                <option value="COLLECTOR">COLLECTOR</option>
+                <option value="TECHNICIAN">TECHNICIAN</option>
+                <option value="ASSISTANT_ADMIN">ASSISTANT ADMIN</option>
+                <option value="ADMIN">ADMIN</option>
+                <option value="ATTENDANCE_STAFF">ATTENDANCE STAFF / KIOSK</option>
+            </select>
+            <div class="flex space-x-2">
+                <button type="button" onclick="closeAddUserModal()" class="flex-1 py-2 text-xs font-bold bg-slate-100 rounded-xl cursor-pointer">Cancel</button>
+                <button type="submit" class="flex-1 py-2 text-xs font-bold text-white bg-indigo-600 rounded-xl cursor-pointer">Save to Supabase</button>
+            </div>
+        </form>
     </div>
+</div>
 
     <!-- PROCESS PAYMENT MODAL -->
     <div id="payment-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
@@ -8230,7 +8231,76 @@ if ('serviceWorker' in navigator) {
             }
         }); 
         
+// ==========================================
+// ROLE RESTRICTION & ATTENDANCE STAFF LOGIC
+// ==========================================
+
 let html5QrCode = null;
+
+// Patakbuhin kapag nag-load ang page para i-check ang role
+document.addEventListener('DOMContentLoaded', () => {
+    applyRoleRestrictions();
+});
+
+// Function para i-restrict ang view at i-hide ang sidebar para sa Attendance Staff
+function applyRoleRestrictions() {
+    const userRole = (localStorage.getItem('tacs_user_role') || '').toUpperCase();
+    const sidebar = document.querySelector('aside') || document.getElementById('sidebar-nav');
+    const loginModal = document.getElementById('role-login-modal');
+
+    // Kung walang naka-login, ipakita ang Login Modal
+    if (!userRole) {
+        if (loginModal) loginModal.classList.remove('hidden');
+        return;
+    }
+
+    // Kung may naka-login na, isara ang login modal
+    if (loginModal) loginModal.classList.add('hidden');
+
+    if (userRole === 'ATTENDANCE_STAFF') {
+        // 1. Itago ang Sidebar
+        if (sidebar) {
+            sidebar.classList.add('hidden');
+        }
+
+        // 2. I-hide ang lahat ng ibang views at i-show lang ang Attendance view
+        const allViews = document.querySelectorAll('[id^="view-"]');
+        allViews.forEach(v => v.classList.add('hidden'));
+
+        const attendanceView = document.getElementById('view-attendance');
+        if (attendanceView) {
+            attendanceView.classList.remove('hidden');
+            if (typeof loadAttendanceTable === 'function') {
+                loadAttendanceTable();
+            }
+        }
+        console.log("🔒 Attendance Staff Mode Active");
+    } else {
+        // Para sa Admin o iba pang roles, ipakita ang sidebar
+        if (sidebar) {
+            sidebar.classList.remove('hidden');
+        }
+    }
+}
+
+// Function kapag pinili ang role sa Login Modal
+function loginAsRole(role) {
+    localStorage.setItem('tacs_user_role', role);
+    const loginModal = document.getElementById('role-login-modal');
+    if (loginModal) loginModal.classList.add('hidden');
+    applyRoleRestrictions();
+    window.location.reload();
+}
+
+// Logout function
+function logoutUser() {
+    localStorage.removeItem('tacs_user_role');
+    window.location.reload();
+}
+
+// ==========================================
+// QR SCANNER & ATTENDANCE FUNCTIONS
+// ==========================================
 
 async function openScannerModal() {
     const modal = document.getElementById('scanner-modal');
@@ -8246,59 +8316,33 @@ async function openScannerModal() {
     const config = { fps: 10, qrbox: { width: 250, height: 250 } };
 
     try {
-        // 1. Subukang kunin ang listahan ng mga connected cameras sa device (Phone o Laptop)
         const devices = await Html5Qrcode.getCameras();
-        
         if (devices && devices.length > 0) {
-            // Kung phone, piliin ang hulihan (kadalasan rear/back camera). Kung laptop o isa lang, unang camera.
             const selectedCameraId = devices.length > 1 ? devices[devices.length - 1].id : devices[0].id;
-            
-            await html5QrCode.start(
-                selectedCameraId, 
-                config, 
-                onScanSuccess, 
-                onScanFailure
-            );
+            await html5QrCode.start(selectedCameraId, config, onScanSuccess, onScanFailure);
             if (msg) msg.innerText = "Itutok ang camera sa QR code ng empleyado...";
         } else {
-            // 2. Fallback sa facingMode kung walang na-detect na listahan
-            await html5QrCode.start(
-                { facingMode: "environment" }, 
-                config, 
-                onScanSuccess, 
-                onScanFailure
-            );
+            await html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess, onScanFailure);
             if (msg) msg.innerText = "Itutok ang camera sa QR code ng empleyado...";
         }
     } catch (err) {
         console.error("Main camera start error:", err);
-        
-        // 3. Panghuling Subok: Subukan ang front camera o default user camera kung mag-error ang back/external
         try {
-            await html5QrCode.start(
-                { facingMode: "user" }, 
-                config, 
-                onScanSuccess, 
-                onScanFailure
-            );
+            await html5QrCode.start({ facingMode: "user" }, config, onScanSuccess, onScanFailure);
             if (msg) msg.innerText = "Itutok ang camera sa QR code ng empleyado...";
         } catch (fallbackErr) {
             console.error("Fallback camera error:", fallbackErr);
             if (msg) {
-                msg.innerHTML = `⚠️ <span class="text-red-600 font-bold">Hindi ma-access ang camera.</span> Tiyaking naka-allow ang camera permission sa browser, o gumamit ng <b>localhost</b> / <b>HTTPS</b> kung network IP ang gamit.`;
+                msg.innerHTML = `⚠️ <span class="text-red-600 font-bold">Hindi ma-access ang camera.</span> Tiyaking naka-allow ang camera permission.`;
             }
         }
     }
 }
 
 function closeScannerModal() {
-    // 1. Unahing isara ang modal para instant na mawala sa screen
     const modal = document.getElementById('scanner-modal');
-    if (modal) {
-        modal.classList.add('hidden');
-    }
+    if (modal) modal.classList.add('hidden');
     
-    // 2. Sunod na ihinto ang camera nang ligtas
     if (html5QrCode) {
         try {
             html5QrCode.stop().then(() => {
@@ -8311,7 +8355,6 @@ function closeScannerModal() {
         }
     }
 
-    // 3. I-reset ang mga mensahe at input field
     const msg = document.getElementById('scan-result-msg');
     if (msg) msg.innerText = "Itutok ang camera sa QR code ng empleyado...";
     
@@ -8330,14 +8373,13 @@ async function onScanSuccess(decodedText, decodedResult) {
     }
 
     const msg = document.getElementById('scan-result-msg');
-    if (msg) msg.innerHTML = `<span class="text-blue-600 font-bold">Naka-scan na! Sinusuri ang ID/Badge: ${decodedText}...</span>`;
+    if (msg) msg.innerHTML = `<span class="text-blue-600 font-bold">Naka-scan na! Sinusuri ang ID: ${decodedText}...</span>`;
 
     const scannedInput = decodedText.trim();
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-    const nowTime = new Date().toTimeString().split(' ')[0]; // HH:MM:SS
+    const today = new Date().toISOString().split('T')[0];
+    const nowTime = new Date().toTimeString().split(' ')[0];
 
     const sb = typeof getSupabase === 'function' ? getSupabase() : (window.supabaseClient || null);
-
     if (!sb) {
         alert('Walang Supabase client na nakita.');
         closeScannerModal();
@@ -8345,25 +8387,21 @@ async function onScanSuccess(decodedText, decodedResult) {
     }
 
     try {
-        // 1. Kunin ang LAHAT ng empleyado mula sa company_employees naka-order by ID
         const { data: allEmployees, error: empListError } = await sb
             .from('company_employees')
             .select('*')
             .order('id', { ascending: true });
 
         if (empListError || !allEmployees || allEmployees.length === 0) {
-            console.error("Error fetching company_employees:", empListError);
             alert(`❌ Walang makitang empleyado sa 'company_employees' table.`);
             closeScannerModal();
             return;
         }
 
-        // 2. SMART MATCHER: Suriin kung tugma sa Database ID, Badge Sequence Number (1, 2, 3...), o Pangalan
         let empData = null;
-
         allEmployees.forEach((emp, index) => {
-            const dbIdStr = String(emp.id).trim(); // Halimbawa: "10", "11"...
-            const badgeSeqStr = String(index + 1); // Halimbawa: "1", "2", "3"... (Badge order)
+            const dbIdStr = String(emp.id).trim();
+            const badgeSeqStr = String(index + 1);
             const empName = (emp.name || '').trim().toLowerCase();
             const searchVal = scannedInput.toLowerCase();
 
@@ -8379,9 +8417,8 @@ async function onScanSuccess(decodedText, decodedResult) {
         }
 
         const empIdNum = empData.id;
-        const empName = empData.name; // Ang totoong pangalan
+        const empName = empData.name;
 
-        // 3. Suriin kung mayroon nang attendance record ang empleyado ngayong araw
         const { data: existingRecord, error: fetchError } = await sb
             .from('employee_attendance')
             .select('*')
@@ -8390,14 +8427,13 @@ async function onScanSuccess(decodedText, decodedResult) {
             .maybeSingle();
 
         if (fetchError) {
-            console.error("Error fetching attendance:", fetchError);
             alert(`❌ May error sa pagkuha ng attendance record.`);
             closeScannerModal();
             return;
         }
 
         if (!existingRecord) {
-            // --- UNANG SCAN: TIME-IN ---
+            // TIME-IN
             const { error: insertError } = await sb.from('employee_attendance').insert([{
                 employee_id: empIdNum,
                 name: empName,
@@ -8408,40 +8444,24 @@ async function onScanSuccess(decodedText, decodedResult) {
             }]);
 
             if (insertError) {
-                console.error("Error saving Time-In:", insertError);
                 alert(`❌ Nabigo sa pag-save ng Time-In: ${insertError.message}`);
             } else {
-                // Patunugin ang boses at i-refresh ang table bago mag-alert (kung mayroon man)
-                if (typeof speakAttendanceVoice === 'function') {
-                    speakAttendanceVoice(empName, 'IN', nowTime);
-                }
-                if (typeof loadAttendanceTable === 'function') {
-                    loadAttendanceTable();
-                }
-
-                setTimeout(() => {
-                    alert(`✅ TIME-IN Matagumpay para kay ${empName} (${nowTime})!`);
-                }, 300);
+                if (typeof speakAttendanceVoice === 'function') speakAttendanceVoice(empName, 'IN', nowTime);
+                if (typeof loadAttendanceTable === 'function') loadAttendanceTable();
+                setTimeout(() => { alert(`✅ TIME-IN Matagumpay para kay ${empName} (${nowTime})!`); }, 300);
             }
-
         } else if (!existingRecord.time_out) {
-            // --- PANGALAWANG SCAN: TIME-OUT AT OVERTIME COMPUTATION ---
+            // TIME-OUT
             const timeInObj = new Date(`${today}T${existingRecord.time_in}`);
             const timeOutObj = new Date(`${today}T${nowTime}`);
-            
             const diffMs = timeOutObj - timeInObj;
             const totalMinutesWorked = Math.floor(diffMs / 60000);
-            
-            const regularMinutes = 480; // 8 hours (480 mins)
+            const regularMinutes = 480;
             let overtimeMinutes = 0;
-
             const excessMinutes = totalMinutesWorked - regularMinutes;
-            
-            // Rule: 30 minutes and up threshold para sa Overtime
             if (excessMinutes >= 30) {
                 overtimeMinutes = excessMinutes;
             }
-
             const otHoursText = overtimeMinutes > 0 ? formatHoursAndMinutes(overtimeMinutes) : '-';
 
             const { error: updateError } = await sb.from('employee_attendance')
@@ -8452,21 +8472,12 @@ async function onScanSuccess(decodedText, decodedResult) {
                 .eq('id', existingRecord.id);
 
             if (updateError) {
-                console.error("Error saving Time-Out:", updateError);
                 alert(`❌ Nabigo sa pag-save ng Time-Out: ${updateError.message}`);
             } else {
-                if (typeof speakAttendanceVoice === 'function') {
-                    speakAttendanceVoice(empName, 'OUT', nowTime);
-                }
-                if (typeof loadAttendanceTable === 'function') {
-                    loadAttendanceTable();
-                }
-
-                setTimeout(() => {
-                    alert(`✅ TIME-OUT Matagumpay para kay ${empName}!\nOras ng Uwi: ${nowTime}\nOvertime: ${otHoursText}`);
-                }, 300);
+                if (typeof speakAttendanceVoice === 'function') speakAttendanceVoice(empName, 'OUT', nowTime);
+                if (typeof loadAttendanceTable === 'function') loadAttendanceTable();
+                setTimeout(() => { alert(`✅ TIME-OUT Matagumpay para kay ${empName}!\nOras ng Uwi: ${nowTime}\nOvertime: ${otHoursText}`); }, 300);
             }
-
         } else {
             alert(`⚠️ Ang empleyadong si ${empName} ay nakapag-Time-In at Time-Out na ngayong araw.`);
         }
@@ -8479,7 +8490,6 @@ async function onScanSuccess(decodedText, decodedResult) {
     closeScannerModal();
 }
 
-// Helper function para sa Overtime format
 function formatHoursAndMinutes(totalMinutes) {
     const hrs = Math.floor(totalMinutes / 60);
     const mins = totalMinutes % 60;
@@ -8488,7 +8498,7 @@ function formatHoursAndMinutes(totalMinutes) {
 }
 
 function onScanFailure(error) {
-    // Patuloy na naghahanap ng QR code ang camera nang walang sagabal sa console
+    // Silent fail para hindi mapuno ang console
 }
 
 // ==========================================
