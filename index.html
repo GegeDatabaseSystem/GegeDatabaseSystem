@@ -8219,28 +8219,46 @@ function onScanFailure(error) {
 // 1. VOICE ANNOUNCEMENT FUNCTION (Text-to-Speech)
 // ==========================================
 function speakAttendanceVoice(name, actionType, timeStr, dateStr) {
-    if ('speechSynthesis' in window) {
-        // Alamin kung umaga, hapon, o gabi para sa angkop na pagbati
-        const currentHour = new Date().getHours();
-        let greeting = "Magandang araw";
-        if (currentHour < 12) {
-            greeting = "Magandang umaga";
-        } else if (currentHour < 18) {
-            greeting = "Magandang hapon";
-        } else {
-            greeting = "Magandang gabi";
-        }
-
-        const actionText = actionType === 'IN' ? 'ay nakapag-Time-In na' : 'ay nakapag-Time-Out na';
-        const message = `${greeting}! Si ${name} ${actionText} ngayong petsa ${dateStr}, bandang alas ${timeStr}.`;
-
-        const utterance = new SpeechSynthesisUtterance(message);
-        utterance.lang = 'fil-PH'; // Tagalog/Filipino voice
-        utterance.rate = 1.0;      // Bilis ng pagsasalita
-        utterance.pitch = 1.0;     // Tono
-        
-        window.speechSynthesis.speak(utterance);
+    if (!('speechSynthesis' in window)) {
+        console.warn("Hindi suportado ng browser ang Text-to-Speech.");
+        return;
     }
+
+    // I-cancel ang anumang nakabinbin na boses para hindi mag-hang
+    window.speechSynthesis.cancel();
+
+    const currentHour = new Date().getHours();
+    let greeting = "Good day";
+    if (currentHour < 12) {
+        greeting = "Good morning";
+    } else if (currentHour < 18) {
+        greeting = "Good afternoon";
+    } else {
+        greeting = "Good evening";
+    }
+
+    const actionText = actionType === 'IN' ? 'has timed in' : 'has timed out';
+    const message = `${greeting}! ${name} ${actionText} at ${timeStr}.`;
+
+    const utterance = new SpeechSynthesisUtterance(message);
+    
+    // Kunin ang available voices sa browser; kung may Filipino, gamitin; kung wala, default
+    const voices = window.speechSynthesis.getVoices();
+    const preferredVoice = voices.find(v => v.lang.includes('fil') || v.lang.includes('tl')) 
+                        || voices.find(v => v.lang.includes('en-PH'))
+                        || voices.find(v => v.lang.includes('en-US'))
+                        || voices[0];
+
+    if (preferredVoice) {
+        utterance.voice = preferredVoice;
+    }
+
+    utterance.volume = 1.0; // Max volume
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+
+    // Patunugin muna ang boses bago lumabas ang alert()
+    window.speechSynthesis.speak(utterance);
 }
 
 // ==========================================
