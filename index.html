@@ -1379,8 +1379,10 @@
         <button onclick="switchAuditSubTab('collection')" id="audit-tab-collection" class="px-4 py-2 font-bold text-xs rounded-lg border border-indigo-600 bg-indigo-600 text-white transition cursor-pointer">Collection Audit</button>
         <button onclick="switchAuditSubTab('sales-expenses')" id="audit-tab-sales" class="px-4 py-2 font-bold text-xs rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition cursor-pointer">Sales & Expenses Summary</button>
         <button onclick="switchAuditSubTab('payroll')" id="audit-tab-payroll" class="px-4 py-2 font-bold text-xs rounded-lg border border-slate-300 bg-slate-100 text-slate-700 shadow-sm hover:bg-slate-200">💼 Employee Payroll</button>
+        <button onclick="switchAuditSubTab('duty-summary')" id="audit-tab-duty-summary" class="px-4 py-2 font-bold text-xs rounded-lg border border-slate-300 bg-slate-100 text-slate-700 shadow-sm hover:bg-gray-200">
+            Duty Hours Summary
+        </button>   
     </div>
-
     <!-- 1. COLLECTION AUDIT SECTION -->
     <div id="collection-audit-section" class="space-y-6">
         <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-6">
@@ -1443,6 +1445,49 @@
             </div>
         </div>
     </div>
+    
+<!-- Duty Hours Summary Section -->
+<div id="duty-hours-summary-section" class="hidden space-y-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-100 pb-4">
+        <div>
+            <h3 class="text-sm font-bold text-slate-800">Employee Duty Hours & Attendance Summary</h3>
+            <p class="text-xs text-slate-500">Kalkulasyon ng Duty Days at OT Hours batay sa Daily Attendance Records para sa napiling Pay Period.</p>
+        </div>
+        <div class="flex items-end gap-2">
+            <div>
+                <label class="text-[10px] font-bold text-slate-500 block mb-1">Start Date</label>
+                <input type="date" id="summary-start-date" class="px-3 py-1.5 border border-slate-300 rounded-lg text-xs font-medium outline-none focus:border-blue-500">
+            </div>
+            <div>
+                <label class="text-[10px] font-bold text-slate-500 block mb-1">End Date</label>
+                <input type="date" id="summary-end-date" class="px-3 py-1.5 border border-slate-300 rounded-lg text-xs font-medium outline-none focus:border-blue-500">
+            </div>
+            <button onclick="loadDutyHoursSummary()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-all h-[30px]">
+                <i class="fa-solid fa-sync mr-1"></i> I-generate
+            </button>
+        </div>
+    </div>
+
+    <!-- Table Container -->
+    <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-xs">
+            <thead>
+                <tr class="bg-slate-50 text-slate-700 border-b border-slate-200 font-bold">
+                    <th class="py-3 px-4">Employee Name</th>
+                    <th class="py-3 px-4 text-center">Daily Rate</th>
+                    <th class="py-3 px-4 text-center">Total Duty Days</th>
+                    <th class="py-3 px-4 text-center">Total OT Hours</th>
+                    <th class="py-3 px-4 text-right">Basic Salary</th>
+                    <th class="py-3 px-4 text-right">Estimated OT Pay</th>
+                    <th class="py-3 px-4 text-center">Action</th>
+                </tr>
+            </thead>
+            <tbody id="duty-summary-tbody">
+                <tr><td colspan="7" class="text-center py-6 text-slate-400">Pumili ng petsa at i-click ang "I-generate" para sa summary.</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>   
 
     <!-- 2. SALES & EXPENSES SECTION (Naka-balot na lahat dito pati ang filter) -->
     <div id="sales-expenses-section" class="hidden space-y-6">
@@ -6601,54 +6646,70 @@ function openPaymentModalBySubId(subId) {
             }
         }, 60000);
         
-// Function para sa paglipat ng sub-tab sa Audit & Reports
+// ==========================================
+// TACSFIBER - SALES & EXPENSES MODULE
+// ==========================================
+
+// --- 1. UNIFIED AUDIT SUB-TAB SWITCHER (Collection, Sales, Payroll, Duty Summary) ---
 function switchAuditSubTab(tabName) {
-    console.log("Switching tab to:", tabName); // Pwede mong makita sa F12 Console kung nag-a-update
+    console.log("Switching tab to:", tabName);
 
     const colSection = document.getElementById('collection-audit-section');
     const salesSection = document.getElementById('sales-expenses-section');
     const payrollSection = document.getElementById('audit-subtab-payroll');
+    const dutySummarySection = document.getElementById('duty-hours-summary-section');
 
     const btnCol = document.getElementById('audit-tab-collection');
     const btnSales = document.getElementById('audit-tab-sales');
     const btnPay = document.getElementById('audit-tab-payroll');
+    const btnDuty = document.getElementById('audit-tab-duty-summary');
 
-    // Direktang itago gamitin ang style.display para sigurado
-    if (colSection) colSection.style.display = 'none';
-    if (salesSection) salesSection.style.display = 'none';
-    if (payrollSection) payrollSection.style.display = 'none';
+    // Itago lahat muna para walang overlap
+    if (colSection) colSection.classList.add('hidden');
+    if (salesSection) salesSection.classList.add('hidden');
+    if (payrollSection) payrollSection.classList.add('hidden');
+    if (dutySummarySection) dutySummarySection.classList.add('hidden');
 
-    // I-reset ang kulay ng mga buttons
+    // I-reset ang kulay ng mga buttons sa inactive style
     const inactiveClass = "px-4 py-2 font-bold text-xs rounded-lg border border-slate-300 bg-slate-100 text-slate-700 shadow-sm hover:bg-gray-200";
     const activeClass = "px-4 py-2 font-bold text-xs rounded-lg border border-slate-300 bg-blue-600 text-white shadow-sm";
 
     if (btnCol) btnCol.className = inactiveClass;
     if (btnSales) btnSales.className = inactiveClass;
     if (btnPay) btnPay.className = inactiveClass;
+    if (btnDuty) btnDuty.className = inactiveClass;
 
-    // Ipakita ang pinili
+    // Ipakita ang piniling tab at tawagin ang kaukulang loader function
     if (tabName === 'collection') {
-        if (colSection) colSection.style.display = 'block';
+        if (colSection) colSection.classList.remove('hidden');
         if (btnCol) btnCol.className = activeClass;
     } else if (tabName === 'sales-expenses' || tabName === 'sales') {
-        if (salesSection) salesSection.style.display = 'block';
+        if (salesSection) salesSection.classList.remove('hidden');
         if (btnSales) btnSales.className = activeClass;
     } else if (tabName === 'payroll') {
-        if (payrollSection) payrollSection.style.display = 'block';
+        if (payrollSection) payrollSection.classList.remove('hidden');
         if (btnPay) btnPay.className = activeClass;
         if (typeof loadPayrollData === 'function') {
             loadPayrollData();
         }
+    } else if (tabName === 'duty-summary') {
+        if (dutySummarySection) dutySummarySection.classList.remove('hidden');
+        if (btnDuty) btnDuty.className = activeClass;
+        if (typeof loadDutyHoursSummary === 'function') {
+            loadDutyHoursSummary();
+        }
     }
 }
 
-// Function para kusang makalkula ang Net Income
+// --- 2. LIVE NET INCOME CALCULATOR ---
 function calculateNetIncome() {
-    const sales = parseFloat(document.getElementById('input-total-sales').value) || 0;
-    const expenses = parseFloat(document.getElementById('input-total-expenses').value) || 0;
+    const sales = parseFloat(document.getElementById('input-total-sales')?.value) || 0;
+    const expenses = parseFloat(document.getElementById('input-total-expenses')?.value) || 0;
     const net = sales - expenses;
     const netIncomeInput = document.getElementById('input-net-income');
     
+    if (!netIncomeInput) return;
+
     netIncomeInput.value = '₱' + net.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
     
     if (net < 0) {
@@ -6658,27 +6719,30 @@ function calculateNetIncome() {
     }
 }
 
-// Function para i-save ang Sales & Expenses report sa Supabase
+// --- 3. SAVE SALES & EXPENSES REPORT TO SUPABASE (Ligtas na sakop lang ng Sales section) ---
 async function saveSalesExpensesReport() {
     try {
         const salesInput = document.getElementById('input-total-sales');
-        const sales = parseFloat(salesInput ? salesInput.value : 0) || 57299.00;
+        const sales = parseFloat(salesInput ? salesInput.value : 0) || 0;
         
-        // Kalkulahin ang total expenses mula sa lahat ng input boxes o itakda ang tamang kabuuang gastos
+        // Kalkulahin ang total expenses mula lamang sa loob ng sales-expenses-section para iwas aberya sa ibang tabs
         let totalExpenses = 0;
-        const allInputs = document.querySelectorAll('input');
+        const salesSection = document.getElementById('sales-expenses-section');
         
-        allInputs.forEach(input => {
-            const val = parseFloat(input.value);
-            // I-sum ang mga numerong nasa kahon ng expenses (mga maliit na halaga maliban sa sales)
-            if (!isNaN(val) && val > 0 && val < 50000 && input.id !== 'input-total-sales') {
-                totalExpenses += val;
-            }
-        });
+        if (salesSection) {
+            const allSalesInputs = salesSection.querySelectorAll('input');
+            allSalesInputs.forEach(input => {
+                const val = parseFloat(input.value);
+                // I-sum ang mga numerong nasa kahon ng expenses maliban sa total sales
+                if (!isNaN(val) && val > 0 && input.id !== 'input-total-sales' && input.id !== 'input-net-income') {
+                    totalExpenses += val;
+                }
+            });
+        }
 
-        // Fallback: Kung sakaling zero, pwede nating ilagay ang nakikitang kabuuang gastusin sa screen
+        // Fallback kung sakaling zero o blangko
         if (totalExpenses === 0 || isNaN(totalExpenses)) {
-            totalExpenses = 1000.00; // Siguradong may papasok na halaga sa Supabase
+            totalExpenses = 0.00; 
         }
 
         const netIncome = sales - totalExpenses;
@@ -6691,12 +6755,11 @@ async function saveSalesExpensesReport() {
             return;
         }
 
-        // Tiyakin na ang total_expenses ay nagtataglay ng na-compute o default na halaga
         const payload = {
             date_from: '2026-11-01',
             date_to: '2026-11-08',
             total_sales: sales,
-            total_expenses: totalExpenses, // Eto na ang direktang magdadala ng tamang halaga
+            total_expenses: totalExpenses,
             net_income: netIncome,
             created_by: encodedBy,
             created_at: now
@@ -6721,7 +6784,7 @@ async function saveSalesExpensesReport() {
     }
 }
 
-// Function para i-fetch ang saved reports mula sa Supabase table
+// --- 4. FETCH & DISPLAY SALES EXPENSES HISTORY ---
 async function fetchSalesExpensesReports() {
     const activeClient = getSupabase();
     if (!activeClient) return;
@@ -6754,7 +6817,7 @@ async function fetchSalesExpensesReports() {
             </tr>
         `;
     }).join('');
-}        
+}       
         
 async function importJsonBackup(event) {
     const file = event.target.files[0];
@@ -7084,37 +7147,40 @@ function switchCollectionTab(tabName) {
         if (btnComing) btnComing.className = "px-4 py-2.5 rounded-xl font-bold text-xs bg-blue-600 text-white shadow-sm flex items-center gap-2 transition-all";
     }
 }
-
 // ==========================================
 // TACSFIBER - EMPLOYEE PAYROLL & SALARY MODULE
 // ==========================================
 window.companyEmployees = [];
 window.payrollHistoryList = [];
 
-// --- 1. SWITCH AUDIT SUB-TABS (Collection, Sales, Payroll) ---
+// --- 1. SWITCH AUDIT SUB-TABS (Collection, Sales, Payroll, Duty Summary) ---
 function switchAuditSubTab(tabName) {
     const colSection = document.getElementById('collection-audit-section');
     const salesSection = document.getElementById('sales-expenses-section');
     const payrollSection = document.getElementById('audit-subtab-payroll');
+    const dutySummarySection = document.getElementById('duty-hours-summary-section'); // <--- Bagong Section
 
     const btnCol = document.getElementById('audit-tab-collection');
     const btnSales = document.getElementById('audit-tab-sales');
     const btnPay = document.getElementById('audit-tab-payroll');
+    const btnDuty = document.getElementById('audit-tab-duty-summary'); // <--- Bagong Button
 
-    // Itago lahat muna
+    // Itago lahat muna para walang overlap
     if (colSection) colSection.classList.add('hidden');
     if (salesSection) salesSection.classList.add('hidden');
     if (payrollSection) payrollSection.classList.add('hidden');
+    if (dutySummarySection) dutySummarySection.classList.add('hidden');
 
-    // I-reset ang kulay ng mga button
+    // I-reset ang kulay ng mga button sa inactive
     const inactiveClass = "px-4 py-2 font-bold text-xs rounded-lg border border-slate-300 bg-slate-100 text-slate-700 shadow-sm hover:bg-gray-200";
     const activeClass = "px-4 py-2 font-bold text-xs rounded-lg border border-slate-300 bg-blue-600 text-white shadow-sm";
 
     if (btnCol) btnCol.className = inactiveClass;
     if (btnSales) btnSales.className = inactiveClass;
     if (btnPay) btnPay.className = inactiveClass;
+    if (btnDuty) btnDuty.className = inactiveClass;
 
-    // Ipakita ang pinili
+    // Ipakita ang napiling tab
     if (tabName === 'collection') {
         if (colSection) colSection.classList.remove('hidden');
         if (btnCol) btnCol.className = activeClass;
@@ -7125,6 +7191,10 @@ function switchAuditSubTab(tabName) {
         if (payrollSection) payrollSection.classList.remove('hidden');
         if (btnPay) btnPay.className = activeClass;
         loadPayrollData();
+    } else if (tabName === 'duty-summary') { // <--- Bagong Tab Handler
+        if (dutySummarySection) dutySummarySection.classList.remove('hidden');
+        if (btnDuty) btnDuty.className = activeClass;
+        if (typeof loadDutyHoursSummary === 'function') loadDutyHoursSummary();
     }
 }
 
@@ -7153,7 +7223,6 @@ async function fetchCompanyEmployees() {
 
         const select = document.getElementById('payroll-emp-select');
         if (select) {
-            // Idinagdag natin ang data-rate attribute sa bawat option gamit ang e.daily_rate
             select.innerHTML = '<option value="">-- Select Employee --</option>' +
                 window.companyEmployees.map(e => `<option value="${e.name}" data-rate="${e.daily_rate}">${e.name} (${e.role})</option>`).join('');
         }
@@ -7162,21 +7231,19 @@ async function fetchCompanyEmployees() {
     }
 }
 
-// Idinagdag natin ang Event Listener na ito para kusang magbago ang Daily Rate input field
+// Event Listener para sa Daily Rate at Cash Advance kapag nagbago ang empleyado sa dropdown
 document.addEventListener('DOMContentLoaded', () => {
     const select = document.getElementById('payroll-emp-select');
     
     if (select) {
         select.addEventListener('change', function() {
-            // Kunin ang mismong pangalan ng empleyado (alisin ang position kung sakaling kasama)
             let selectedVal = this.value;
             
-            // Kung kasama ang parenthesis (hal. "Ronie Jayme (TECHNICIAN)"), kunin lang ang pangalan sa unahan
             if (selectedVal.includes('(')) {
                 selectedVal = selectedVal.split('(')[0].trim();
             }
 
-            const dailyRateInput = document.getElementById('payroll-daily-rate'); // Siguraduhing ito ang ID ng input mo
+            const dailyRateInput = document.getElementById('payroll-daily-rate');
 
             if (!dailyRateInput) return;
 
@@ -7186,18 +7253,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            // Hanapin ang tamang rate mula sa window.companyEmployees array na meron na tayo
             if (window.companyEmployees && window.companyEmployees.length > 0) {
                 const foundEmp = window.companyEmployees.find(emp => emp.name.toLowerCase() === selectedVal.toLowerCase());
                 
                 if (foundEmp && foundEmp.daily_rate) {
-                    dailyRateInput.value = foundEmp.daily_rate; // I-set ang eksaktong rate ng empleyado na ito!
+                    dailyRateInput.value = foundEmp.daily_rate;
                 } else {
-                    dailyRateInput.value = ''; // Kung walang nahanap
+                    dailyRateInput.value = '';
                 }
             }
 
-            // Tawagin pa rin ang function para sa Cash Advance kung mayroon man
             if (typeof checkEmployeeCashAdvance === 'function') {
                 checkEmployeeCashAdvance(selectedVal);
             }
@@ -7220,11 +7285,9 @@ function onPayrollEmpChange() {
 
 // --- 3. LIVE PAYROLL CALCULATOR (Duty Days, OT, Late, Vale, Bonus) ---
 function calculatePayrollNet() {
-    // Kunin ang value, kung blangko o 0, mag-fallback sa 600 (o sa kasalukuyang value ng input)
     let dailyRateInput = document.getElementById('payroll-daily-rate');
     let dailyRate = parseFloat(dailyRateInput?.value) || 0;
     
-    // Fallback safeguard: kung 0 o blangko ang daily rate pero may piniling empleyado o default, gawing 600
     if (dailyRate <= 0) {
         dailyRate = 600; 
         if (dailyRateInput) dailyRateInput.value = 600;
@@ -7236,7 +7299,6 @@ function calculatePayrollNet() {
     const vale = parseFloat(document.getElementById('payroll-vale')?.value) || 0;
     const bonus = parseFloat(document.getElementById('payroll-bonus')?.value) || 0;
 
-    // Overtime formula: Regular hourly rate lang (Daily Rate / 8) — WALANG 25% ADDITION
     const hourlyRate = dailyRate / 8;
     const otPay = otHours * hourlyRate;
 
@@ -7245,7 +7307,6 @@ function calculatePayrollNet() {
     const deductions = late + vale;
     const net = gross + additions - deductions;
 
-    // Display sa UI
     const dispGross = document.getElementById('disp-payroll-gross');
     const dispAdditions = document.getElementById('disp-payroll-additions');
     const dispDeductions = document.getElementById('disp-payroll-deductions');
@@ -7258,7 +7319,6 @@ function calculatePayrollNet() {
     if (dispNet) {
         dispNet.innerText = `₱${net.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
         
-        // Kulayan ng pulang alert kung sakaling maging negatibo ang net pay
         if (net < 0) {
             dispNet.classList.remove('text-emerald-400');
             dispNet.classList.add('text-rose-400');
@@ -7269,9 +7329,9 @@ function calculatePayrollNet() {
     }
 }
 
-// Patakbuhin agad pagka-load para mag-compute agad ang mga nakalagay na numero
 window.addEventListener('DOMContentLoaded', () => {
     calculatePayrollNet();
+    if (typeof loadCutoffSummaryReport === 'function') loadCutoffSummaryReport();
 });
 
 // --- 4. SAVE FINALIZED SALARY TO SUPABASE & HISTORY ---
@@ -7279,7 +7339,7 @@ async function submitSavePayroll() {
     const empName = document.getElementById('payroll-emp-select').value;
     const start = document.getElementById('payroll-period-start').value;
     const end = document.getElementById('payroll-period-end').value;
-    const payPeriodStr = (start && end) ? `${start} to ${end}` : '--'; // <--- Tinitiyak na may laman ang Pay Period
+    const payPeriodStr = (start && end) ? `${start} to ${end}` : '--';
 
     const dailyRate = parseFloat(document.getElementById('payroll-daily-rate').value) || 600;
     const days = parseFloat(document.getElementById('payroll-days').value) || 0;
@@ -7292,19 +7352,18 @@ async function submitSavePayroll() {
     if (!start || !end) return alert("Paki-set ang Pay Period dates!");
     if (days <= 0) return alert("Paki-lagay ang tamang Duty Days!");
 
-    // Overtime formula: Regular hourly rate lang (Daily Rate / 8) — WALANG 25% ADDITION
     const hourlyRate = dailyRate / 8;
     const otPay = otHours * hourlyRate;
     
     const gross = days * dailyRate;
-    const totalDeductions = late + vale; // <--- Kabuuang Deductions (Late + Vale)
+    const totalDeductions = late + vale;
     const net = gross + otPay + bonus - totalDeductions;
 
     const record = {
         employee_name: empName,
         period_start: start,
         period_end: end,
-        pay_period: payPeriodStr, // <--- Isinasama na natin ito para sa table
+        pay_period: payPeriodStr,
         days_worked: days,
         daily_rate: dailyRate,
         overtime_hours: otHours,
@@ -7313,7 +7372,7 @@ async function submitSavePayroll() {
         cash_advance: vale,
         other_bonus: bonus,
         gross_pay: gross,
-        deductions: totalDeductions, // <--- Isinasama na rin ang total deductions
+        deductions: totalDeductions,
         net_salary: net,
         processed_by: (window.currentUser ? window.currentUser.name : 'Ronel Tacocong')
     };
@@ -7321,7 +7380,6 @@ async function submitSavePayroll() {
     try {
         const sb = typeof getSupabase === 'function' ? getSupabase() : (window.supabaseClient || null);
         if (sb) {
-            // 1. I-save ang payroll record sa Supabase
             const { error } = await sb.from('payroll_history').insert([record]);
             if (error) {
                 console.error("Supabase Payroll Insert Error:", error);
@@ -7329,7 +7387,6 @@ async function submitSavePayroll() {
                 return;
             }
 
-            // 2. Kusa ring ibabawas sa Supabase balance ng Cash Advance ang ibinawas ngayong cut-off
             if (vale > 0) {
                 const { data: advData } = await sb
                     .from('employee_advances')
@@ -7345,8 +7402,6 @@ async function submitSavePayroll() {
                         .from('employee_advances')
                         .update({ remaining_balance: newBalance })
                         .eq('employee_name', empName);
-
-                    console.log(`[CA Auto-Deducted] ${empName} remaining balance is now: ₱${newBalance}`);
                 }
             }
         }
@@ -7356,7 +7411,6 @@ async function submitSavePayroll() {
 
     alert(`Tagumpay! Na-save at nai-finalize na ang sweldo ni ${empName} na may Net Salary na ₱${net.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}.`);
     
-    // I-refresh ang history table at ang cut-off summary report
     if (typeof fetchPayrollHistory === 'function') fetchPayrollHistory();
     if (typeof loadCutoffSummaryReport === 'function') loadCutoffSummaryReport();
 }
@@ -7453,6 +7507,135 @@ async function fetchPayrollHistory() {
     } catch (e) {
         console.error("Error fetching payroll history:", e);
         tbody.innerHTML = `<tr><td colspan="12" class="p-4 text-center text-rose-500 font-medium text-xs">May aberya sa pag-load ng history mula sa cloud.</td></tr>`;
+    }
+}
+
+// --- 6. DUTY HOURS SUMMARY FUNCTIONS (BAGONG IDINAGDAG) ---
+async function loadDutyHoursSummary() {
+    const tbody = document.getElementById('duty-summary-tbody');
+    if (!tbody) return;
+
+    const startDate = document.getElementById('summary-start-date')?.value;
+    const endDate = document.getElementById('summary-end-date')?.value;
+
+    if (!startDate || !endDate) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-6 text-amber-600 font-semibold">⚠️ Mangyaring itakda muna ang Start Date at End Date.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center py-6 text-slate-400">Kumukuha ng attendance records mula sa Supabase...</td></tr>`;
+
+    const sb = typeof getSupabase === 'function' ? getSupabase() : (window.supabaseClient || null);
+    if (!sb) return;
+
+    try {
+        const { data: employees, error: empError } = await sb.from('company_employees').select('*').order('name');
+        if (empError) throw empError;
+
+        const { data: attendance, error: attError } = await sb
+            .from('employee_attendance')
+            .select('*')
+            .gte('date', startDate)
+            .lte('date', endDate);
+
+        if (attError) throw attError;
+
+        if (!employees || employees.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" class="text-center py-6 text-slate-400">Walang nahanap na empleyado.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = '';
+
+        employees.forEach(emp => {
+            const empName = emp.name;
+            const dailyRate = parseFloat(emp.daily_rate || 600);
+
+            const empRecords = (attendance || []).filter(att => 
+                String(att.employee_id).trim() === String(emp.id).trim() || 
+                (att.name && att.name.toLowerCase().includes(empName.toLowerCase()))
+            );
+
+            let dutyDays = 0;
+            let totalOtMinutes = 0;
+
+            empRecords.forEach(rec => {
+                if (rec.time_in) dutyDays += 1;
+                if (rec.overtime_hours && rec.overtime_hours !== '-') {
+                    totalOtMinutes += parseOvertimeToMinutes(rec.overtime_hours);
+                }
+            });
+
+            const totalOtHours = (totalOtMinutes / 60).toFixed(1);
+            const basicSalary = dutyDays * dailyRate;
+            const hourlyRate = dailyRate / 8;
+            const estimatedOtPay = (parseFloat(totalOtHours) * hourlyRate);
+
+            const tr = document.createElement('tr');
+            tr.className = "hover:bg-slate-50 border-b border-slate-100 transition-colors";
+            tr.innerHTML = `
+                <td class="py-3 px-4 font-bold text-slate-800">${empName} <span class="text-[10px] text-slate-400 font-normal">(${emp.role || 'STAFF'})</span></td>
+                <td class="py-3 px-4 text-center font-mono text-slate-700">₱${dailyRate.toLocaleString()}</td>
+                <td class="py-3 px-4 text-center font-bold text-blue-600 bg-blue-50/30">${dutyDays} days</td>
+                <td class="py-3 px-4 text-center font-bold text-emerald-600 bg-emerald-50/30">${totalOtHours} hrs</td>
+                <td class="py-3 px-4 text-right font-mono text-slate-900 font-semibold">₱${basicSalary.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+                <td class="py-3 px-4 text-right font-mono text-emerald-600 font-semibold">+₱${estimatedOtPay.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+                <td class="py-3 px-4 text-center">
+                    <button onclick="transferToPayroll('${empName}', '${startDate}', '${endDate}', ${dutyDays}, ${totalOtHours}, ${dailyRate})" 
+                        class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-[11px] font-bold shadow-sm transition-all">
+                        <i class="fa-solid fa-arrow-right mr-1"></i> I-Payroll
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+    } catch (e) {
+        console.error("Error loading duty summary:", e);
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-6 text-rose-500 font-medium">May aberya sa pagkukuha ng summary data.</td></tr>`;
+    }
+}
+
+function parseOvertimeToMinutes(otStr) {
+    let minutes = 0;
+    const hrMatch = otStr.match(/(\d+)\s*hr/);
+    const minMatch = otStr.match(/(\d+)\s*min/);
+    
+    if (hrMatch) minutes += parseInt(hrMatch[1]) * 60;
+    if (minMatch) minutes += parseInt(minMatch[1]);
+    
+    return minutes;
+}
+
+function transferToPayroll(empName, startDate, endDate, dutyDays, otHours, dailyRate) {
+    switchAuditSubTab('payroll');
+
+    const startInput = document.getElementById('payroll-period-start') || document.getElementById('pay-period-start');
+    const endInput = document.getElementById('payroll-period-end') || document.getElementById('pay-period-end');
+    if (startInput) startInput.value = startDate;
+    if (endInput) endInput.value = endDate;
+
+    const empSelect = document.getElementById('payroll-emp-select') || document.getElementById('payroll-employee-select');
+    if (empSelect) {
+        for (let i = 0; i < empSelect.options.length; i++) {
+            if (empSelect.options[i].text.toLowerCase().includes(empName.toLowerCase()) || empSelect.options[i].value.toLowerCase().includes(empName.toLowerCase())) {
+                empSelect.selectedIndex = i;
+                break;
+            }
+        }
+        empSelect.dispatchEvent(new Event('change'));
+    }
+
+    const daysInput = document.getElementById('payroll-days') || document.getElementById('duty-days-worked-input');
+    const otInput = document.getElementById('payroll-ot-hours') || document.getElementById('ot-hours-input');
+    const rateInput = document.getElementById('payroll-daily-rate');
+
+    if (daysInput) daysInput.value = dutyDays;
+    if (otInput) otInput.value = otHours;
+    if (rateInput && dailyRate) rateInput.value = dailyRate;
+
+    if (typeof calculatePayrollNet === 'function') {
+        calculatePayrollNet();
     }
 }
 
