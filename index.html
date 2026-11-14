@@ -1533,7 +1533,7 @@
                     <label class="text-xs font-bold text-slate-500">To:</label>
                     <input type="date" id="audit-end-date" onchange="loadSalesAndIncomeSummary()" class="text-xs font-mono border border-slate-300 rounded-lg px-3 py-1.5 bg-slate-50 text-slate-700">
                 </div>
-                <button onclick="loadSalesAndIncomeSummary()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow transition flex items-center gap-1.5">
+               <button onclick="loadSalesAndIncomeSummary(true)" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow transition flex items-center gap-1.5">
                     <i class="fa-solid fa-rotate"></i> Filter Sales
                 </button>
             </div>
@@ -6605,15 +6605,28 @@ function openPaymentModalBySubId(subId) {
         function renderAuditTable() {
     const tbody = document.getElementById('audit-table-body');
     const collectorFilter = document.getElementById('auditCollectorFilter') ? document.getElementById('auditCollectorFilter').value : 'ALL';
-    const dateFrom = document.getElementById('audit-date-from') ? document.getElementById('audit-date-from').value : '';
-    const dateTo = document.getElementById('audit-date-to') ? document.getElementById('audit-date-to').value : '';
+    const dateFromEl = document.getElementById('audit-date-from');
+    const dateToEl = document.getElementById('audit-date-to');
     const totalAmountEl = document.getElementById('audit-total-amount');
 
     if(!tbody) return;
 
-    let filtered = paymentLogs;
+    let dateFrom = dateFromEl ? dateFromEl.value : '';
+    let dateTo = dateToEl ? dateToEl.value : '';
 
-    // Case-insensitive & trimmed comparison para sa Collector Name
+    // 1. Auto-correct kapag may typo sa taon (halimbawa "0206-11-14" imbes na "2026-11-14")
+    if (dateFrom && dateFrom.startsWith('0206')) {
+        dateFrom = dateFrom.replace('0206', '2026');
+        if (dateFromEl) dateFromEl.value = dateFrom;
+    }
+    if (dateTo && dateTo.startsWith('0206')) {
+        dateTo = dateTo.replace('0206', '2026');
+        if (dateToEl) dateToEl.value = dateTo;
+    }
+
+    let filtered = paymentLogs || [];
+
+    // 2. Case-insensitive & trimmed comparison para sa Collector Name
     if(collectorFilter !== 'ALL') {
         filtered = filtered.filter(p => {
             const encoder = (p.encodedBy || p.collected_by || '').toLowerCase().trim();
@@ -6622,32 +6635,48 @@ function openPaymentModalBySubId(subId) {
         });
     }
 
-    if(dateFrom) {
-        filtered = filtered.filter(p => p.date >= dateFrom);
+    // 3. Validated Date Filtering (Gagana lang kapag kumpleto at valid na YYYY-MM-DD, year >= 2000)
+    const isValidDate = (d) => /^\d{4}-\d{2}-\d{2}$/.test(d) && parseInt(d.split('-')[0], 10) >= 2000;
+
+    if(isValidDate(dateFrom)) {
+        filtered = filtered.filter(p => {
+            const recordDate = (p.date || '').split('T')[0].trim(); // Linisin kung may timestamp
+            return recordDate >= dateFrom;
+        });
     }
 
-    if(dateTo) {
-        filtered = filtered.filter(p => p.date <= dateTo);
+    if(isValidDate(dateTo)) {
+        filtered = filtered.filter(p => {
+            const recordDate = (p.date || '').split('T')[0].trim(); // Linisin kung may timestamp
+            return recordDate <= dateTo;
+        });
     }
 
+    // 4. Kalkulahin ang kabuuang koleksyon base sa na-filter na records
     const totalSum = filtered.reduce((acc, p) => acc + (parseFloat(p.amountPaid) || parseFloat(p.amount) || 0), 0);
-    if(totalAmountEl) totalAmountEl.innerText = '₱' + totalSum.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    if(totalAmountEl) totalAmountEl.innerText = '₱' + totalSum.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
 
     if(filtered.length === 0) {
         tbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-slate-400">Walang nahanap na collection audit records sa mga filter na ito.</td></tr>`;
         return;
     }
 
-    tbody.innerHTML = filtered.map(p => `
+    tbody.innerHTML = filtered.map(p => {
+        const displayDate = (p.date || '').split('T')[0];
+        const method = p.method || p.payment_method || 'Cash';
+        const amount = parseFloat(p.amountPaid) || parseFloat(p.amount) || 0;
+
+        return `
         <tr class="hover:bg-slate-50 border-b">
-            <td class="py-2.5 px-3 font-mono">${p.date}</td>
-            <td class="py-2.5 px-3 font-bold">${p.subscriberName || p.subscriber_name}</td>
-            <td class="py-2.5 px-3">${p.monthsPaid || p.billing_id}</td>
-            <td class="py-2.5 px-3"><span class="px-2 py-0.5 rounded text-[11px] font-bold ${ (p.method||p.payment_method)==='GCash' ? 'bg-blue-100 text-blue-700':'bg-emerald-100 text-emerald-700'}">${p.method || p.payment_method}</span></td>
-            <td class="py-2.5 px-3 font-bold text-emerald-600">₱${(parseFloat(p.amountPaid) || parseFloat(p.amount) || 0).toLocaleString()}</td>
-            <td class="py-2.5 px-3">${p.encodedBy || p.collected_by}</td>
+            <td class="py-2.5 px-3 font-mono">${displayDate}</td>
+            <td class="py-2.5 px-3 font-bold">${p.subscriberName || p.subscriber_name || '-'}</td>
+            <td class="py-2.5 px-3">${p.monthsPaid || p.billing_id || '-'}</td>
+            <td class="py-2.5 px-3"><span class="px-2 py-0.5 rounded text-[11px] font-bold ${method === 'GCash' ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'}">${method}</span></td>
+            <td class="py-2.5 px-3 font-bold text-emerald-600">₱${amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+            <td class="py-2.5 px-3">${p.encodedBy || p.collected_by || '-'}</td>
         </tr>
-    `).join('');
+        `;
+    }).join('');
 }
 
         function resetAuditFilters() {
@@ -6966,22 +6995,29 @@ async function importJsonBackup(event) {
     };
     reader.readAsText(file);
 }        
- // --- LOAD SALES AND INCOME SUMMARY PARA KAY RONEL AT ROLANDO ---
-async function loadSalesAndIncomeSummary() {
-    const sb = typeof getSupabase === 'function' ? getSupabase() : null;
-    if (!sb) {
-        console.error("Wala koneksyon sa Supabase.");
+// --- LOAD SALES AND INCOME SUMMARY (HINDI MAG-FILTER HANGGA'T HINDI PINIPINDOT ANG BUTTON) ---
+async function loadSalesAndIncomeSummary(applyFilter = false) {
+    let data = window.paymentLogs || paymentLogs || [];
+
+    if (!data || data.length === 0) {
+        console.warn("Wala pang nakitang data sa paymentLogs.");
+        updateSalesUI(0, 0, 0, 0);
         return;
     }
 
-    const rawStartDate = document.getElementById('audit-start-date')?.value || '';
-    const rawEndDate = document.getElementById('audit-end-date')?.value || '';
+    // Kunin ang petsa LAMANG KUNG pinindot ang 'Filter Sales' button (applyFilter = true)
+    let rawStartDate = '';
+    let rawEndDate = '';
 
-    let { data, error } = await sb.from('payment_logs').select('*');
-
-    if (error || !data || data.length === 0) {
-        console.warn("Walang nakitang data sa payment_logs.");
-        return;
+    if (applyFilter) {
+        rawStartDate = document.getElementById('audit-date-from')?.value || document.getElementById('audit-start-date')?.value || '';
+        rawEndDate = document.getElementById('audit-date-to')?.value || document.getElementById('audit-end-date')?.value || '';
+    } else {
+        // Kung hindi pa pinipindot ang button, linisin muna ang inputs para blangko sila tingnan
+        const startInput = document.getElementById('audit-date-from') || document.getElementById('audit-start-date');
+        const endInput = document.getElementById('audit-date-to') || document.getElementById('audit-end-date');
+        if (startInput) startInput.value = '';
+        if (endInput) endInput.value = '';
     }
 
     let ronelTotal = 0;
@@ -6989,20 +7025,25 @@ async function loadSalesAndIncomeSummary() {
     let collectorTotal = 0;
     let grandTotalSales = 0;
 
+    const isValidDate = (d) => /^\d{4}-\d{2}-\d{2}$/.test(d) && parseInt(d.split('-')[0], 10) >= 2000;
+
     data.forEach((row) => {
-        const rawDate = row.payment_date || row.date_paid || row.created_at || '';
+        const rawDate = row.date || row.payment_date || row.date_paid || row.created_at || '';
         const rowDateStr = String(rawDate).split('T')[0].trim();
         
         const collectorField = String(
-            row.collected_by || row.encoder || row.collector || row.staff || ''
+            row.encodedBy || row.collected_by || row.encoded_by || row.encoder || row.collector || row.staff || ''
         ).trim().toLowerCase();
 
         const amount = parseFloat(
-            row.amount_paid || row.amount || row.payment_amount || 0
+            row.amountPaid || row.amount_paid || row.amount || row.payment_amount || 0
         ) || 0;
 
-        if (rawStartDate && rowDateStr < rawStartDate) return;
-        if (rawEndDate && rowDateStr > rawEndDate) return;
+        // I-apply lang ang filter kung naka-on ang applyFilter flag at valid ang petsa
+        if (applyFilter) {
+            if (isValidDate(rawStartDate) && rowDateStr < rawStartDate) return;
+            if (isValidDate(rawEndDate) && rowDateStr > rawEndDate) return;
+        }
 
         grandTotalSales += amount;
 
@@ -7015,82 +7056,61 @@ async function loadSalesAndIncomeSummary() {
         }
     });
 
-    console.log(`[Audit Match Check] Ronel: ${ronelTotal}, Rolando: ${rolandoTotal}, Collector: ${collectorTotal}, Grand Total: ${grandTotalSales}`);
+    console.log(`[Sales Summary Match Check] Ronel: ${ronelTotal}, Rolando: ${rolandoTotal}, Collector: ${collectorTotal}, Grand Total: ${grandTotalSales}`);
 
-    // --- UI ELEMENTS ---
-    const ronelBox = document.getElementById('ronel-sales-box');
-    const rolandoBox = document.getElementById('rolando-sales-box');
-    const collectorBox = document.getElementById('collector-sales-box');
-    const totalSalesInput = document.getElementById('input-total-sales');
-    
-    // 💡 DITO NATIN ILALAGAY ANG COMPANY GRAND TOTAL BOX UI UPDATE
-    const grandTotalBox = document.getElementById('company-grand-total-box');
-
-    if (ronelBox) {
-        ronelBox.innerText = `₱${ronelTotal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-    }
-    if (rolandoBox) {
-        rolandoBox.innerText = `₱${rolandoTotal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-    }
-    if (collectorBox) {
-        collectorBox.innerText = `₱${collectorTotal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-    }
-
-    // 💡 KASAMA NA RIN ANG CODE NA ITO SA PAG-UPDATE NG GRAND TOTAL BOX
-    if (grandTotalBox) {
-        grandTotalBox.innerText = `₱${grandTotalSales.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-    }
-
-    if (totalSalesInput) {
-        totalSalesInput.value = grandTotalSales.toFixed(2);
-    }
+    // I-update ang UI boxes
+    updateSalesUI(ronelTotal, rolandoTotal, collectorTotal, grandTotalSales);
 
     if (typeof calculateSalesAndExpenses === 'function') {
         calculateSalesAndExpenses();
     }
-} 
-window.addEventListener('DOMContentLoaded', () => {
-    loadSalesAndIncomeSummary();
-});
+}
+
+// Helper para i-update ang mga UI boxes
+function updateSalesUI(ronelTotal, rolandoTotal, collectorTotal, grandTotalSales) {
+    const ronelBox = document.getElementById('ronel-sales-box');
+    const rolandoBox = document.getElementById('rolando-sales-box');
+    const collectorBox = document.getElementById('collector-sales-box');
+    const totalSalesInput = document.getElementById('input-total-sales');
+    const grandTotalBox = document.getElementById('company-grand-total-box');
+
+    if (ronelBox) ronelBox.innerText = `₱${ronelTotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+    if (rolandoBox) rolandoBox.innerText = `₱${rolandoTotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+    if (collectorBox) collectorBox.innerText = `₱${collectorTotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+    if (grandTotalBox) grandTotalBox.innerText = `₱${grandTotalSales.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+    if (totalSalesInput) totalSalesInput.value = grandTotalSales.toFixed(2);
+}
 
 // --- FUNCTION PARA SA PAG-COMPUTE NG EXPENSES AT NET INCOME ---
 function calculateSalesAndExpenses() {
-    // Kunin ang mga values mula sa Admin Expenses inputs
     const adminInternet = parseFloat(document.getElementById('exp-admin-internet')?.value) || 0;
     const adminMaterials = parseFloat(document.getElementById('exp-admin-materials')?.value) || 0;
     const adminSalary = parseFloat(document.getElementById('exp-admin-salary')?.value) || 0;
     const adminGasoline = parseFloat(document.getElementById('exp-admin-gasoline')?.value) || 0;
     const adminOthers = parseFloat(document.getElementById('exp-admin-others')?.value) || 0;
 
-    // Kunin ang mga values mula sa Asst Admin Expenses inputs
     const asstInternet = parseFloat(document.getElementById('exp-asst-internet')?.value) || 0;
     const asstMaterials = parseFloat(document.getElementById('exp-asst-materials')?.value) || 0;
     const asstSalary = parseFloat(document.getElementById('exp-asst-salary')?.value) || 0;
     const asstGasoline = parseFloat(document.getElementById('exp-asst-gasoline')?.value) || 0;
     const asstOthers = parseFloat(document.getElementById('exp-asst-others')?.value) || 0;
 
-    // Kwentahin ang Kabuuang Expenses
     const totalExpenses = adminInternet + adminMaterials + adminSalary + adminGasoline + adminOthers +
                           asstInternet + asstMaterials + asstSalary + asstGasoline + asstOthers;
 
-    // Kunin ang Total Sales
     const totalSales = parseFloat(document.getElementById('input-total-sales')?.value) || 0;
-    
-    // Kwentahin ang Net Income (Sales - Expenses)
     const netIncome = totalSales - totalExpenses;
 
-    // I-display ang Total Expenses at lagyan ng ID para madaling makuha mamaya sa save
     const displayExpenses = document.getElementById('display-total-expenses') || document.getElementById('total-expenses-display');
     if (displayExpenses) {
-        displayExpenses.id = 'total-expenses-display'; // Siguraduhing may tamang ID
-        displayExpenses.innerText = `₱${totalExpenses.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        displayExpenses.id = 'total-expenses-display';
+        displayExpenses.innerText = `₱${totalExpenses.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
     }
 
-    // I-display ang Net Income
     const displayNetIncome = document.getElementById('display-net-income') || document.getElementById('net-income-display');
     if (displayNetIncome) {
         displayNetIncome.id = 'net-income-display';
-        displayNetIncome.innerText = `₱${netIncome.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        displayNetIncome.innerText = `₱${netIncome.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
     }
 }
 
@@ -7101,8 +7121,8 @@ async function saveSalesReportToSupabase() {
         return;
     }
 
-    const startDate = document.getElementById('audit-start-date')?.value;
-    const endDate = document.getElementById('audit-end-date')?.value;
+    const startDate = document.getElementById('audit-date-from')?.value || document.getElementById('audit-start-date')?.value || '';
+    const endDate = document.getElementById('audit-date-to')?.value || document.getElementById('audit-end-date')?.value || '';
     
     if (!startDate || !endDate) {
         alert("Pakilagay muna ang 'From' at 'To' dates sa Audit Date Filter bago mag-save.");
@@ -7111,7 +7131,6 @@ async function saveSalesReportToSupabase() {
 
     const totalSales = parseFloat(document.getElementById('input-total-sales')?.value) || 0;
     
-    // Kunin nang direkta ang sum mula sa mga input boxes para tiyak na hindi mag-zero
     let totalExpenses = 0;
     const allExpenseInputs = document.querySelectorAll('input[id^="exp-"]');
     allExpenseInputs.forEach(input => {
@@ -7119,7 +7138,6 @@ async function saveSalesReportToSupabase() {
         totalExpenses += val;
     });
 
-    // Fallback kung sakaling sa display element kukunin
     if (totalExpenses === 0) {
         const expensesElem = document.getElementById('total-expenses-display') || document.querySelector('.text-red-600');
         if (expensesElem) {
@@ -7134,13 +7152,11 @@ async function saveSalesReportToSupabase() {
         date_from: startDate,
         date_to: endDate,
         total_sales: totalSales,
-        total_expenses: totalExpenses, // Eto na ngayon ang eksaktong halaga (hal. 1000)
+        total_expenses: totalExpenses,
         net_income: netIncome,
         encoded_by: encodedBy,
         date_finished: new Date().toISOString()
     };
-
-    console.log("I-save ang Report sa Supabase:", reportData);
 
     const { data, error } = await sb
         .from('sales_expenses_reports')
@@ -7151,10 +7167,9 @@ async function saveSalesReportToSupabase() {
         alert("Nabigo sa pag-save ng report: " + error.message);
     } else {
         alert("Tagumpay na na-save ang Sales & Expenses Report!");
-        loadSalesExpensesHistory(); // I-refresh ang history table sa ibaba
+        loadSalesExpensesHistory();
     }
 }
-
 
 async function loadSalesExpensesHistory() {
     const sb = typeof getSupabase === 'function' ? getSupabase() : null;
@@ -7196,9 +7211,9 @@ async function loadSalesExpensesHistory() {
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td class="px-4 py-2 border-b">${formattedDate}</td>
-                <td class="px-4 py-2 border-b font-bold text-emerald-600">₱${parseFloat(row.total_sales || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                <td class="px-4 py-2 border-b font-bold text-rose-600">₱${parseFloat(row.total_expenses || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                <td class="px-4 py-2 border-b font-extrabold text-indigo-600">₱${parseFloat(row.net_income || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                <td class="px-4 py-2 border-b font-bold text-emerald-600">₱${parseFloat(row.total_sales || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                <td class="px-4 py-2 border-b font-bold text-rose-600">₱${parseFloat(row.total_expenses || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                <td class="px-4 py-2 border-b font-extrabold text-indigo-600">₱${parseFloat(row.net_income || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                 <td class="px-4 py-2 border-b">${row.encoded_by || 'Ronel Tacocong'}</td>
             `;
             tbody.appendChild(tr);
@@ -7208,9 +7223,21 @@ async function loadSalesExpensesHistory() {
     }
 }
 
-// I-load agad pagka-bukas o pagka-refresh ng pahina
+// I-load agad pagka-bukas o pagka-refresh ng pahina at i-sync kapag nagbago ang audit filter
 window.addEventListener('DOMContentLoaded', () => {
+    loadSalesAndIncomeSummary();
     loadSalesExpensesHistory();
+
+    // I-bind din sa date inputs para mag-update agad ang sales summary kapag nagpalit ng petsa sa Audit tab
+    const dateFromInput = document.getElementById('audit-date-from');
+    const dateToInput = document.getElementById('audit-date-to');
+    
+    if (dateFromInput) {
+        dateFromInput.addEventListener('change', () => loadSalesAndIncomeSummary());
+    }
+    if (dateToInput) {
+        dateToInput.addEventListener('change', () => loadSalesAndIncomeSummary());
+    }
 });
 
 function switchCollectionTab(tabName) {
