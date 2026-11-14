@@ -3121,103 +3121,110 @@ function getDefaultUsers() {
         { username: 'Rolando Tacocong', pass: '12345', role: 'ASSISTANT_ADMIN' },
         { username: 'Thomas Charles Roble', pass: '12345', role: 'COLLECTOR' },
         { username: 'Merson', pass: '12345', role: 'TECHNICIAN' },
-        { username: 'Ronnie', pass: '12345', role: 'TECHNICIAN' }
+        { username: 'Ronnie', pass: '12345', role: 'TECHNICIAN' },
+        { username: 'Attendance', pass: '12345', role: 'ATTENDANCE_STAFF' }
     ];
 }
 
-        function triggerManualSync() {
-            fetchSubscribersFromSupabase(true).then(() => {
-                refreshAllViewsUIOnly();
-            });
-        }
+function triggerManualSync() {
+    fetchSubscribersFromSupabase(true).then(() => {
+        refreshAllViewsUIOnly();
+    });
+}
 
-        async function handleLogin(e) {
-            if (e && e.preventDefault) e.preventDefault();
+async function handleLogin(e) {
+    if (e && e.preventDefault) e.preventDefault();
 
-            const usernameInput = document.getElementById('login-user').value.trim();
-            const passwordInput = document.getElementById('login-pass').value.trim();
+    const usernameInput = document.getElementById('login-user').value.trim();
+    const passwordInput = document.getElementById('login-pass').value.trim();
 
-            await fetchSubscribersFromSupabase();
+    await fetchSubscribersFromSupabase();
 
-            const found = systemUsers.find(u => 
-                u.username.toLowerCase() === usernameInput.toLowerCase() && 
-                u.pass === passwordInput
-            );
+    const found = systemUsers.find(u => 
+        u.username.toLowerCase() === usernameInput.toLowerCase() && 
+        u.pass === passwordInput
+    );
 
-            if (found) {
-                localStorage.setItem('tacsfiber_auth', 'true');
-                localStorage.setItem('tacsfiber_current_user', found.username);
-                localStorage.setItem('tacsfiber_current_role', found.role);
+    if (found) {
+        localStorage.setItem('tacsfiber_auth', 'true');
+        localStorage.setItem('tacsfiber_current_user', found.username);
+        localStorage.setItem('tacsfiber_current_role', found.role);
 
-                openAppDashboard();
-            } else {
-                alert('🔴 Mali ang Username o Password!');
-                document.getElementById('login-pass').value = '';
-            }
-        }
+        openAppDashboard();
+    } else {
+        alert('🔴 Mali ang Username o Password!');
+        document.getElementById('login-pass').value = '';
+    }
+}
 
-        function handleLogout() {
-            localStorage.removeItem('tacsfiber_auth');
-            location.reload();
-        }
+function handleLogout() {
+    localStorage.removeItem('tacsfiber_auth');
+    location.reload();
+}
 
-        function getActiveUser() { return localStorage.getItem('tacsfiber_current_user') || 'Ronel Tacocong'; }
-        
-        function getActiveRole() { 
-            const user = getActiveUser();
-            if (user.toLowerCase() === 'ronel tacocong') return 'ADMIN';
-            const found = systemUsers.find(u => u.username.toLowerCase() === user.toLowerCase());
-            if (found) return found.role;
-            return localStorage.getItem('tacsfiber_current_role') || 'ADMIN'; 
-        }
+function getActiveUser() { return localStorage.getItem('tacsfiber_current_user') || 'Ronel Tacocong'; }
 
-        function renderNavigationTabs() {
-            const role = getActiveRole();
-            const container = document.getElementById('nav-tabs-container');
-            container.innerHTML = '';
+function getActiveRole() { 
+    const user = getActiveUser();
+    if (user.toLowerCase() === 'ronel tacocong') return 'ADMIN';
+    const found = systemUsers.find(u => u.username.toLowerCase() === user.toLowerCase());
+    if (found) return found.role;
+    return localStorage.getItem('tacsfiber_current_role') || 'ADMIN'; 
+}
 
-            let tabs = [];
-            if(role === 'ADMIN' || role === 'ASSISTANT_ADMIN') {
-                tabs = [
-                    { id: 'dashboard', label: 'Dashboard', icon: 'fa-chart-pie text-red-500' },
-                    { id: 'internet-installation', label: 'Internet Installation', icon: 'fa-network-wired text-blue-500' },
-                    { id: 'fiber-break-notice', label: 'Fiber Break Notice', icon: 'fa-bullhorn text-rose-500' },
-                    { id: 'customers-complain', label: 'Customers Complain', icon: 'fa-screwdriver-wrench text-purple-400' },
-                    { id: 'technician-analytics', label: 'Technician Analytics', icon: 'fa-chart-line text-emerald-400' },
-                    { id: 'customers-list', label: 'Customers List', icon: 'fa-address-book text-emerald-400' },
-                    { id: 'collection-alert', label: 'Collection Alert', icon: 'fa-triangle-exclamation text-rose-500' },
-                    { id: 'collection-list', label: 'Collection List', icon: 'fa-list-check text-amber-400' },
-                    { id: 'remittance', label: 'Daily Remittance', icon: 'fa-calculator text-emerald-400' },
-                    { id: 'remittance-history', label: 'Remittance History', icon: 'fa-clock-rotate-left text-indigo-400' },
-                    { id: 'add-customer', label: 'Add Customer', icon: 'fa-user-plus text-indigo-400' },
-                    { id: 'plan-management', label: 'Plans & Prices', icon: 'fa-sliders text-purple-400' },
-                    { id: 'billing-records', label: 'Billing Records', icon: 'fa-file-invoice-dollar text-blue-400' },
-                    { id: 'disconnected-list', label: 'Disconnected List', icon: 'fa-user-slash text-rose-500' },
-                    { id: 'payment-history', label: 'Payment History', icon: 'fa-receipt text-cyan-400' },
-                    { id: 'audit-reports', label: 'Audit & Reports', icon: 'fa-file-shield text-amber-400' },
-                    ...(role === 'ADMIN' ? [{ id: 'users', label: 'User Management', icon: 'fa-users-gear text-red-500' }] : []),
-                    { id: 'backup', label: 'Batch Import / Backup', icon: 'fa-database text-purple-400' }
-                ];
-            } else if(role === 'TECHNICIAN') {
-                tabs = [
-                    { id: 'internet-installation', label: 'Internet Installation (For Installation)', icon: 'fa-network-wired text-blue-400' },
-                    { id: 'customers-complain', label: 'Customers Complain (Repair Queue)', icon: 'fa-screwdriver-wrench text-purple-400' }
-                ];
-            } else {
-                tabs = [
-                    { id: 'collection-list', label: 'My Assigned Collection List', icon: 'fa-list-check text-amber-400' },
-                    { id: 'remittance', label: 'My Daily Remittance', icon: 'fa-calculator text-emerald-400' }
-                ];
-            }
+function renderNavigationTabs() {
+    const role = getActiveRole();
+    const container = document.getElementById('nav-tabs-container');
+    if (!container) return;
+    container.innerHTML = '';
 
-            tabs.forEach(t => {
-                container.innerHTML += `
-                    <button onclick="switchTab('${t.id}')" id="tab-${t.id}" class="py-2 text-xs font-semibold border-b-2 border-transparent text-neutral-400 hover:text-white flex items-center space-x-2 transition cursor-pointer">
-                        <i class="fa-solid ${t.icon}"></i><span>${t.label}</span>
-                    </button>
-                `;
-            });
-        }
+    let tabs = [];
+    if(role === 'ADMIN' || role === 'ASSISTANT_ADMIN') {
+        tabs = [
+            { id: 'dashboard', label: 'Dashboard', icon: 'fa-chart-pie text-red-500' },
+            { id: 'internet-installation', label: 'Internet Installation', icon: 'fa-network-wired text-blue-500' },
+            { id: 'fiber-break-notice', label: 'Fiber Break Notice', icon: 'fa-bullhorn text-rose-500' },
+            { id: 'customers-complain', label: 'Customers Complain', icon: 'fa-screwdriver-wrench text-purple-400' },
+            { id: 'technician-analytics', label: 'Technician Analytics', icon: 'fa-chart-line text-emerald-400' },
+            { id: 'customers-list', label: 'Customers List', icon: 'fa-address-book text-emerald-400' },
+            { id: 'collection-alert', label: 'Collection Alert', icon: 'fa-triangle-exclamation text-rose-500' },
+            { id: 'collection-list', label: 'Collection List', icon: 'fa-list-check text-amber-400' },
+            { id: 'remittance', label: 'Daily Remittance', icon: 'fa-calculator text-emerald-400' },
+            { id: 'remittance-history', label: 'Remittance History', icon: 'fa-clock-rotate-left text-indigo-400' },
+            { id: 'add-customer', label: 'Add Customer', icon: 'fa-user-plus text-indigo-400' },
+            { id: 'plan-management', label: 'Plans & Prices', icon: 'fa-sliders text-purple-400' },
+            { id: 'billing-records', label: 'Billing Records', icon: 'fa-file-invoice-dollar text-blue-400' },
+            { id: 'disconnected-list', label: 'Disconnected List', icon: 'fa-user-slash text-rose-500' },
+            { id: 'payment-history', label: 'Payment History', icon: 'fa-receipt text-cyan-400' },
+            { id: 'audit-reports', label: 'Audit & Reports', icon: 'fa-file-shield text-amber-400' },
+            ...(role === 'ADMIN' ? [{ id: 'users', label: 'User Management', icon: 'fa-users-gear text-red-500' }] : []),
+            { id: 'backup', label: 'Batch Import / Backup', icon: 'fa-database text-purple-400' }
+        ];
+    } else if(role === 'TECHNICIAN') {
+        tabs = [
+            { id: 'internet-installation', label: 'Internet Installation (For Installation)', icon: 'fa-network-wired text-blue-400' },
+            { id: 'customers-complain', label: 'Customers Complain (Repair Queue)', icon: 'fa-screwdriver-wrench text-purple-400' }
+        ];
+    } else if(role === 'ATTENDANCE_STAFF') {
+        // Dito natin ni-lock para iisang tab lang ang makikita nila
+        tabs = [
+            { id: 'attendance', label: 'Daily Attendance & Payroll Tracker', icon: 'fa-calendar-check text-blue-500' }
+        ];
+    } else {
+        tabs = [
+            { id: 'collection-list', label: 'My Assigned Collection List', icon: 'fa-list-check text-amber-400' },
+            { id: 'remittance', label: 'My Daily Remittance', icon: 'fa-calculator text-emerald-400' }
+        ];
+    }
+
+    tabs.forEach(t => {
+        container.innerHTML += `
+            <button onclick="switchTab('${t.id}')" id="tab-${t.id}" class="py-2 text-xs font-semibold border-b-2 border-transparent text-neutral-400 hover:text-white flex items-center space-x-2 transition cursor-pointer">
+                <i class="fa-solid ${t.icon}"></i><span>${t.label}</span>
+            </button>
+        `;
+    });
+}
         
 async function fetchInstallationsFromSupabase() {
     try {
