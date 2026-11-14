@@ -7603,7 +7603,7 @@ async function fetchPayrollHistory() {
     }
 }
 
-// --- 6. DUTY HOURS SUMMARY FUNCTIONS (BAGONG IDINAGDAG) ---
+// --- 6. DUTY HOURS SUMMARY FUNCTIONS (NA-UPDATE NA ANG LOGIC PARA SA FRACTIONAL DUTY DAYS) ---
 async function loadDutyHoursSummary() {
     const tbody = document.getElementById('duty-summary-tbody');
     if (!tbody) return;
@@ -7649,16 +7649,14 @@ async function loadDutyHoursSummary() {
                 (att.name && att.name.toLowerCase().includes(empName.toLowerCase()))
             );
 
-            let dutyDays = 0;
             let totalWorkedMinutes = 0;
             let totalOtMinutes = 0;
 
             empRecords.forEach(rec => {
-                // ITAMA ANG LOGIC: Bibilangin lang ang duty day at oras kung MAY TIME-IN AT MAY VALID NA TIME-OUT NA
+                // Bibilangin ang oras kung may Time-In at valid na Time-Out
                 if (rec.time_in && rec.time_out && rec.time_out !== 'Nag-aabang ng Time-Out...' && rec.time_out !== '-') {
                     let mins = calculateMinutesBetween(rec.time_in, rec.time_out);
                     if (mins > 0) {
-                        dutyDays += 1; // Magdadagdag lang sa duty days kapag tapos na ang shift
                         totalWorkedMinutes += mins;
                     }
                 }
@@ -7668,8 +7666,12 @@ async function loadDutyHoursSummary() {
                 }
             });
 
+            // ⭐ TAMANG LOGIC: Kinakalkula ang Duty Days batay sa actual hours worked (480 minutes / 8 hours = 1 day)
+            const dutyDays = Number((totalWorkedMinutes / 480).toFixed(2));
             const totalHours = (totalWorkedMinutes / 60).toFixed(1);
             const totalOtHours = (totalOtMinutes / 60).toFixed(1);
+            
+            // Ang Basic Salary ay kukuwentahin na ngayon ayon sa fractional duty days o actual hours
             const basicSalary = dutyDays * dailyRate;
             const hourlyRate = dailyRate / 8;
             const estimatedOtPay = (parseFloat(totalOtHours) * hourlyRate);
@@ -7716,7 +7718,6 @@ function calculateMinutesBetween(timeIn, timeOut) {
     return 0;
 }
 
-// NASA SA IYO PA RIN ANG LUMANG FUNCTION NA ITO (HINDI BINURA)
 function parseOvertimeToMinutes(otStr) {
     let minutes = 0;
     const hrMatch = otStr.match(/(\d+)\s*hr/);
