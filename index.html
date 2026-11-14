@@ -8249,46 +8249,60 @@ document.addEventListener('DOMContentLoaded', () => {
     applyRoleRestrictions();
 });
 
-// Function para i-restrict ang view at i-hide ang sidebar para sa Attendance Staff
 function applyRoleRestrictions() {
-    const userRole = (localStorage.getItem('tacs_user_role') || '').toUpperCase();
+    const role = (localStorage.getItem('tacsfiber_current_role') || localStorage.getItem('tacs_user_role') || '').toUpperCase();
     const sidebar = document.querySelector('aside') || document.getElementById('sidebar-nav');
     const loginModal = document.getElementById('role-login-modal');
 
-    // Kung walang naka-login, ipakita ang Login Modal
-    if (!userRole) {
-        if (loginModal) loginModal.classList.remove('hidden');
+    // Kung walang naka-login, ipakita ang login modal
+    if (!role && loginModal) {
+        loginModal.classList.remove('hidden');
         return;
     }
 
-    // Kung may naka-login na, isara ang login modal
-    if (loginModal) loginModal.classList.add('hidden');
-
-    if (userRole === 'ATTENDANCE_STAFF') {
-        // 1. Itago ang Sidebar
+    if (role === 'ATTENDANCE_STAFF') {
+        // 1. Itago ang Sidebar nang tuluyan
         if (sidebar) {
             sidebar.classList.add('hidden');
         }
 
-        // 2. I-hide ang lahat ng ibang views at i-show lang ang Attendance view
+        // 2. Itago ang LAHAT ng views/sections liban sa attendance view
         const allViews = document.querySelectorAll('[id^="view-"]');
-        allViews.forEach(v => v.classList.add('hidden'));
-
-        const attendanceView = document.getElementById('view-attendance');
-        if (attendanceView) {
-            attendanceView.classList.remove('hidden');
-            if (typeof loadAttendanceTable === 'function') {
-                loadAttendanceTable();
+        allViews.forEach(v => {
+            if (v.id === 'view-attendance') {
+                v.classList.remove('hidden');
+            } else {
+                v.classList.add('hidden');
             }
+        });
+
+        // 3. I-hide din ang mga admin dashboard summary cards (kung hiwalay sila sa view-* IDs)
+        const adminSummaryCards = document.querySelectorAll('.admin-summary-card, #admin-dashboard-container');
+        adminSummaryCards.forEach(card => card.classList.add('hidden'));
+
+        // 4. Direktang i-switch sa attendance tab kung meron man
+        if (typeof switchTab === 'function') {
+            switchTab('attendance');
         }
-        console.log("🔒 Attendance Staff Mode Active");
+
+        // 5. I-load ang attendance table para lumitaw ang data
+        if (typeof loadAttendanceTable === 'function') {
+            loadAttendanceTable();
+        }
+
+        console.log("🔒 Attendance Staff Strict Lock Active: Attendance view lang ang visible.");
     } else {
-        // Para sa Admin o iba pang roles, ipakita ang sidebar
+        // Para sa Admin o ibang roles, ipakita ang sidebar at normal views
         if (sidebar) {
             sidebar.classList.remove('hidden');
         }
     }
 }
+
+// Siguraduhing tatawagin ito pagkatapos mag-login o mag-load ng pahina
+document.addEventListener('DOMContentLoaded', () => {
+    applyRoleRestrictions();
+});
 
 // Function kapag pinili ang role sa Login Modal
 function loginAsRole(role) {
