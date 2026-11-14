@@ -8362,9 +8362,9 @@ const PAYROLL_CONFIG = {
     employeeSelectId: 'payroll-employee-select',      // Dropdown ng Empleyado sa Payroll
     startDateId: 'pay-period-start',                  // Pay Period Start input
     endDateId: 'pay-period-end',                      // Pay Period End input
-    dutyDaysInputId: 'duty-days-worked-input',        // Duty Days Worked input box
-    otHoursInputId: 'ot-hours-input',                 // OT Hours input box
-    caDeductionInputId: 'cash-advance-deduction-input'// Cash Advance deduction input box (kung meron)
+    dutyDaysInputId: 'duty-days-worked-input',        // Duty Days Worked input box (Palitan kung iba ang ID sa HTML mo)
+    otHoursInputId: 'ot-hours-input',                   // OT Hours input box
+    caDeductionInputId: 'cash-advance-deduction-input'// Cash Advance deduction input box (o Cash Advance / Valé input box)
 };
 
 // Function para i-sync ang Attendance at Cash Advance patungong Payroll
@@ -8423,7 +8423,6 @@ async function syncAttendanceToPayroll() {
 
 
         // --- 2. CASH ADVANCE SYNC ---
-        // (Palitan ang 'cash_advances' kung iba ang pangalan ng table mo sa Supabase)
         const { data: caData, error: caError } = await sb
             .from('cash_advances') 
             .select('*')
@@ -8438,7 +8437,7 @@ async function syncAttendanceToPayroll() {
                 remainingBalance += Number(ca.balance || ca.remaining_balance || 0);
             });
 
-            // I-update ang Cash Advance Display sa UI kung mayroon kang elements para dito
+            // I-update ang Cash Advance Display sa UI (Top Banner status)
             const caTotalDisplay = document.getElementById('ca-total-advance-display');
             const caBalanceDisplay = document.getElementById('ca-remaining-balance-display');
             const caDeductionInput = document.getElementById(PAYROLL_CONFIG.caDeductionInputId);
@@ -8446,10 +8445,14 @@ async function syncAttendanceToPayroll() {
             if (caTotalDisplay) caTotalDisplay.innerText = `₱${totalAdvance.toLocaleString()}`;
             if (caBalanceDisplay) caBalanceDisplay.innerText = `₱${remainingBalance.toLocaleString()}`;
             
-            // Opsyonal: Ilagay ang natitirang balanse sa cut-off deduction kung nararapat
-            if (caDeductionInput && !caDeductionInput.value) {
+            // Ilagay ang natitirang balanse sa Cash Advance input field para sa payroll deduction
+            if (caDeductionInput) {
                 caDeductionInput.value = remainingBalance > 0 ? remainingBalance : 0;
             }
+        } else {
+            // Kung walang cash advance, i-zero out
+            const caDeductionInput = document.getElementById(PAYROLL_CONFIG.caDeductionInputId);
+            if (caDeductionInput) caDeductionInput.value = 0;
         }
 
 
