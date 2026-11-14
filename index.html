@@ -8215,67 +8215,91 @@ function onScanFailure(error) {
     // Patuloy na naghahanap ng QR code ang camera nang walang sagabal sa console
 }
 
-async function loadAttendanceTable() {
-    const tbody = document.getElementById('attendance-table-body');
-    if (!tbody) return;
+// ==========================================
+// 1. VOICE ANNOUNCEMENT FUNCTION (Text-to-Speech)
+// ==========================================
+function speakAttendanceVoice(name, actionType, timeStr, dateStr) {
+    if ('speechSynthesis' in window) {
+        // Alamin kung umaga, hapon, o gabi para sa angkop na pagbati
+        const currentHour = new Date().getHours();
+        let greeting = "Magandang araw";
+        if (currentHour < 12) {
+            greeting = "Magandang umaga";
+        } else if (currentHour < 18) {
+            greeting = "Magandang hapon";
+        } else {
+            greeting = "Magandang gabi";
+        }
 
-    tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-slate-400">Naglo-load ng mga tala...</td></tr>`;
+        const actionText = actionType === 'IN' ? 'ay nakapag-Time-In na' : 'ay nakapag-Time-Out na';
+        const message = `${greeting}! Si ${name} ${actionText} ngayong petsa ${dateStr}, bandang alas ${timeStr}.`;
 
-    const sb = typeof getSupabase === 'function' ? getSupabase() : (window.supabaseClient || null);
-    if (!sb) {
-        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-rose-500">Walang Supabase client na nakita.</td></tr>`;
-        return;
+        const utterance = new SpeechSynthesisUtterance(message);
+        utterance.lang = 'fil-PH'; // Tagalog/Filipino voice
+        utterance.rate = 1.0;      // Bilis ng pagsasalita
+        utterance.pitch = 1.0;     // Tono
+        
+        window.speechSynthesis.speak(utterance);
     }
-
-    // Kumukuha direkta mula sa bagong employee_attendance table
-    const { data, error } = await sb
-        .from('employee_attendance')
-        .select('*')
-        .order('date', { ascending: false })
-        .order('time_in', { ascending: false });
-
-    if (error) {
-        console.error('Error sa pag-load ng attendance:', error);
-        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-rose-500">May error sa pagkuha ng tala: ${error.message}</td></tr>`;
-        return;
-    }
-
-    if (!data || data.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-slate-400">Wala pang record ng attendance ngayon.</td></tr>`;
-        return;
-    }
-
-    tbody.innerHTML = '';
-    data.forEach(row => {
-        // Formatted display para sa Time-Out kung wala pa
-        const timeOutDisplay = row.time_out 
-            ? row.time_out 
-            : '<span class="text-amber-500 font-medium italic">Nag-aabang ng Time-Out...</span>';
-
-        // Formatted display para sa Overtime
-        const otDisplay = row.overtime_hours && row.overtime_hours !== '-' 
-            ? `<span class="text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-md">${row.overtime_hours}</span>` 
-            : '-';
-
-        const tr = document.createElement('tr');
-        tr.className = 'hover:bg-slate-50 transition-colors border-b border-slate-100';
-        tr.innerHTML = `
-            <td class="px-4 py-3 font-semibold text-slate-700">${row.employee_id}</td>
-            <td class="px-4 py-3 text-slate-800 font-medium">${row.name}</td>
-            <td class="px-4 py-3 text-slate-600">${row.date}</td>
-            <td class="px-4 py-3 text-slate-600">${row.time_in}</td>
-            <td class="px-4 py-3 text-slate-600">${timeOutDisplay}</td>
-            <td class="px-4 py-3">${otDisplay}</td>
-        `;
-        tbody.appendChild(tr);
-    });
 }
 
-// I-load ang logs tuwing magbubukas o mag-re-refresh ang pahina
+// ==========================================
+// 2. ATTENDANCE TABLE REFRESH FUNCTION
+// ==========================================
+async function loadAttendanceTable() {
+    const tableBody = document.getElementById('attendance-table-body'); // Palitan ng tamang ID ng tbody mo kung iba
+    if (!tableBody) return;
+
+    const sb = typeof getSupabase === 'function' ? getSupabase() : (window.supabaseClient || null);
+    if (!sb) return;
+
+    try {
+        const { data, error } = await sb
+            .from('employee_attendance')
+            .select('*')
+            .order('date', { ascending: false });
+
+        if (error) {
+            console.error("Error sa pagkuha ng attendance records:", error);
+            return;
+        }
+
+        if (!data || data.length === 0) {
+            tableBody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-slate-400">Walang nakitang attendance records.</td></tr>`;
+            return;
+        }
+
+        tableBody.innerHTML = data.map(record => `
+            <tr>
+                <td class="px-4 py-2 font-mono">${record.employee_id || ''}</td>
+                <td class="px-4 py-2 font-semibold">${record.name || 'Employee'}</td>
+                <td class="px-4 py-2">${record.date || ''}</td>
+                <td class="px-4 py-2 text-green-600 font-medium">${record.time_in || '-'}</td>
+                <td class="px-4 py-2 text-blue-600 font-medium">${record.time_out || 'Nag-aabang ng Time-Out...'}</td>
+                <td class="px-4 py-2">${record.overtime_hours || '-'}</td>
+            </tr>
+        `).join('');
+
+    } catch (err) {
+        console.error("May error sa pag-load ng attendance table:", err);
+    }
+}
+
+// ==========================================
+// 3. INTEGRATION SA SCAN SUCCESS HANDLER
+// ==========================================
+// (Ilagay o isama ito sa loob ng iyong onScanSuccess function kapag nagtagumpay ang Time-In o Time-Out)
+function handleScanSuccessNotification(employeeName, actionType, timeStr, dateStr) {
+    // 1. Mag-play ng boses
+    speakAttendanceVoice(employeeName, actionType, timeStr, dateStr);
+
+    // 2. I-refresh agad ang table para makita ang bagong record sa dashboard
+    loadAttendanceTable();
+}
+
+// Auto-load ng table kapag nagbukas ang page
 document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(() => {
-        if (typeof fetchAttendanceLogs === 'function') fetchAttendanceLogs();
-    }, 1000);
+    loadAttendanceTable();
 });
 
 async function loadEmployeeQRCards() {
