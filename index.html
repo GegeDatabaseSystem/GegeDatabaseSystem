@@ -3381,66 +3381,102 @@ async function markComplaintAsResolved(complaintId) {
     }
 }
        async function openAppDashboard() {
-            // Supabase Realtime para mag-auto update ang complaints
-            const sb = getSupabase();
-            if (sb) {
-                sb.channel('complaints-changes')
-                  .on(
-                    'postgres_changes',
-                    { event: '*', schema: 'public', table: 'customer_complaints' },
-                    async (payload) => {
-                      console.log('Realtime update received:', payload);
-                      await fetchComplaintsFromSupabase();
-                      renderCustomersComplainView(); // Kusang mag-a-update ang listahan
-                    }
-                  )
-                  .subscribe();
+    // Supabase Realtime para mag-auto update ang complaints
+    const sb = getSupabase();
+    if (sb) {
+        sb.channel('complaints-changes')
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'customer_complaints' },
+            async (payload) => {
+              console.log('Realtime update received:', payload);
+              await fetchComplaintsFromSupabase();
+              renderCustomersComplainView(); // Kusang mag-a-update ang listahan
             }
-            document.getElementById('login-screen').classList.add('hidden');
-            document.getElementById('app-container').classList.remove('hidden');
-            
-            const currentUser = getActiveUser();
-            const currentRole = getActiveRole();
+          )
+          .subscribe();
+    }
+    
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('app-container').classList.remove('hidden');
+    
+    const currentUser = getActiveUser();
+    const currentRole = getActiveRole();
 
-            // ⭐ I-save ang aktibong sesyon sa localStorage para sa persistent login tuwing magre-refresh
-            if (currentUser) {
-                localStorage.setItem('tacsfiber_active_session', JSON.stringify({
-                    user: currentUser,
-                    role: currentRole
-                }));
-            }
+    // ⭐ I-save ang aktibong sesyon sa localStorage para sa persistent login tuwing magre-refresh
+    if (currentUser) {
+        localStorage.setItem('tacsfiber_active_session', JSON.stringify({
+            user: currentUser,
+            role: currentRole
+        }));
+    }
 
-            document.getElementById('header-user-display').innerText = currentUser;
-            document.getElementById('header-role-badge').innerText = currentRole.replace('_', ' ');
+    const userDisplay = document.getElementById('header-user-display');
+    if (userDisplay) userDisplay.innerText = currentUser;
+    
+    const roleBadge = document.getElementById('header-role-badge');
+    if (roleBadge) roleBadge.innerText = currentRole.replace('_', ' ');
 
-            if (!isDataLoaded) {
-                await fetchSubscribersFromSupabase();
-                await fetchComplaintsFromSupabase(); // ⭐ Dito natin isasabay ang pag-fetch ng complaints!
-                await fetchPaymentsFromSupabase();
-            }
-            renderNavigationTabs();
+    if (!isDataLoaded) {
+        await fetchSubscribersFromSupabase();
+        await fetchComplaintsFromSupabase(); // ⭐ Dito natin isasabay ang pag-fetch ng complaints!
+        await fetchPaymentsFromSupabase();
+    }
+    
+    renderNavigationTabs();
 
-            if(currentRole === 'ASSISTANT_ADMIN') {
-                const addBalField = document.getElementById('cust-balance');
-                if(addBalField) {
-                    addBalField.value = '600';
-                    addBalField.readOnly = true;
-                    addBalField.classList.add('bg-slate-200', 'cursor-not-allowed');
-                }
-            }
+    // =========================================================================
+    // ⭐ ATTENDANCE STAFF SPECIAL RESTRICTION: Lock to Attendance View Only ⭐
+    // =========================================================================
+    if (currentRole === 'ATTENDANCE_STAFF') {
+        // 1. Itago ang Sidebar nang tuluyan
+        const sidebar = document.querySelector('aside') || document.getElementById('sidebar-nav');
+        if (sidebar) sidebar.classList.add('hidden');
 
-            if(currentRole === 'COLLECTOR') {
-                switchTab('collection-list');
-            } else if(currentRole === 'TECHNICIAN') {
-                switchTab('internet-installation');
+        // 2. Itago ang lahat ng views at i-show lang ang attendance view
+        const allViews = document.querySelectorAll('[id^="view-"]');
+        allViews.forEach(v => {
+            if (v.id === 'view-attendance') {
+                v.classList.remove('hidden');
             } else {
-                switchTab('dashboard');
+                v.classList.add('hidden');
             }
+        });
 
-            setDefaultInstalledDate();
-            generateNextAccountNo();
-            refreshAllViewsUIOnly();
+        // 3. I-switch ang tab at i-load agad ang attendance table
+        if (typeof switchTab === 'function') {
+            switchTab('attendance');
         }
+        if (typeof loadAttendanceTable === 'function') {
+            loadAttendanceTable();
+        }
+
+        console.log("🔒 Attendance Staff Locked Dashboard Active");
+        return; // Itigil na dito para hindi na mag-load ang admin dashboard o iba pang views!
+    }
+    // =========================================================================
+
+    if(currentRole === 'ASSISTANT_ADMIN') {
+        const addBalField = document.getElementById('cust-balance');
+        if(addBalField) {
+            addBalField.value = '600';
+            addBalField.readOnly = true;
+            addBalField.classList.add('bg-slate-200', 'cursor-not-allowed');
+        }
+    }
+
+    if(currentRole === 'COLLECTOR') {
+        switchTab('collection-list');
+    } else if(currentRole === 'TECHNICIAN') {
+        switchTab('internet-installation');
+    } else {
+        switchTab('dashboard');
+    }
+
+    setDefaultInstalledDate();
+    generateNextAccountNo();
+    refreshAllViewsUIOnly();
+}
 
         // ⭐ Updated Logout function para burahin ang session sa localStorage
         function handleLogout() {
