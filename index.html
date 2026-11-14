@@ -7219,7 +7219,6 @@ function onPayrollEmpChange() {
 }
 
 // --- 3. LIVE PAYROLL CALCULATOR (Duty Days, OT, Late, Vale, Bonus) ---
-// --- 3. LIVE PAYROLL CALCULATOR (Duty Days, OT, Late, Vale, Bonus) ---
 function calculatePayrollNet() {
     // Kunin ang value, kung blangko o 0, mag-fallback sa 600 (o sa kasalukuyang value ng input)
     let dailyRateInput = document.getElementById('payroll-daily-rate');
@@ -8375,11 +8374,10 @@ async function syncAttendanceToPayroll() {
     
     if (!empSelect || !empSelect.value) return;
 
-    const empId = empSelect.value;
+    const empIdRaw = empSelect.value;
     const startDate = startDateInput ? startDateInput.value : '';
     const endDate = endDateInput ? endDateInput.value : '';
 
-    // Hintayin munang mapunan ang petsa bago mag-query
     if (!startDate || !endDate) return;
 
     const sb = typeof getSupabase === 'function' ? getSupabase() : (window.supabaseClient || null);
@@ -8390,10 +8388,10 @@ async function syncAttendanceToPayroll() {
 
     try {
         // --- 1. ATTENDANCE SYNC (Duty Days & OT Hours) ---
+        // Kunin muna ang attendance records nang walang strict type filter para masigurong mahuhuli
         const { data: attendanceRecords, error: attError } = await sb
             .from('employee_attendance')
             .select('*')
-            .eq('employee_id', String(empId))
             .gte('date', startDate)
             .lte('date', endDate);
 
@@ -8401,17 +8399,26 @@ async function syncAttendanceToPayroll() {
             console.error("Error sa pagkuha ng attendance:", attError);
         }
 
-        const dutyDaysCount = attendanceRecords ? attendanceRecords.length : 0;
-
+        let dutyDaysCount = 0;
         let totalOvertimeMinutes = 0;
-        if (attendanceRecords) {
+
+        if (attendanceRecords && attendanceRecords.length > 0) {
             attendanceRecords.forEach(record => {
-                const otText = record.overtime_hours;
-                if (otText && otText !== '-') {
-                    totalOvertimeMinutes += parseOvertimeToMinutes(otText);
+                // I-match ang employee_id kahit Number o String man yan
+                const matchId = String(record.employee_id).trim() === String(empIdRaw).trim();
+                const matchName = empSelect.options[empSelect.selectedIndex].text.toLowerCase().includes((record.name || '').toLowerCase());
+
+                if ((matchId || matchName) && record.time_in) {
+                    dutyDaysCount += 1;
+
+                    const otText = record.overtime_hours;
+                    if (otText && otText !== '-') {
+                        totalOvertimeMinutes += parseOvertimeToMinutes(otText);
+                    }
                 }
             });
         }
+
         const totalOTHours = (totalOvertimeMinutes / 60).toFixed(1);
 
         // Isalpak sa Duty Days at OT Hours inputs
@@ -8421,23 +8428,22 @@ async function syncAttendanceToPayroll() {
         if (dutyDaysField) dutyDaysField.value = dutyDaysCount;
         if (otHoursField) otHoursField.value = totalOTHours;
 
-
         // --- 2. CASH ADVANCE SYNC ---
         const { data: caData, error: caError } = await sb
             .from('cash_advances') 
-            .select('*')
-            .eq('employee_id', String(empId));
+            .select('*');
 
         if (!caError && caData && caData.length > 0) {
             let totalAdvance = 0;
             let remainingBalance = 0;
             
             caData.forEach(ca => {
-                totalAdvance += Number(ca.amount || ca.total_advance || 0);
-                remainingBalance += Number(ca.balance || ca.remaining_balance || 0);
+                if (String(ca.employee_id).trim() === String(empIdRaw).trim()) {
+                    totalAdvance += Number(ca.amount || ca.total_advance || 0);
+                    remainingBalance += Number(ca.balance || ca.remaining_balance || 0);
+                }
             });
 
-            // I-update ang Cash Advance Display sa UI (Top Banner status)
             const caTotalDisplay = document.getElementById('ca-total-advance-display');
             const caBalanceDisplay = document.getElementById('ca-remaining-balance-display');
             const caDeductionInput = document.getElementById(PAYROLL_CONFIG.caDeductionInputId);
@@ -8445,16 +8451,10 @@ async function syncAttendanceToPayroll() {
             if (caTotalDisplay) caTotalDisplay.innerText = `₱${totalAdvance.toLocaleString()}`;
             if (caBalanceDisplay) caBalanceDisplay.innerText = `₱${remainingBalance.toLocaleString()}`;
             
-            // Ilagay ang natitirang balanse sa Cash Advance input field para sa payroll deduction
             if (caDeductionInput) {
                 caDeductionInput.value = remainingBalance > 0 ? remainingBalance : 0;
             }
-        } else {
-            // Kung walang cash advance, i-zero out
-            const caDeductionInput = document.getElementById(PAYROLL_CONFIG.caDeductionInputId);
-            if (caDeductionInput) caDeductionInput.value = 0;
         }
-
 
         // --- 3. AUTO CALCULATE SALARY ---
         if (typeof calculateNetSalary === 'function') {
