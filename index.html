@@ -321,12 +321,13 @@
                         <th class="px-4 py-3">Date</th>
                         <th class="px-4 py-3">Time-In</th>
                         <th class="px-4 py-3">Time-Out</th>
+                        <th class="px-4 py-3 text-center text-indigo-600">Total Hours</th> <!-- Bagong Column -->
                         <th class="px-4 py-3">Overtime (OT)</th>
                     </tr>
                 </thead>
                 <tbody id="attendance-table-body" class="divide-y divide-slate-100 text-xs">
                     <tr>
-                        <td colspan="6" class="text-center py-4 text-slate-400">Naglo-load ng mga tala...</td>
+                        <td colspan="7" class="text-center py-4 text-slate-400">Naglo-load ng mga tala...</td>
                     </tr>
                 </tbody>
             </table>
@@ -1468,7 +1469,7 @@
         </div>
     </div>
 
-    <!-- Table Container -->
+    <!-- Table Container (May kasamang Total Hours column na may colspan="8") -->
     <div class="overflow-x-auto">
         <table class="w-full text-left border-collapse text-xs">
             <thead>
@@ -1476,6 +1477,7 @@
                     <th class="py-3 px-4">Employee Name</th>
                     <th class="py-3 px-4 text-center">Daily Rate</th>
                     <th class="py-3 px-4 text-center">Total Duty Days</th>
+                    <th class="py-3 px-4 text-center text-indigo-600">Total Hours</th>
                     <th class="py-3 px-4 text-center">Total OT Hours</th>
                     <th class="py-3 px-4 text-right">Basic Salary</th>
                     <th class="py-3 px-4 text-right">Estimated OT Pay</th>
@@ -1483,12 +1485,11 @@
                 </tr>
             </thead>
             <tbody id="duty-summary-tbody">
-                <tr><td colspan="7" class="text-center py-6 text-slate-400">Pumili ng petsa at i-click ang "I-generate" para sa summary.</td></tr>
+                <tr><td colspan="8" class="text-center py-6 text-slate-400">Pumili ng petsa at i-click ang "I-generate" para sa summary.</td></tr>
             </tbody>
         </table>
     </div>
-</div>   
-
+</div>
     <!-- 2. SALES & EXPENSES SECTION (Naka-balot na lahat dito pati ang filter) -->
     <div id="sales-expenses-section" class="hidden space-y-6">
         
@@ -7519,11 +7520,11 @@ async function loadDutyHoursSummary() {
     const endDate = document.getElementById('summary-end-date')?.value;
 
     if (!startDate || !endDate) {
-        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-6 text-amber-600 font-semibold">⚠️ Mangyaring itakda muna ang Start Date at End Date.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center py-6 text-amber-600 font-semibold">⚠️ Mangyaring itakda muna ang Start Date at End Date.</td></tr>`;
         return;
     }
 
-    tbody.innerHTML = `<tr><td colspan="7" class="text-center py-6 text-slate-400">Kumukuha ng attendance records mula sa Supabase...</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" class="text-center py-6 text-slate-400">Kumukuha ng attendance records mula sa Supabase...</td></tr>`;
 
     const sb = typeof getSupabase === 'function' ? getSupabase() : (window.supabaseClient || null);
     if (!sb) return;
@@ -7541,7 +7542,7 @@ async function loadDutyHoursSummary() {
         if (attError) throw attError;
 
         if (!employees || employees.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="7" class="text-center py-6 text-slate-400">Walang nahanap na empleyado.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="8" class="text-center py-6 text-slate-400">Walang nahanap na empleyado.</td></tr>`;
             return;
         }
 
@@ -7557,19 +7558,32 @@ async function loadDutyHoursSummary() {
             );
 
             let dutyDays = 0;
+            let totalWorkedMinutes = 0;
             let totalOtMinutes = 0;
 
             empRecords.forEach(rec => {
-                if (rec.time_in) dutyDays += 1;
+                // ITAMA ANG LOGIC: Bibilangin lang ang duty day at oras kung MAY TIME-IN AT MAY VALID NA TIME-OUT NA
+                if (rec.time_in && rec.time_out && rec.time_out !== 'Nag-aabang ng Time-Out...' && rec.time_out !== '-') {
+                    let mins = calculateMinutesBetween(rec.time_in, rec.time_out);
+                    if (mins > 0) {
+                        dutyDays += 1; // Magdadagdag lang sa duty days kapag tapos na ang shift
+                        totalWorkedMinutes += mins;
+                    }
+                }
+                
                 if (rec.overtime_hours && rec.overtime_hours !== '-') {
                     totalOtMinutes += parseOvertimeToMinutes(rec.overtime_hours);
                 }
             });
 
+            const totalHours = (totalWorkedMinutes / 60).toFixed(1);
             const totalOtHours = (totalOtMinutes / 60).toFixed(1);
             const basicSalary = dutyDays * dailyRate;
             const hourlyRate = dailyRate / 8;
             const estimatedOtPay = (parseFloat(totalOtHours) * hourlyRate);
+
+            const expectedHours = dutyDays * 8;
+            const hoursBadgeClass = dutyDays === 0 ? 'text-slate-400 bg-slate-50' : (totalWorkedMinutes >= (expectedHours * 60) ? 'text-indigo-600 bg-indigo-50/30' : 'text-amber-600 bg-amber-50/30');
 
             const tr = document.createElement('tr');
             tr.className = "hover:bg-slate-50 border-b border-slate-100 transition-colors";
@@ -7577,6 +7591,7 @@ async function loadDutyHoursSummary() {
                 <td class="py-3 px-4 font-bold text-slate-800">${empName} <span class="text-[10px] text-slate-400 font-normal">(${emp.role || 'STAFF'})</span></td>
                 <td class="py-3 px-4 text-center font-mono text-slate-700">₱${dailyRate.toLocaleString()}</td>
                 <td class="py-3 px-4 text-center font-bold text-blue-600 bg-blue-50/30">${dutyDays} days</td>
+                <td class="py-3 px-4 text-center font-bold ${hoursBadgeClass}">${totalHours} hrs</td>
                 <td class="py-3 px-4 text-center font-bold text-emerald-600 bg-emerald-50/30">${totalOtHours} hrs</td>
                 <td class="py-3 px-4 text-right font-mono text-slate-900 font-semibold">₱${basicSalary.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
                 <td class="py-3 px-4 text-right font-mono text-emerald-600 font-semibold">+₱${estimatedOtPay.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
@@ -7592,10 +7607,24 @@ async function loadDutyHoursSummary() {
 
     } catch (e) {
         console.error("Error loading duty summary:", e);
-        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-6 text-rose-500 font-medium">May aberya sa pagkukuha ng summary data.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center py-6 text-rose-500 font-medium">May aberya sa pagkukuha ng summary data.</td></tr>`;
     }
 }
 
+// Helper para makuha ang minuto sa pagitan ng Time-In at Time-Out
+function calculateMinutesBetween(timeIn, timeOut) {
+    try {
+        let dateIn = new Date(timeIn.includes('T') ? timeIn : `1970-01-01T${timeIn}`);
+        let dateOut = new Date(timeOut.includes('T') ? timeOut : `1970-01-01T${timeOut}`);
+        let diffMs = dateOut - dateIn;
+        if (diffMs > 0) {
+            return Math.floor(diffMs / (1000 * 60));
+        }
+    } catch (e) {}
+    return 0;
+}
+
+// NASA SA IYO PA RIN ANG LUMANG FUNCTION NA ITO (HINDI BINURA)
 function parseOvertimeToMinutes(otStr) {
     let minutes = 0;
     const hrMatch = otStr.match(/(\d+)\s*hr/);
@@ -7606,7 +7635,6 @@ function parseOvertimeToMinutes(otStr) {
     
     return minutes;
 }
-
 function transferToPayroll(empName, startDate, endDate, dutyDays, otHours, dailyRate) {
     switchAuditSubTab('payroll');
 
@@ -8447,20 +8475,37 @@ async function loadAttendanceTable() {
         }
 
         if (!data || data.length === 0) {
-            tableBody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-slate-400">Walang nakitang attendance records.</td></tr>`;
+            tableBody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-slate-400">Walang nakitang attendance records.</td></tr>`;
             return;
         }
 
-        tableBody.innerHTML = data.map(record => `
-            <tr>
-                <td class="px-4 py-2 font-mono">${record.employee_id || ''}</td>
-                <td class="px-4 py-2 font-semibold">${record.name || 'Employee'}</td>
-                <td class="px-4 py-2">${record.date || ''}</td>
-                <td class="px-4 py-2 text-green-600 font-medium">${record.time_in || '-'}</td>
-                <td class="px-4 py-2 text-blue-600 font-medium">${record.time_out || 'Nag-aabang ng Time-Out...'}</td>
-                <td class="px-4 py-2">${record.overtime_hours || '-'}</td>
-            </tr>
-        `).join('');
+        tableBody.innerHTML = data.map(record => {
+            let totalHoursStr = '-';
+            
+            // Kalkulahin ang total hours kung may time_in at valid time_out na
+            if (record.time_in && record.time_out && record.time_out !== 'Nag-aabang ng Time-Out...' && record.time_out !== '-') {
+                let mins = calculateMinutesBetween(record.time_in, record.time_out);
+                if (mins > 0) {
+                    let hours = (mins / 60).toFixed(1);
+                    let badgeColor = hours >= 8 ? 'text-indigo-600 bg-indigo-50/50' : 'text-amber-600 bg-amber-50/50';
+                    totalHoursStr = `<span class="px-2 py-0.5 rounded font-bold ${badgeColor}">${hours} hrs</span>`;
+                }
+            } else {
+                totalHoursStr = `<span class="text-slate-400">-</span>`;
+            }
+
+            return `
+                <tr>
+                    <td class="px-4 py-2 font-mono">${record.employee_id || ''}</td>
+                    <td class="px-4 py-2 font-semibold">${record.name || 'Employee'}</td>
+                    <td class="px-4 py-2">${record.date || ''}</td>
+                    <td class="px-4 py-2 text-green-600 font-medium">${record.time_in || '-'}</td>
+                    <td class="px-4 py-2 text-blue-600 font-medium">${record.time_out || 'Nag-aabang ng Time-Out...'}</td>
+                    <td class="px-4 py-2 text-center">${totalHoursStr}</td>
+                    <td class="px-4 py-2">${record.overtime_hours || '-'}</td>
+                </tr>
+            `;
+        }).join('');
 
     } catch (err) {
         console.error("May error sa pag-load ng attendance table:", err);
