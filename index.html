@@ -8032,6 +8032,7 @@ async function openScannerModal() {
         }
     }
 }
+
 function closeScannerModal() {
     // 1. Unahing isara ang modal para instant na mawala sa screen
     const modal = document.getElementById('scanner-modal');
@@ -8119,14 +8120,15 @@ async function onScanSuccess(decodedText, decodedResult) {
             return;
         }
 
-        const empId = String(empData.id); // Ang totoong ID sa database (10, 11, etc.)
-        const empName = empData.name; // Ang totoong pangalan (Ronel Tacocong, Merson Morante, etc.)
+        const empId = String(empData.id); // Ang totoong ID sa database
+        const empIdNum = empData.id;
+        const empName = empData.name; // Ang totoong pangalan
 
         // 3. Suriin kung mayroon nang attendance record ang empleyado ngayong araw
         const { data: existingRecord, error: fetchError } = await sb
             .from('employee_attendance')
             .select('*')
-            .eq('employee_id', empId)
+            .eq('employee_id', empIdNum)
             .eq('date', today)
             .maybeSingle();
 
@@ -8140,8 +8142,8 @@ async function onScanSuccess(decodedText, decodedResult) {
         if (!existingRecord) {
             // --- UNANG SCAN: TIME-IN ---
             const { error: insertError } = await sb.from('employee_attendance').insert([{
-                employee_id: empId,
-                name: empName, // Direktor na ise-save ang tamang pangalan
+                employee_id: empIdNum,
+                name: empName,
                 date: today,
                 time_in: nowTime,
                 time_out: null,
@@ -8152,8 +8154,13 @@ async function onScanSuccess(decodedText, decodedResult) {
                 console.error("Error saving Time-In:", insertError);
                 alert(`❌ Nabigo sa pag-save ng Time-In: ${insertError.message}`);
             } else {
-                alert(`✅ TIME-IN Matagumpay para kay ${empName} (${nowTime})!`);
-                if (typeof loadAttendanceTable === 'function') loadAttendanceTable();
+                // Patunugin ang boses at i-refresh ang table bago mag-alert
+                speakAttendanceVoice(empName, 'IN', nowTime);
+                loadAttendanceTable();
+
+                setTimeout(() => {
+                    alert(`✅ TIME-IN Matagumpay para kay ${empName} (${nowTime})!`);
+                }, 300);
             }
 
         } else if (!existingRecord.time_out) {
@@ -8187,8 +8194,13 @@ async function onScanSuccess(decodedText, decodedResult) {
                 console.error("Error saving Time-Out:", updateError);
                 alert(`❌ Nabigo sa pag-save ng Time-Out: ${updateError.message}`);
             } else {
-                alert(`✅ TIME-OUT Matagumpay para kay ${empName}!\nOras ng Uwi: ${nowTime}\nOvertime: ${otHoursText}`);
-                if (typeof loadAttendanceTable === 'function') loadAttendanceTable();
+                // Patunugin ang boses at i-refresh ang table bago mag-alert
+                speakAttendanceVoice(empName, 'OUT', nowTime);
+                loadAttendanceTable();
+
+                setTimeout(() => {
+                    alert(`✅ TIME-OUT Matagumpay para kay ${empName}!\nOras ng Uwi: ${nowTime}\nOvertime: ${otHoursText}`);
+                }, 300);
             }
 
         } else {
@@ -8218,54 +8230,24 @@ function onScanFailure(error) {
 // ==========================================
 // 1. VOICE ANNOUNCEMENT FUNCTION (Text-to-Speech)
 // ==========================================
-function speakAttendanceVoice(name, actionType, timeStr, dateStr) {
-    if (!('speechSynthesis' in window)) {
-        console.warn("Hindi suportado ng browser ang Text-to-Speech.");
-        return;
-    }
-
-    // I-cancel ang anumang nakabinbin na boses para hindi mag-hang
-    window.speechSynthesis.cancel();
+function speakAttendanceVoice(name, actionType, timeStr) {
+    if (!('speechSynthesis' in window)) return;
 
     const currentHour = new Date().getHours();
-    let greeting = "Good day";
-    if (currentHour < 12) {
-        greeting = "Good morning";
-    } else if (currentHour < 18) {
-        greeting = "Good afternoon";
-    } else {
-        greeting = "Good evening";
-    }
-
+    let greeting = currentHour < 12 ? "Good morning" : (currentHour < 18 ? "Good afternoon" : "Good evening");
     const actionText = actionType === 'IN' ? 'has timed in' : 'has timed out';
+    
     const message = `${greeting}! ${name} ${actionText} at ${timeStr}.`;
 
-    const utterance = new SpeechSynthesisUtterance(message);
-    
-    // Kunin ang available voices sa browser; kung may Filipino, gamitin; kung wala, default
-    const voices = window.speechSynthesis.getVoices();
-    const preferredVoice = voices.find(v => v.lang.includes('fil') || v.lang.includes('tl')) 
-                        || voices.find(v => v.lang.includes('en-PH'))
-                        || voices.find(v => v.lang.includes('en-US'))
-                        || voices[0];
-
-    if (preferredVoice) {
-        utterance.voice = preferredVoice;
-    }
-
-    utterance.volume = 1.0; // Max volume
-    utterance.rate = 1.0;
-    utterance.pitch = 1.0;
-
-    // Patunugin muna ang boses bago lumabas ang alert()
-    window.speechSynthesis.speak(utterance);
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(new SpeechSynthesisUtterance(message));
 }
 
 // ==========================================
 // 2. ATTENDANCE TABLE REFRESH FUNCTION
 // ==========================================
 async function loadAttendanceTable() {
-    const tableBody = document.getElementById('attendance-table-body'); // Palitan ng tamang ID ng tbody mo kung iba
+    const tableBody = document.getElementById('attendance-table-body');
     if (!tableBody) return;
 
     const sb = typeof getSupabase === 'function' ? getSupabase() : (window.supabaseClient || null);
@@ -8303,18 +8285,6 @@ async function loadAttendanceTable() {
     }
 }
 
-// ==========================================
-// 3. INTEGRATION SA SCAN SUCCESS HANDLER
-// ==========================================
-// (Ilagay o isama ito sa loob ng iyong onScanSuccess function kapag nagtagumpay ang Time-In o Time-Out)
-function handleScanSuccessNotification(employeeName, actionType, timeStr, dateStr) {
-    // 1. Mag-play ng boses
-    speakAttendanceVoice(employeeName, actionType, timeStr, dateStr);
-
-    // 2. I-refresh agad ang table para makita ang bagong record sa dashboard
-    loadAttendanceTable();
-}
-
 // Auto-load ng table kapag nagbukas ang page
 document.addEventListener('DOMContentLoaded', () => {
     loadAttendanceTable();
@@ -8331,7 +8301,6 @@ async function loadEmployeeQRCards() {
 
     if (sb) {
         try {
-            // Direktang humuhugot sa company_employees table na may saktong ID at pangalan
             const { data, error } = await sb.from('company_employees').select('*').order('id', { ascending: true });
             if (!error && data && data.length > 0) {
                 employees = data;
@@ -8341,7 +8310,6 @@ async function loadEmployeeQRCards() {
         }
     }
 
-    // Fallback kung sakaling walang makuha sa database
     if (employees.length === 0) {
         employees = [
             { id: 10, name: 'Ronel Tacocong', role: 'STAFF' },
@@ -8349,13 +8317,11 @@ async function loadEmployeeQRCards() {
         ];
     }
 
-    // Render ng mga QR cards base sa data ng company_employees
     grid.innerHTML = employees.map(emp => {
-        const empId = emp.id; // Halimbawa: 10, 11, 12...
-        const empName = emp.name || 'Employee'; // Halimbawa: Ronel Tacocong, Merson Morante...
-        const empRole = emp.role || 'STAFF'; // Halimbawa: TECHNICIAN, COLLECTOR...
+        const empId = emp.id;
+        const empName = emp.name || 'Employee';
+        const empRole = emp.role || 'STAFF';
         
-        // Ang QR code ay naglalaman ng eksaktong ID para sakto sa attendance scanner
         const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(empId)}`;
 
         return `
