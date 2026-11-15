@@ -1409,7 +1409,7 @@
             Duty Hours Summary
         </button>   
     </div>
-    <!-- 1. COLLECTION AUDIT SECTION -->
+        <!-- 1. COLLECTION AUDIT SECTION -->
     <div id="collection-audit-section" class="space-y-6">
         <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-6">
             <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 border-b pb-4">
@@ -1430,9 +1430,9 @@
 
                     <div class="flex items-center space-x-2 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200">
                         <label class="text-xs font-bold text-slate-700">From:</label>
-                        <input type="date" id="audit-date-from" onchange="renderAuditTable()" class="border border-slate-300 rounded-lg px-2 py-1 text-xs font-bold bg-white">
+                        <input type="date" id="audit-date-from" min="2020-01-01" max="2099-12-31" onchange="renderAuditTable()" class="border border-slate-300 rounded-lg px-2 py-1 text-xs font-bold bg-white">
                         <label class="text-xs font-bold text-slate-700">To:</label>
-                        <input type="date" id="audit-date-to" onchange="renderAuditTable()" class="border border-slate-300 rounded-lg px-2 py-1 text-xs font-bold bg-white">
+                        <input type="date" id="audit-date-to" min="2020-01-01" max="2099-12-31" onchange="renderAuditTable()" class="border border-slate-300 rounded-lg px-2 py-1 text-xs font-bold bg-white">
                     </div>
 
                     <button onclick="resetAuditFilters()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition">Reset</button>
@@ -1471,6 +1471,7 @@
             </div>
         </div>
     </div>
+
     
 <!-- Duty Hours Summary Section -->
 <div id="duty-hours-summary-section" class="hidden space-y-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
@@ -1515,7 +1516,7 @@
         </table>
     </div>
 </div>
-    <!-- 2. SALES & EXPENSES SECTION (Naka-balot na lahat dito pati ang filter) -->
+       <!-- 2. SALES & EXPENSES SECTION (Naka-balot na lahat dito pati ang filter) -->
     <div id="sales-expenses-section" class="hidden space-y-6">
         
         <!-- AUDIT DATE FILTER SECTION -->
@@ -1527,13 +1528,13 @@
             <div class="flex flex-wrap items-center gap-3">
                 <div class="flex items-center gap-2">
                     <label class="text-xs font-bold text-slate-500">From:</label>
-                    <input type="date" id="audit-start-date" onchange="loadSalesAndIncomeSummary()" class="text-xs font-mono border border-slate-300 rounded-lg px-3 py-1.5 bg-slate-50 text-slate-700">
+                    <input type="date" id="audit-start-date" min="2020-01-01" max="2099-12-31" class="text-xs font-mono border border-slate-300 rounded-lg px-3 py-1.5 bg-slate-50 text-slate-700">
                 </div>
                 <div class="flex items-center gap-2">
                     <label class="text-xs font-bold text-slate-500">To:</label>
-                    <input type="date" id="audit-end-date" onchange="loadSalesAndIncomeSummary()" class="text-xs font-mono border border-slate-300 rounded-lg px-3 py-1.5 bg-slate-50 text-slate-700">
+                    <input type="date" id="audit-end-date" min="2020-01-01" max="2099-12-31" class="text-xs font-mono border border-slate-300 rounded-lg px-3 py-1.5 bg-slate-50 text-slate-700">
                 </div>
-               <button onclick="loadSalesAndIncomeSummary(true)" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow transition flex items-center gap-1.5">
+                <button onclick="loadSalesAndIncomeSummary(true)" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow transition flex items-center gap-1.5">
                     <i class="fa-solid fa-rotate"></i> Filter Sales
                 </button>
             </div>
@@ -6609,25 +6610,27 @@ function openPaymentModalBySubId(subId) {
     const dateToEl = document.getElementById('audit-date-to');
     const totalAmountEl = document.getElementById('audit-total-amount');
 
-    if(!tbody) return;
+    if (!tbody) return;
 
-    let dateFrom = dateFromEl ? dateFromEl.value : '';
-    let dateTo = dateToEl ? dateToEl.value : '';
+    const dateFrom = dateFromEl ? dateFromEl.value : '';
+    const dateTo = dateToEl ? dateToEl.value : '';
 
-    // 1. Auto-correct kapag may typo sa taon (halimbawa "0206-11-14" imbes na "2026-11-14")
-    if (dateFrom && dateFrom.startsWith('0206')) {
-        dateFrom = dateFrom.replace('0206', '2026');
-        if (dateFromEl) dateFromEl.value = dateFrom;
-    }
-    if (dateTo && dateTo.startsWith('0206')) {
-        dateTo = dateTo.replace('0206', '2026');
-        if (dateToEl) dateToEl.value = dateTo;
+    // Helper: Check if YYYY-MM-DD is complete and year is between 2020 and 2099
+    const isValidDate = (d) => {
+        if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return false;
+        const year = parseInt(d.split('-')[0], 10);
+        return year >= 2020 && year <= 2099;
+    };
+
+    // Stop immediately if user is still typing the year (prevents browser reset)
+    if ((dateFrom && !isValidDate(dateFrom)) || (dateTo && !isValidDate(dateTo))) {
+        return;
     }
 
     let filtered = paymentLogs || [];
 
-    // 2. Case-insensitive & trimmed comparison para sa Collector Name
-    if(collectorFilter !== 'ALL') {
+    // 1. Case-insensitive & trimmed comparison para sa Collector Name
+    if (collectorFilter !== 'ALL') {
         filtered = filtered.filter(p => {
             const encoder = (p.encodedBy || p.collected_by || '').toLowerCase().trim();
             const target = collectorFilter.toLowerCase().trim();
@@ -6635,28 +6638,28 @@ function openPaymentModalBySubId(subId) {
         });
     }
 
-    // 3. Validated Date Filtering (Gagana lang kapag kumpleto at valid na YYYY-MM-DD, year >= 2000)
-    const isValidDate = (d) => /^\d{4}-\d{2}-\d{2}$/.test(d) && parseInt(d.split('-')[0], 10) >= 2000;
-
-    if(isValidDate(dateFrom)) {
+    // 2. Date Filtering
+    if (isValidDate(dateFrom)) {
         filtered = filtered.filter(p => {
-            const recordDate = (p.date || '').split('T')[0].trim(); // Linisin kung may timestamp
+            const recordDate = (p.date || '').split('T')[0].trim();
             return recordDate >= dateFrom;
         });
     }
 
-    if(isValidDate(dateTo)) {
+    if (isValidDate(dateTo)) {
         filtered = filtered.filter(p => {
-            const recordDate = (p.date || '').split('T')[0].trim(); // Linisin kung may timestamp
+            const recordDate = (p.date || '').split('T')[0].trim();
             return recordDate <= dateTo;
         });
     }
 
-    // 4. Kalkulahin ang kabuuang koleksyon base sa na-filter na records
+    // 3. Kalkulahin ang kabuuang koleksyon base sa na-filter na records
     const totalSum = filtered.reduce((acc, p) => acc + (parseFloat(p.amountPaid) || parseFloat(p.amount) || 0), 0);
-    if(totalAmountEl) totalAmountEl.innerText = '₱' + totalSum.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    if (totalAmountEl) {
+        totalAmountEl.innerText = '₱' + totalSum.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
 
-    if(filtered.length === 0) {
+    if (filtered.length === 0) {
         tbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-slate-400">Walang nahanap na collection audit records sa mga filter na ito.</td></tr>`;
         return;
     }
@@ -6672,12 +6675,13 @@ function openPaymentModalBySubId(subId) {
             <td class="py-2.5 px-3 font-bold">${p.subscriberName || p.subscriber_name || '-'}</td>
             <td class="py-2.5 px-3">${p.monthsPaid || p.billing_id || '-'}</td>
             <td class="py-2.5 px-3"><span class="px-2 py-0.5 rounded text-[11px] font-bold ${method === 'GCash' ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'}">${method}</span></td>
-            <td class="py-2.5 px-3 font-bold text-emerald-600">₱${amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+            <td class="py-2.5 px-3 font-bold text-emerald-600">₱${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
             <td class="py-2.5 px-3">${p.encodedBy || p.collected_by || '-'}</td>
         </tr>
         `;
     }).join('');
 }
+
 
         function resetAuditFilters() {
             document.getElementById('auditCollectorFilter').value = 'ALL';
@@ -7005,19 +7009,16 @@ async function loadSalesAndIncomeSummary(applyFilter = false) {
         return;
     }
 
-    // Kunin ang petsa LAMANG KUNG pinindot ang 'Filter Sales' button (applyFilter = true)
+    // Strictly target Sales & Expenses date inputs (do NOT touch Collection Audit inputs)
+    const startInput = document.getElementById('audit-start-date');
+    const endInput = document.getElementById('audit-end-date');
+
     let rawStartDate = '';
     let rawEndDate = '';
 
     if (applyFilter) {
-        rawStartDate = document.getElementById('audit-date-from')?.value || document.getElementById('audit-start-date')?.value || '';
-        rawEndDate = document.getElementById('audit-date-to')?.value || document.getElementById('audit-end-date')?.value || '';
-    } else {
-        // Kung hindi pa pinipindot ang button, linisin muna ang inputs para blangko sila tingnan
-        const startInput = document.getElementById('audit-date-from') || document.getElementById('audit-start-date');
-        const endInput = document.getElementById('audit-date-to') || document.getElementById('audit-end-date');
-        if (startInput) startInput.value = '';
-        if (endInput) endInput.value = '';
+        rawStartDate = startInput ? startInput.value : '';
+        rawEndDate = endInput ? endInput.value : '';
     }
 
     let ronelTotal = 0;
@@ -7025,11 +7026,15 @@ async function loadSalesAndIncomeSummary(applyFilter = false) {
     let collectorTotal = 0;
     let grandTotalSales = 0;
 
-    const isValidDate = (d) => /^\d{4}-\d{2}-\d{2}$/.test(d) && parseInt(d.split('-')[0], 10) >= 2000;
+    const isValidDate = (d) => {
+        if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return false;
+        const year = parseInt(d.split('-').at(0), 10);
+        return year >= 2020 && year <= 2099;
+    };
 
     data.forEach((row) => {
         const rawDate = row.date || row.payment_date || row.date_paid || row.created_at || '';
-        const rowDateStr = String(rawDate).split('T')[0].trim();
+        const rowDateStr = String(rawDate).split('T').at(0).trim();
         
         const collectorField = String(
             row.encodedBy || row.collected_by || row.encoded_by || row.encoder || row.collector || row.staff || ''
@@ -7065,6 +7070,7 @@ async function loadSalesAndIncomeSummary(applyFilter = false) {
         calculateSalesAndExpenses();
     }
 }
+
 
 // Helper para i-update ang mga UI boxes
 function updateSalesUI(ronelTotal, rolandoTotal, collectorTotal, grandTotalSales) {
