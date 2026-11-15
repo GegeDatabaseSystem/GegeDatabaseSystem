@@ -5550,19 +5550,26 @@ async function handleCustomerComplain(customerAccountNo, customerName, customerC
         }
 
         function openNotificationModal(subId, category) {
-            const sub = subscribers.find(s => s.id === subId);
-            if(!sub) return;
+    const sub = subscribers.find(s => s.id === subId);
+    if(!sub) return;
 
-            document.getElementById('notif-modal-title').innerText = `Send Billing Reminder (${category})`;
-            document.getElementById('notif-recipient').value = `${sub.name} (${sub.contact}) - Acct: ${sub.id}`;
-            document.getElementById('notif-contact-raw').value = sub.contact;
-            
-            let msg = `Hi ${sub.name}, pinapaalala po namin mula sa TacsFiber na ang inyong balanse na ₱${(sub.balance||0).toLocaleString()} para sa inyong internet plan ay ${category.toLowerCase()}. Maraming salamat po!\n\nGcash Name: Ronel Tacocong\nGcash Number: 0960 462 2951\n\nMagandang Araw!\nTacsFiber Management`;
+    // Ayusin ang category text para hindi maging "customers list" sa gitna ng pangungusap
+    const reminderStatus = (category === 'Customers List' || !category) ? 'overdue' : category.toLowerCase();
 
-            document.getElementById('notif-message').value = msg;
-            document.getElementById('notification-modal').classList.remove('hidden');
-            document.getElementById('notification-modal').classList.add('flex');
-        }
+    document.getElementById('notif-modal-title').innerText = `Send Billing Reminder (${category})`;
+    document.getElementById('notif-recipient').value = `${sub.name} (${sub.contact}) - Acct: ${sub.id}`;
+    document.getElementById('notif-contact-raw').value = sub.contact;
+    
+    // Kunin ang kumpletong petsa ngayon (Date Sent)
+    const dateSent = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    const billingMonth = sub.billingMonth || 'October 2026';
+
+    let msg = `📅 Date Sent: ${dateSent}\n\nHi ${sub.name}, pinapaalala po namin mula sa TacsFiber na ang inyong balanse na ₱${(sub.balance||0).toLocaleString()} para sa nag-due na buwan ng ${billingMonth} para sa inyong internet plan ay ${reminderStatus} na po. Maraming salamat po!\n\nGCash Name: Ronel Tacocong\nGCash Number: 0960 462 2951\n\nMagandang Araw!\nTacsFiber Management`;
+
+    document.getElementById('notif-message').value = msg;
+    document.getElementById('notification-modal').classList.remove('hidden');
+    document.getElementById('notification-modal').classList.add('flex');
+}
 
         function closeNotificationModal() {
             document.getElementById('notification-modal').classList.remove('flex');
