@@ -1137,21 +1137,21 @@
 
         <!-- 2. DESKTOP TABLE CONTAINER (Makikita lang sa PC/Laptop: hidden md:block) -->
         <div class="hidden md:block overflow-x-auto max-h-[65vh] relative border border-slate-200 rounded-xl">
-            <table class="w-full text-left border-collapse table-auto min-w-[1500px]">
-                <thead class="sticky top-0 z-20 bg-slate-100 text-slate-700 text-xs uppercase font-bold">
+            <table class="w-full text-left border-collapse table-fixed min-w-[1500px]">
+                <thead class="sticky top-0 z-30 bg-slate-100 text-slate-700 text-xs uppercase font-bold">
                     <tr>
-                        <th class="py-3 px-3 sticky-col-1 bg-slate-100">ACCOUNT NO.</th>
-                        <th class="py-3 px-3 sticky-col-2 bg-slate-100">CUSTOMER NAME</th>
-                        <th class="py-3 px-3">BARANGAY</th>
-                        <th class="py-3 px-3">ADDRESS</th>
-                        <th class="py-3 px-3">CONTACT</th>
-                        <th class="py-3 px-3">MONTHLY PLAN</th>
-                        <th class="py-3 px-3">DUE DATE</th>
-                        <th class="py-3 px-3">DATE INSTALLED</th>
-                        <th class="py-3 px-3">LINE STATUS</th>
-                        <th class="py-3 px-3">BALANCE</th>
-                        <th class="py-3 px-3 text-center">ASSIGNED COLLECTOR</th>
-                        <th class="py-3 px-3 text-right">ACTIONS</th>
+                        <th class="py-3 px-3 sticky left-0 bg-slate-100 z-40 border-r border-slate-200 w-[120px]">ACCOUNT NO.</th>
+                        <th class="py-3 px-3 sticky left-[120px] bg-slate-100 z-40 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] w-[220px]">CUSTOMER NAME</th>
+                        <th class="py-3 px-3 w-[150px]">BARANGAY</th>
+                        <th class="py-3 px-3 w-[250px]">ADDRESS</th>
+                        <th class="py-3 px-3 w-[130px]">CONTACT</th>
+                        <th class="py-3 px-3 w-[130px]">MONTHLY PLAN</th>
+                        <th class="py-3 px-3 w-[100px]">DUE DATE</th>
+                        <th class="py-3 px-3 w-[130px]">DATE INSTALLED</th>
+                        <th class="py-3 px-3 w-[140px]">LINE STATUS</th>
+                        <th class="py-3 px-3 w-[130px]">BALANCE</th>
+                        <th class="py-3 px-3 w-[160px] text-center">ASSIGNED COLLECTOR</th>
+                        <th class="py-3 px-3 w-[220px] text-right">ACTIONS</th>
                     </tr>
                 </thead>
                 <tbody id="customers-list-table-body" class="divide-y divide-slate-100 text-xs bg-white"></tbody>
@@ -5282,12 +5282,14 @@ async function handleCustomerComplain(customerAccountNo, customerName, customerC
     // ⭐ Auto-fetch mula sa Supabase kung blangko ang subscribers array at online
     if ((!subscribers || subscribers.length === 0) && typeof fetchSubscribersFromSupabase === 'function' && navigator.onLine) {
         await fetchSubscribersFromSupabase();
-        return; // Ang fetchSubscribersFromSupabase na ang magre-render pagkatapos makuha ang data
+        return;
     }
 
     const search = document.getElementById('cust-list-search') ? document.getElementById('cust-list-search').value.toLowerCase().trim() : '';
     const brgyFilter = document.getElementById('masterBrgyFilter') ? document.getElementById('masterBrgyFilter').value : 'ALL';
     const dueDateFilter = document.getElementById('masterDueDateFilter') ? document.getElementById('masterDueDateFilter').value : 'ALL';
+    
+    const mobileContainer = document.getElementById('customers-mobile-cards-container');
     const tbody = document.getElementById('customers-list-table-body');
     if(!tbody) return;
     tbody.innerHTML = '';
@@ -5306,115 +5308,103 @@ async function handleCustomerComplain(customerAccountNo, customerName, customerC
 
     if(filtered.length === 0) {
         tbody.innerHTML = `<tr><td colspan="12" class="text-center py-6 text-slate-400 font-medium">Walang kustomer na tumutugma sa napiling filter/search.</td></tr>`;
+        if(mobileContainer) mobileContainer.innerHTML = `<div class="text-center py-6 text-slate-400 font-medium">Walang kustomer na tumutugma sa napiling filter/search.</div>`;
         return;
     }
 
     const limitedList = filtered.slice(0, 300);
 
-    // ⭐ DUAL VIEW: Table para sa Desktop, Cards para sa Mobile Phone
-    tbody.innerHTML = `
-        <tr>
-            <td colspan="12" class="p-0 border-0">
-                <!-- MOBILE CARDS VIEW (Makikita lang sa Phone: block md:hidden) -->
-                <div class="block md:hidden space-y-3 p-3 bg-slate-50">
-                    ${limitedList.map(s => {
-                        const isPaid = (s.balance || 0) <= 0;
-                        const assignedCol = s.assignedCollector || 'Unassigned';
-                        const status = s.status || 'ACTIVE';
-                        return `
-                            <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3">
-                                <div class="flex justify-between items-start">
-                                    <div>
-                                        <span class="font-mono font-bold text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">${s.id}</span>
-                                        <h3 class="font-bold text-slate-800 text-sm mt-1">${s.name}</h3>
-                                        <p class="text-xs text-slate-500"><i class="fa-solid fa-location-dot mr-1 text-indigo-500"></i>${s.barangay || 'Poblacion'} - ${s.address || 'N/A'}</p>
-                                    </div>
-                                    <span class="px-2 py-0.5 rounded text-[10px] font-extrabold ${status==='ACTIVE'?'bg-emerald-100 text-emerald-800':'bg-rose-100 text-rose-800'}">
-                                        ${status}
-                                    </span>
-                                </div>
+    // 1. MOBILE CARDS VIEW RENDER
+    if(mobileContainer) {
+        mobileContainer.innerHTML = limitedList.map(s => {
+            const isPaid = (s.balance || 0) <= 0;
+            const assignedCol = s.assignedCollector || 'Unassigned';
+            const status = s.status || 'ACTIVE';
+            return `
+                <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <span class="font-mono font-bold text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">${s.id}</span>
+                            <h3 class="font-bold text-slate-800 text-sm mt-1">${s.name}</h3>
+                            <p class="text-xs text-slate-500"><i class="fa-solid fa-location-dot mr-1 text-indigo-500"></i>${s.barangay || 'Poblacion'} - ${s.address || 'N/A'}</p>
+                        </div>
+                        <span class="px-2 py-0.5 rounded text-[10px] font-extrabold ${status==='ACTIVE'?'bg-emerald-100 text-emerald-800':'bg-rose-100 text-rose-800'}">
+                            ${status}
+                        </span>
+                    </div>
 
-                                <div class="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-                                    <div>
-                                        <span class="text-slate-500 block text-[10px]">Contact:</span>
-                                        <span class="font-mono font-bold text-slate-700">${s.contact || 'N/A'}</span>
-                                    </div>
-                                    <div>
-                                        <span class="text-slate-500 block text-[10px]">Monthly Plan:</span>
-                                        <span class="font-bold text-indigo-700">₱${(s.monthlyPlan || 600).toLocaleString()} (Day ${s.dueDay || 19})</span>
-                                    </div>
-                                    <div class="col-span-2 pt-1 border-t border-slate-200 flex justify-between items-center">
-                                        <span class="text-slate-500 text-xs">Balance:</span>
-                                        <span class="font-bold text-sm ${isPaid ? 'text-emerald-600' : 'text-rose-600'}">₱${(s.balance || 0).toLocaleString()} ${isPaid ? '<span class="text-[10px] bg-emerald-100 text-emerald-800 px-1 py-0.5 rounded ml-1 font-extrabold">PAID</span>' : ''}</span>
-                                    </div>
-                                </div>
+                    <div class="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                        <div>
+                            <span class="text-slate-500 block text-[10px]">Contact:</span>
+                            <span class="font-mono font-bold text-slate-700">${s.contact || 'N/A'}</span>
+                        </div>
+                        <div>
+                            <span class="text-slate-500 block text-[10px]">Monthly Plan:</span>
+                            <span class="font-bold text-indigo-700">₱${(s.monthlyPlan || 600).toLocaleString()} (Day ${s.dueDay || 19})</span>
+                        </div>
+                        <div class="col-span-2 pt-1 border-t border-slate-200 flex justify-between items-center">
+                            <span class="text-slate-500 text-xs">Balance:</span>
+                            <span class="font-bold text-sm ${isPaid ? 'text-emerald-600' : 'text-rose-600'}">₱${(s.balance || 0).toLocaleString()} ${isPaid ? '<span class="text-[10px] bg-emerald-100 text-emerald-800 px-1 py-0.5 rounded ml-1 font-extrabold">PAID</span>' : ''}</span>
+                        </div>
+                    </div>
 
-                                <div class="flex flex-wrap gap-1.5 pt-1 justify-end">
-                                    <button onclick="openAssignModal('${s.id}')" class="px-2.5 py-1 rounded text-xs font-bold ${assignedCol !== 'Unassigned' ? 'bg-amber-500 text-white' : 'bg-slate-200 text-slate-600'}">
-                                        <i class="fa-solid fa-user-tag mr-1"></i>${assignedCol}
-                                    </button>
-                                    <button onclick="handleCustomerComplain('${s.id}', '${s.name}', '${s.contact || ''}', '${s.barangay || ''}')" class="bg-purple-600 text-white px-2.5 py-1 rounded text-xs" title="Add Complain"><i class="fa-solid fa-screwdriver-wrench"></i></button>
-                                    <button onclick="openPaymentModal('${s.id}')" class="bg-emerald-600 text-white px-2.5 py-1 rounded text-xs font-bold" title="Collect"><i class="fa-solid fa-peso-sign mr-1"></i>Collect</button>
-                                    <button onclick="openNotificationModal('${s.id}', 'Customers List')" class="bg-indigo-600 text-white px-2.5 py-1 rounded text-xs" title="Send Notification"><i class="fa-solid fa-paper-plane"></i></button>
-                                    <button onclick="openEditCustomerModal('${s.id}')" class="bg-indigo-600 text-white px-2.5 py-1 rounded text-xs" title="Edit"><i class="fa-solid fa-pen-to-square"></i></button>
-                                    <button onclick="viewCustomerPaymentHistoryPopup('${s.id}')" class="bg-cyan-600 text-white px-2.5 py-1 rounded text-xs" title="History"><i class="fa-solid fa-receipt"></i></button>
-                                    ${role === 'ADMIN' ? `<button onclick="deleteCustomerRecord('${s.id}')" class="bg-rose-600 text-white px-2.5 py-1 rounded text-xs" title="Delete"><i class="fa-solid fa-trash"></i></button>` : ''}
-                                </div>
-                            </div>
-                        `;
-                    }).join('')}
+                    <div class="flex flex-wrap gap-1.5 pt-1 justify-end">
+                        <button onclick="openAssignModal('${s.id}')" class="px-2.5 py-1 rounded text-xs font-bold ${assignedCol !== 'Unassigned' ? 'bg-amber-500 text-white' : 'bg-slate-200 text-slate-600'}">
+                            <i class="fa-solid fa-user-tag mr-1"></i>${assignedCol}
+                        </button>
+                        <button onclick="handleCustomerComplain('${s.id}', '${s.name}', '${s.contact || ''}', '${s.barangay || ''}')" class="bg-purple-600 text-white px-2.5 py-1 rounded text-xs" title="Add Complain"><i class="fa-solid fa-screwdriver-wrench"></i></button>
+                        <button onclick="openPaymentModal('${s.id}')" class="bg-emerald-600 text-white px-2.5 py-1 rounded text-xs font-bold" title="Collect"><i class="fa-solid fa-peso-sign mr-1"></i>Collect</button>
+                        <button onclick="openNotificationModal('${s.id}', 'Customers List')" class="bg-indigo-600 text-white px-2.5 py-1 rounded text-xs" title="Send Notification"><i class="fa-solid fa-paper-plane"></i></button>
+                        <button onclick="openEditCustomerModal('${s.id}')" class="bg-indigo-600 text-white px-2.5 py-1 rounded text-xs" title="Edit"><i class="fa-solid fa-pen-to-square"></i></button>
+                        <button onclick="viewCustomerPaymentHistoryPopup('${s.id}')" class="bg-cyan-600 text-white px-2.5 py-1 rounded text-xs" title="History"><i class="fa-solid fa-receipt"></i></button>
+                        ${role === 'ADMIN' ? `<button onclick="deleteCustomerRecord('${s.id}')" class="bg-rose-600 text-white px-2.5 py-1 rounded text-xs" title="Delete"><i class="fa-solid fa-trash"></i></button>` : ''}
+                    </div>
                 </div>
+            `;
+        }).join('');
+    }
 
-                <!-- DESKTOP TABLE VIEW (Makikita lang sa PC/Laptop: hidden md:table) -->
-                <div class="hidden md:block overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
-                        <tbody>
-                            ${limitedList.map(s => {
-                                const isPaid = (s.balance || 0) <= 0;
-                                const assignedCol = s.assignedCollector || 'Unassigned';
-                                const status = s.status || 'ACTIVE';
-                                return `
-                                    <tr class="hover:bg-slate-50 border-b">
-                                        <td class="py-3 px-3 font-mono font-bold text-indigo-600">${s.id}</td>
-                                        <td class="py-3 px-3 font-semibold text-slate-800">${s.name}</td>
-                                        <td class="py-3 px-3 font-bold text-indigo-700">${s.barangay || 'Poblacion'}</td>
-                                        <td class="py-3 px-3 text-slate-600">${s.address || 'N/A'}</td>
-                                        <td class="py-3 px-3 font-mono">${s.contact}</td>
-                                        <td class="py-3 px-3 font-bold text-indigo-700">₱${(s.monthlyPlan || 600).toLocaleString()}</td>
-                                        <td class="py-3 px-3 font-bold">Day ${s.dueDay || 19}</td>
-                                        <td class="py-3 px-3 text-slate-600">${s.dateInstalled || '2026-09-19'}</td>
-                                        <td class="py-3 px-3">
-                                            <button onclick="toggleSubscriberStatus('${s.id}')" class="px-2 py-0.5 rounded text-[11px] font-extrabold shadow-sm transition cursor-pointer ${status==='ACTIVE'?'bg-emerald-100 text-emerald-800 border border-emerald-300':'bg-rose-100 text-rose-800 border border-rose-300'}">
-                                                ${status === 'ACTIVE' ? '<i class="fa-solid fa-wifi mr-1"></i>ACTIVE' : '<i class="fa-solid fa-ban mr-1"></i>DISCONNECTED'}
-                                            </button>
-                                        </td>
-                                        <td class="py-3 px-3 font-bold ${isPaid ? 'text-emerald-600' : 'text-rose-600'}">₱${(s.balance || 0).toLocaleString()} ${isPaid ? '<span class="text-[10px] bg-emerald-100 text-emerald-800 px-1 py-0.5 rounded ml-1 font-extrabold">PAID</span>' : ''}</td>
-                                        <td class="py-3 px-3 text-center">
-                                            <button onclick="openAssignModal('${s.id}')" class="px-2 py-1 rounded text-xs font-bold ${assignedCol !== 'Unassigned' ? 'bg-amber-500 text-white' : 'bg-slate-200 text-slate-600'} cursor-pointer">
-                                                ${assignedCol}
-                                            </button>
-                                        </td>
-                                        <td class="py-3 px-3 text-right space-x-1">
-                                            <button onclick="handleCustomerComplain('${s.id}', '${s.name}', '${s.contact || ''}', '${s.barangay || ''}')" class="bg-purple-600 text-white p-2 rounded-lg hover:bg-purple-700 transition" title="Add Complain">
-                                                <i class="fa-solid fa-screwdriver-wrench"></i>
-                                            </button>
-                                            <button onclick="openPaymentModal('${s.id}')" class="bg-emerald-600 text-white px-2 py-1 rounded text-xs cursor-pointer" title="Collect"><i class="fa-solid fa-peso-sign"></i></button>
-                                            <button onclick="openNotificationModal('${s.id}', 'Customers List')" class="bg-indigo-600 text-white px-2 py-1 rounded text-xs cursor-pointer hover:bg-indigo-700 transition" title="Send Notification">
-                                                <i class="fa-solid fa-paper-plane"></i>
-                                            </button>
-                                            <button onclick="openEditCustomerModal('${s.id}')" class="bg-indigo-600 text-white px-2.5 py-1 rounded text-xs cursor-pointer" title="Edit Customer Details"><i class="fa-solid fa-pen-to-square"></i></button>
-                                            <button onclick="viewCustomerPaymentHistoryPopup('${s.id}')" class="bg-cyan-600 text-white px-2.5 py-1 rounded text-xs cursor-pointer" title="View History"><i class="fa-solid fa-receipt"></i></button>
-                                            ${role === 'ADMIN' ? `<button onclick="deleteCustomerRecord('${s.id}')" class="bg-rose-600 text-white px-2.5 py-1 rounded text-xs cursor-pointer" title="Delete"><i class="fa-solid fa-trash"></i></button>` : ''}
-                                        </td>
-                                    </tr>
-                                `;
-                            }).join('')}
-                        </tbody>
-                    </table>
-                </div>
-            </td>
-        </tr>
-    `;
+    // 2. DESKTOP TABLE ROWS RENDER (Na may malinaw na sticky columns)
+    tbody.innerHTML = limitedList.map(s => {
+        const isPaid = (s.balance || 0) <= 0;
+        const assignedCol = s.assignedCollector || 'Unassigned';
+        const status = s.status || 'ACTIVE';
+        return `
+            <tr class="hover:bg-slate-50 border-b">
+                <td class="py-3 px-3 sticky left-0 bg-white z-20 border-r border-slate-200 w-[120px] font-mono font-bold text-indigo-600 truncate">${s.id}</td>
+                <td class="py-3 px-3 sticky left-[120px] bg-white z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] w-[220px] font-semibold text-slate-800 truncate">${s.name}</td>
+                <td class="py-3 px-3 font-bold text-indigo-700">${s.barangay || 'Poblacion'}</td>
+                <td class="py-3 px-3 text-slate-600">${s.address || 'N/A'}</td>
+                <td class="py-3 px-3 font-mono">${s.contact || ''}</td>
+                <td class="py-3 px-3 font-bold text-indigo-700">₱${(s.monthlyPlan || 600).toLocaleString()}</td>
+                <td class="py-3 px-3 font-bold">Day ${s.dueDay || 19}</td>
+                <td class="py-3 px-3 text-slate-600">${s.dateInstalled || '2026-09-19'}</td>
+                <td class="py-3 px-3">
+                    <button onclick="toggleSubscriberStatus('${s.id}')" class="px-2 py-0.5 rounded text-[11px] font-extrabold shadow-sm transition cursor-pointer ${status==='ACTIVE'?'bg-emerald-100 text-emerald-800 border border-emerald-300':'bg-rose-100 text-rose-800 border border-rose-300'}">
+                        ${status === 'ACTIVE' ? '<i class="fa-solid fa-wifi mr-1"></i>ACTIVE' : '<i class="fa-solid fa-ban mr-1"></i>DISCONNECTED'}
+                    </button>
+                </td>
+                <td class="py-3 px-3 font-bold ${isPaid ? 'text-emerald-600' : 'text-rose-600'}">₱${(s.balance || 0).toLocaleString()} ${isPaid ? '<span class="text-[10px] bg-emerald-100 text-emerald-800 px-1 py-0.5 rounded ml-1 font-extrabold">PAID</span>' : ''}</td>
+                <td class="py-3 px-3 text-center">
+                    <button onclick="openAssignModal('${s.id}')" class="px-2 py-1 rounded text-xs font-bold ${assignedCol !== 'Unassigned' ? 'bg-amber-500 text-white' : 'bg-slate-200 text-slate-600'} cursor-pointer">
+                        ${assignedCol}
+                    </button>
+                </td>
+                <td class="py-3 px-3 text-right space-x-1">
+                    <button onclick="handleCustomerComplain('${s.id}', '${s.name}', '${s.contact || ''}', '${s.barangay || ''}')" class="bg-purple-600 text-white p-2 rounded-lg hover:bg-purple-700 transition" title="Add Complain">
+                        <i class="fa-solid fa-screwdriver-wrench"></i>
+                    </button>
+                    <button onclick="openPaymentModal('${s.id}')" class="bg-emerald-600 text-white px-2 py-1 rounded text-xs cursor-pointer" title="Collect"><i class="fa-solid fa-peso-sign"></i></button>
+                    <button onclick="openNotificationModal('${s.id}', 'Customers List')" class="bg-indigo-600 text-white px-2 py-1 rounded text-xs cursor-pointer hover:bg-indigo-700 transition" title="Send Notification">
+                        <i class="fa-solid fa-paper-plane"></i>
+                    </button>
+                    <button onclick="openEditCustomerModal('${s.id}')" class="bg-indigo-600 text-white px-2.5 py-1 rounded text-xs cursor-pointer" title="Edit Customer Details"><i class="fa-solid fa-pen-to-square"></i></button>
+                    <button onclick="viewCustomerPaymentHistoryPopup('${s.id}')" class="bg-cyan-600 text-white px-2.5 py-1 rounded text-xs cursor-pointer" title="View History"><i class="fa-solid fa-receipt"></i></button>
+                    ${role === 'ADMIN' ? `<button onclick="deleteCustomerRecord('${s.id}')" class="bg-rose-600 text-white px-2.5 py-1 rounded text-xs cursor-pointer" title="Delete"><i class="fa-solid fa-trash"></i></button>` : ''}
+                </td>
+            </tr>
+        `;
+    }).join('');
 }
 
         async function deleteCustomerRecord(subId) {
