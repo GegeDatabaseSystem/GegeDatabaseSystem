@@ -6303,6 +6303,8 @@ function getReceiptModalData() {
 
 function build58mmReceiptText(r = {}) {
     const line = '--------------------------------';
+    const cleanPeso = (val) => String(val || '0').replace(/₱/g, 'PHP ').trim();
+
     return [
         '           TACSFIBER',
         '     Internet Provider Services',
@@ -6316,8 +6318,8 @@ function build58mmReceiptText(r = {}) {
         line,
         `Period:     ${r.period || '-'}`,
         `Method:     ${r.method || 'Cash'}`,
-        `Paid:       ${r.amountPaid || '₱0.00'}`,
-        `Rem Bal:    ${r.remainingBal || '₱0.00'}`,
+        `Paid:       ${cleanPeso(r.amountPaid)}`,
+        `Rem Bal:    ${cleanPeso(r.remainingBal)}`,
         line,
         `Collector:  ${r.collector || 'System'}`,
         'Salamat sa inyong patuloy na',
@@ -6326,25 +6328,13 @@ function build58mmReceiptText(r = {}) {
     ].join('\n');
 }
 
-function print58mmFallback(plainText) {
-    const w = window.open('', '_blank', 'width=320,height=600');
-    if (!w) return;
-    const safeText = String(plainText || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
-    w.document.write(`
-        <html><head><title>TacsFiber Receipt</title>
-        <style>
-            @page { size: 58mm auto; margin: 0; }
-            body { width: 54mm; margin: 0 auto; padding: 2mm; font-family: monospace; font-size: 11px; line-height: 1.35; white-space: pre-wrap; }
-        </style></head>
-        <body>${safeText}</body></html>
-    `);
-    w.document.close();
-    w.focus();
-    w.print();
-    w.close();
+function toBase64Utf8(str) {
+    const bytes = new TextEncoder().encode(str);
+    let bin = '';
+    for (let i = 0; i < bytes.length; i++) {
+        bin += String.fromCharCode(bytes[i]);
+    }
+    return btoa(bin);
 }
 
 function handleThermalPrintReceipt() {
@@ -6353,8 +6343,8 @@ function handleThermalPrintReceipt() {
     const isAndroid = /Android/i.test(navigator.userAgent || '');
 
     if (isAndroid) {
-        const encoded = encodeURIComponent(plainText);
-        window.location.href = `rawbt:data:text/plain;charset=utf-8,${encoded}`;
+        const b64 = toBase64Utf8(plainText);
+        window.location.href = `rawbt:base64,${b64}`;
         return;
     }
 
