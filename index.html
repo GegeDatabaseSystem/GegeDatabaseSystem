@@ -2183,7 +2183,7 @@
         <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-5 space-y-4">
             <div class="flex justify-between items-center border-b pb-2">
                 <h3 class="font-bold text-slate-800 text-sm"><i class="fa-solid fa-receipt text-emerald-600 mr-1.5"></i>Official Payment Receipt</h3>
-                <button onclick="closeReceiptModal()" class="cursor-pointer text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+                <button type="button" onclick="closeReceiptModal()" class="cursor-pointer text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
             </div>
 
             <div id="receipt-print-area" class="border border-dashed border-slate-300 p-4 rounded-xl text-slate-900 space-y-2 bg-slate-50 text-xs">
@@ -2212,8 +2212,8 @@
             </div>
 
             <div class="flex space-x-2">
-                <button onclick="closeReceiptModal()" class="flex-1 py-2 text-xs font-bold bg-slate-100 rounded-xl cursor-pointer">Close</button>
-                <button onclick="window.print()" class="flex-1 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl cursor-pointer flex items-center justify-center space-x-1.5">
+                <button type="button" onclick="closeReceiptModal()" class="flex-1 py-2 text-xs font-bold bg-slate-100 rounded-xl cursor-pointer">Close</button>
+                <button type="button" onclick="handleThermalPrintReceipt()" class="flex-1 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl cursor-pointer flex items-center justify-center space-x-1.5">
                     <i class="fa-solid fa-print"></i><span>Print Receipt</span>
                 </button>
             </div>
@@ -6280,6 +6280,86 @@ function resetRemittanceHistoryFilters() {
             document.getElementById('receipt-modal').classList.remove('flex');
             document.getElementById('receipt-modal').classList.add('hidden');
         }
+
+function getReceiptModalData() {
+    const readText = (id, fallback = '') => {
+        const el = document.getElementById(id);
+        return el ? el.textContent.trim() : fallback;
+    };
+
+    return {
+        orNo: readText('rcpt-or', 'PAY-0000'),
+        date: readText('rcpt-date', ''),
+        accountNo: readText('rcpt-acc', 'TF-0000'),
+        subscriber: readText('rcpt-name', 'Name'),
+        barangay: readText('rcpt-brgy', 'Poblacion'),
+        period: readText('rcpt-month', 'Month'),
+        method: readText('rcpt-method', 'Cash'),
+        amountPaid: readText('rcpt-amount', '₱0.00'),
+        remainingBal: readText('rcpt-rem-bal', '₱0.00'),
+        collector: readText('rcpt-encoder', 'System')
+    };
+}
+
+function build58mmReceiptText(r = {}) {
+    const line = '--------------------------------';
+    return [
+        '           TACSFIBER',
+        '     Internet Provider Services',
+        '   Danao City, Cebu, Philippines',
+        line,
+        `OR No:      ${r.orNo || '-'}`,
+        `Date:       ${r.date || '-'}`,
+        `Account No: ${r.accountNo || '-'}`,
+        `Subscriber: ${r.subscriber || '-'}`,
+        `Barangay:   ${r.barangay || '-'}`,
+        line,
+        `Period:     ${r.period || '-'}`,
+        `Method:     ${r.method || 'Cash'}`,
+        `Paid:       ${r.amountPaid || '₱0.00'}`,
+        `Rem Bal:    ${r.remainingBal || '₱0.00'}`,
+        line,
+        `Collector:  ${r.collector || 'System'}`,
+        'Salamat sa inyong patuloy na',
+        'pagtangkilik sa TacsFiber!',
+        '\n\n\n'
+    ].join('\n');
+}
+
+function print58mmFallback(plainText) {
+    const w = window.open('', '_blank', 'width=320,height=600');
+    if (!w) return;
+    const safeText = String(plainText || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    w.document.write(`
+        <html><head><title>TacsFiber Receipt</title>
+        <style>
+            @page { size: 58mm auto; margin: 0; }
+            body { width: 54mm; margin: 0 auto; padding: 2mm; font-family: monospace; font-size: 11px; line-height: 1.35; white-space: pre-wrap; }
+        </style></head>
+        <body>${safeText}</body></html>
+    `);
+    w.document.close();
+    w.focus();
+    w.print();
+    w.close();
+}
+
+function handleThermalPrintReceipt() {
+    const data = getReceiptModalData();
+    const plainText = build58mmReceiptText(data);
+    const isAndroid = /Android/i.test(navigator.userAgent || '');
+
+    if (isAndroid) {
+        const encoded = encodeURIComponent(plainText);
+        window.location.href = `rawbt:data:text/plain;charset=utf-8,${encoded}`;
+        return;
+    }
+
+    print58mmFallback(plainText);
+}
 
        async function viewCustomerPaymentHistoryPopup(subId) {
             const sub = subscribers.find(s => s.id === subId);
